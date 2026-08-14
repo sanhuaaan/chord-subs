@@ -47,6 +47,8 @@ function playChord(symbol, when, dur = 0.9) {
 
 function playProgression(symbols) {
   audioCtx = audioCtx || new AudioContext();
+  // La política de autoplay puede dejar el contexto suspendido incluso tras un click.
+  if (audioCtx.state === "suspended") audioCtx.resume();
   const t0 = audioCtx.currentTime + 0.05;
   symbols.forEach((s, i) => playChord(s, t0 + i));
 }
