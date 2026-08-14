@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { Chord, Note } from "tonal";
 import { parseProgression, suggest, detectKey } from "./rules.js";
+import { capoSuggestions } from "./capo.js";
 import { findShape, shapeSvg, PC } from "./guitar.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
@@ -87,6 +88,29 @@ test("las reglas generan grafías que existen en la BD de guitarra", () => {
   for (const s of suggest(parseProgression("C Am F G7 Bb Ebm7"))) {
     for (const sym of s.replacement) {
       assert.ok(findShape(guitarDb, sym), `sin posición de guitarra: ${sym}`);
+    }
+  }
+});
+
+test("cejilla: C sin cejilla gana 6, add9 y maj7 en cuerdas al aire", () => {
+  const [best] = capoSuggestions(parseProgression("C"));
+  assert.equal(best.capo, 0);
+  assert.deepEqual(best.perChord[0].extensions.map(e => e.as), ["C6", "Cadd9", "Cmaj7"]);
+});
+
+test("cejilla: Am sin cejilla gana m11, m7 y m(add9)", () => {
+  const zero = capoSuggestions(parseProgression("Am")).find(cp => cp.capo === 0);
+  assert.deepEqual(zero.perChord[0].extensions.map(e => e.as), ["Am11", "Am7", "Am(add9)"]);
+});
+
+test("cejilla: respeta la lista blanca por calidad y no repite acordes", () => {
+  for (const cp of capoSuggestions(parseProgression("C Am G7 G7"))) {
+    assert.ok(cp.perChord.length <= 3, "acorde repetido no deduplicado");
+    for (const pc of cp.perChord) {
+      for (const e of pc.extensions) {
+        if (pc.chord === "G7") assert.ok(!e.as.includes("maj7"), `maj7 sobre dominante: ${e.as}`);
+        assert.ok(e.string && e.note, "extensión sin cuerda o nota");
+      }
     }
   }
 });

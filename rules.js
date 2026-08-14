@@ -23,7 +23,7 @@ const DEGREE_QUALITY = ["maj", "min", "min", "maj", "maj", "min", "dim"];
 const DEGREE_SUFFIX = { maj: "", min: "m", dim: "dim" };
 const ROMAN = ["I", "ii", "iii", "IV", "V", "vi", "vii°"];
 
-const qualityOf = c => (isDominant(c) ? "dom" : isDim(c) ? "dim" : c.intervals.includes("3m") ? "min" : "maj");
+export const qualityOf = c => (isDominant(c) ? "dom" : isDim(c) ? "dim" : c.intervals.includes("3m") ? "min" : "maj");
 const degreeIn = (key, tonic) => MAJOR_STEPS.indexOf((Note.chroma(tonic) - key + 12) % 12);
 const diatonicChord = (key, deg) => PC[(key + MAJOR_STEPS[deg]) % 12] + DEGREE_SUFFIX[DEGREE_QUALITY[deg]];
 
