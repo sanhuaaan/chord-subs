@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { Chord, Note } from "tonal";
-import { parseProgression, suggest, applySuggestion } from "./rules.js";
+import { parseProgression, suggest } from "./rules.js";
 import { findShape, shapeSvg } from "./guitar.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
@@ -84,9 +84,4 @@ test("shapeSvg dibuja cuerdas, trastes y puntos", () => {
   assert.ok(svg.startsWith("<svg"));
   assert.ok(svg.includes("<circle"));
   assert.ok(svg.includes("<line"));
-});
-
-test("applySuggestion reconstruye la progresión completa", () => {
-  const { progression, s } = find("C Am F G7 C", "Inserción ii-V", 3);
-  assert.deepEqual(applySuggestion(progression, s), ["C", "Am", "F", "Dm7", "G7", "C"]);
 });

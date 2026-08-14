@@ -116,10 +116,3 @@ export function suggest(progression) {
   });
   return out;
 }
-
-// Progresión completa con la sugerencia aplicada.
-export function applySuggestion(progression, suggestion) {
-  const symbols = progression.map(c => c.symbol);
-  symbols.splice(suggestion.index, 1, ...suggestion.replacement);
-  return symbols;
-}
