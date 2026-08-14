@@ -1,0 +1,13 @@
+{
+  "name": "chord-subs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "start": "npx serve ."
+  },
+  "dependencies": {
+    "@tombatossals/chords-db": "^0.5.1",
+    "tonal": "^6.4.0"
+  }
+}
