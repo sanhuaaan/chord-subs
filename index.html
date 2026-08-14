@@ -17,7 +17,18 @@
       color: #e8e8ee;
     }
     h1 { font-size: 1.4rem; }
-    h2 { font-size: 1rem; margin: 1.5rem 0 0.25rem; }
+    .tabs { display: flex; gap: 0.25rem; margin-top: 1rem; border-bottom: 0.0625rem solid #333; }
+    .tabs label {
+      padding: 0.4rem 0.9rem;
+      cursor: pointer;
+      border-radius: 0.375rem 0.375rem 0 0;
+      color: #a8a8b8;
+    }
+    #tab-subs:checked ~ .tabs label[for="tab-subs"],
+    #tab-capo:checked ~ .tabs label[for="tab-capo"] { background: #2a2a33; color: #e8e8ee; }
+    #subs, #capo { display: none; list-style: none; padding: 0; }
+    #tab-subs:checked ~ #subs, #tab-capo:checked ~ #capo { display: block; }
+    #subs li, #capo li { padding: 0.4rem 0; border-bottom: 0.0625rem solid #333; }
     form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
     input {
       flex: 1;
@@ -37,8 +48,6 @@
       color: white;
       cursor: pointer;
     }
-    #results { list-style: none; padding: 0; }
-    #results li { padding: 0.4rem 0; border-bottom: 0.0625rem solid #333; }
     .original { font-weight: bold; }
     .key { margin: 0.25rem 0 0.75rem; font-size: 0.85rem; color: #a8a8b8; }
     small { color: #999; }
@@ -68,7 +77,15 @@
     <button type="submit">Sugerir</button>
   </form>
   <p id="error"></p>
-  <ul id="results"></ul>
+  <div id="summary"></div>
+  <input type="radio" name="tab" id="tab-subs" checked hidden>
+  <input type="radio" name="tab" id="tab-capo" hidden>
+  <nav class="tabs">
+    <label for="tab-subs">Sustituciones</label>
+    <label for="tab-capo">Cejilla</label>
+  </nav>
+  <ul id="subs"></ul>
+  <ul id="capo"></ul>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

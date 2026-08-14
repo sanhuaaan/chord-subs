@@ -4,7 +4,9 @@ import { findShape, shapeSvg, PC } from "./guitar.js";
 
 const form = document.querySelector("form");
 const input = document.querySelector("#progression");
-const results = document.querySelector("#results");
+const summary = document.querySelector("#summary");
+const subsList = document.querySelector("#subs");
+const capoList = document.querySelector("#capo");
 const error = document.querySelector("#error");
 
 let db = null;
@@ -30,7 +32,7 @@ function chordSpan(sym) {
 
 form.addEventListener("submit", async e => {
   e.preventDefault();
-  results.innerHTML = "";
+  summary.innerHTML = subsList.innerHTML = capoList.innerHTML = "";
   error.textContent = "";
   await dbReady;
 
@@ -46,7 +48,7 @@ form.addEventListener("submit", async e => {
   const original = document.createElement("p");
   original.className = "original";
   progression.forEach((c, i) => original.append(i ? "  " : "", chordSpan(c.symbol)));
-  results.append(original, Object.assign(document.createElement("p"), {
+  summary.append(original, Object.assign(document.createElement("p"), {
     className: "key",
     textContent: `Tonalidad estimada: ${PC[detectKey(progression)]} mayor`,
   }));
@@ -60,29 +62,23 @@ form.addEventListener("submit", async e => {
       Object.assign(document.createElement("small"), { textContent: `(${s.rule})` }),
       Object.assign(document.createElement("p"), { className: "why", textContent: s.why })
     );
-    results.append(li);
+    subsList.append(li);
   }
 
-  const capos = capoSuggestions(progression).slice(0, 3);
-  if (capos.length) {
-    results.append(Object.assign(document.createElement("h2"), {
-      textContent: "Cejilla: cuerdas al aire que extienden",
+  for (const cp of capoSuggestions(progression).slice(0, 3)) {
+    const li = document.createElement("li");
+    li.append(Object.assign(document.createElement("strong"), {
+      textContent: cp.capo ? `Cejilla en traste ${cp.capo}` : "Sin cejilla",
     }));
-    for (const cp of capos) {
-      const li = document.createElement("li");
-      li.append(Object.assign(document.createElement("strong"), {
-        textContent: cp.capo ? `Cejilla en traste ${cp.capo}` : "Sin cejilla",
-      }));
-      for (const pc of cp.perChord) {
-        const line = document.createElement("p");
-        line.className = "why";
-        line.append(chordSpan(pc.chord), " → ");
-        pc.extensions.forEach((ext, i) => {
-          line.append(i ? ", " : "", chordSpan(ext.as), ` (${ext.note} en ${ext.string} al aire)`);
-        });
-        li.append(line);
-      }
-      results.append(li);
+    for (const pc of cp.perChord) {
+      const line = document.createElement("p");
+      line.className = "why";
+      line.append(chordSpan(pc.chord), " → ");
+      pc.extensions.forEach((ext, i) => {
+        line.append(i ? ", " : "", chordSpan(ext.as), ` (${ext.note} en ${ext.string} al aire)`);
+      });
+      li.append(line);
     }
+    capoList.append(li);
   }
 });
