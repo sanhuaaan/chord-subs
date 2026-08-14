@@ -25,7 +25,10 @@ Las grafías siguen el criterio de la base de datos de guitarra: `C#` y no `Db`,
 | Dominante secundario | `Dm → A7 Dm` |
 | Inserción ii-V | `G7 → Dm7 G7` |
 | Disminuido de paso (ascendente) | `C Dm → C C#dim7 Dm` |
+| Paso diatónico (saltos de tercera) | `C Em → C Dm Em`, `Am F → Am G F` |
 | Intercambio modal | `F → Fm` |
+
+La tonalidad mayor se estima automáticamente a partir de la progresión (se muestra en el resultado) y es la que usa el paso diatónico.
 
 ## Stack
 

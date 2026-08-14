@@ -15,6 +15,38 @@ const up = (note, semis) => PC[(Note.chroma(note) + semis) % 12];
 const isDominant = c => c.intervals.includes("3M") && c.intervals.includes("7m");
 const isMajorish = c => c.intervals.includes("3M") && !c.intervals.includes("7m");
 const isMinorish = c => c.intervals.includes("3m") && !c.intervals.includes("5d");
+const isDim = c => c.intervals.includes("5d");
+
+// Escala mayor: semitonos, calidad de la tríada de cada grado y su cifrado.
+const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
+const DEGREE_QUALITY = ["maj", "min", "min", "maj", "maj", "min", "dim"];
+const DEGREE_SUFFIX = { maj: "", min: "m", dim: "dim" };
+const ROMAN = ["I", "ii", "iii", "IV", "V", "vi", "vii°"];
+
+const qualityOf = c => (isDominant(c) ? "dom" : isDim(c) ? "dim" : c.intervals.includes("3m") ? "min" : "maj");
+const degreeIn = (key, tonic) => MAJOR_STEPS.indexOf((Note.chroma(tonic) - key + 12) % 12);
+const diatonicChord = (key, deg) => PC[(key + MAJOR_STEPS[deg]) % 12] + DEGREE_SUFFIX[DEGREE_QUALITY[deg]];
+
+// Tonalidad mayor que mejor encaja con la progresión (croma de la tónica).
+// ponytail: solo tonalidades mayores; el modo menor cuando haga falta
+export function detectKey(progression) {
+  let best = 0;
+  let bestScore = -1;
+  for (let k = 0; k < 12; k++) {
+    let score = 0;
+    for (const c of progression) {
+      const deg = degreeIn(k, c.tonic);
+      if (deg === -1) continue;
+      const q = qualityOf(c);
+      score += q === DEGREE_QUALITY[deg] || (q === "dom" && deg === 4) ? 2 : 1;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = k;
+    }
+  }
+  return best;
+}
 
 // Cada regla devuelve {chords, why}: los símbolos que sustituyen al acorde en su
 // posición y de dónde sale la sustitución. Null si no aplica.
@@ -91,6 +123,25 @@ export const RULES = [
     },
   },
   {
+    id: "diatonicPassing",
+    name: "Paso diatónico",
+    // ponytail: solo saltos de tercera (dos grados); saltos mayores requieren elegir camino
+    apply: (c, next, key) => {
+      if (!next) return null;
+      const degC = degreeIn(key, c.tonic);
+      const degN = degreeIn(key, next.tonic);
+      if (degC === -1 || degN === -1) return null;
+      const diff = (degN - degC + 7) % 7;
+      if (diff !== 2 && diff !== 5) return null;
+      const mid = (degC + (diff === 2 ? 1 : -1) + 7) % 7;
+      const midChord = diatonicChord(key, mid);
+      return {
+        chords: [c.symbol, midChord],
+        why: `${midChord} es el ${ROMAN[mid]} de ${PC[key]} mayor: une ${c.symbol} y ${next.symbol} ${diff === 2 ? "subiendo" : "bajando"} grado a grado por la escala, sin salir de la tonalidad.`,
+      };
+    },
+  },
+  {
     id: "modalInterchange",
     name: "Intercambio modal",
     apply: c => {
@@ -105,10 +156,11 @@ export const RULES = [
 
 // Devuelve [{index, chord, rule, replacement, why}] para toda la progresión.
 export function suggest(progression) {
+  const key = detectKey(progression);
   const out = [];
   progression.forEach((c, i) => {
     for (const rule of RULES) {
-      const r = rule.apply(c, progression[i + 1]);
+      const r = rule.apply(c, progression[i + 1], key);
       if (r && r.chords.join(" ") !== c.symbol) {
         out.push({ index: i, chord: c.symbol, rule: rule.name, replacement: r.chords, why: r.why });
       }

@@ -1,5 +1,5 @@
-import { parseProgression, suggest } from "./rules.js";
-import { findShape, shapeSvg } from "./guitar.js";
+import { parseProgression, suggest, detectKey } from "./rules.js";
+import { findShape, shapeSvg, PC } from "./guitar.js";
 
 const form = document.querySelector("form");
 const input = document.querySelector("#progression");
@@ -45,7 +45,10 @@ form.addEventListener("submit", async e => {
   const original = document.createElement("p");
   original.className = "original";
   progression.forEach((c, i) => original.append(i ? "  " : "", chordSpan(c.symbol)));
-  results.append(original);
+  results.append(original, Object.assign(document.createElement("p"), {
+    className: "key",
+    textContent: `Tonalidad estimada: ${PC[detectKey(progression)]} mayor`,
+  }));
 
   for (const s of suggest(progression)) {
     const li = document.createElement("li");

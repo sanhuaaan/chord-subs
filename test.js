@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { Chord, Note } from "tonal";
-import { parseProgression, suggest } from "./rules.js";
-import { findShape, shapeSvg } from "./guitar.js";
+import { parseProgression, suggest, detectKey } from "./rules.js";
+import { findShape, shapeSvg, PC } from "./guitar.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
 
@@ -59,6 +59,18 @@ test("toda sugerencia lleva explicación con sus acordes", () => {
     assert.ok(s.why && s.why.length > 20, `sin why: ${s.rule}`);
     assert.ok(s.why.includes(s.replacement[0]) || s.why.includes(s.replacement[1]), `why no menciona la sustitución: ${s.why}`);
   }
+});
+
+test("detectKey estima la tonalidad mayor de la progresión", () => {
+  assert.equal(PC[detectKey(parseProgression("C Am F G7"))], "C");
+  assert.equal(PC[detectKey(parseProgression("D Bm G A7"))], "D");
+  assert.equal(PC[detectKey(parseProgression("Bb Gm Eb F7"))], "Bb");
+});
+
+test("paso diatónico: inserta el grado intermedio subiendo y bajando", () => {
+  assert.deepEqual(find("C Em", "Paso diatónico").s.replacement, ["C", "Dm"]);
+  assert.deepEqual(find("Am F", "Paso diatónico").s.replacement, ["Am", "G"]);
+  assert.equal(find("C Dm", "Paso diatónico").s, undefined); // grados adyacentes: nada que rellenar
 });
 
 test("findShape encuentra varias posiciones y usa la enarmonía de la BD", () => {
