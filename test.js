@@ -61,11 +61,12 @@ test("toda sugerencia lleva explicación con sus acordes", () => {
   }
 });
 
-test("findShape encuentra posiciones y usa la enarmonía de la BD", () => {
+test("findShape encuentra varias posiciones y usa la enarmonía de la BD", () => {
   const dm7 = findShape(guitarDb, "Dm7");
   assert.equal(dm7.name, "Dm7");
-  assert.equal(dm7.position.frets.length, 6);
-  assert.ok(dm7.position.midi.length >= 3);
+  assert.ok(dm7.positions.length >= 2);
+  assert.equal(dm7.positions[0].frets.length, 6);
+  assert.ok(dm7.positions[0].midi.length >= 3);
   assert.equal(findShape(guitarDb, "Gb7").name, "F#7");
   assert.equal(findShape(guitarDb, "Zx9"), null);
 });
@@ -79,7 +80,7 @@ test("las reglas generan grafías que existen en la BD de guitarra", () => {
 });
 
 test("shapeSvg dibuja cuerdas, trastes y puntos", () => {
-  const svg = shapeSvg(findShape(guitarDb, "F#7").position);
+  const svg = shapeSvg(findShape(guitarDb, "F#7").positions[0]);
   assert.ok(svg.startsWith("<svg"));
   assert.ok(svg.includes("<circle"));
   assert.ok(svg.includes("<line"));

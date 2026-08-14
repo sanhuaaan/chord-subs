@@ -29,7 +29,7 @@ function chordFreqs(symbol) {
 
 function playChord(symbol, when, dur = 0.9) {
   const shape = db && findShape(db, symbol);
-  const freqs = shape ? shape.position.midi.map(Midi.midiToFreq) : chordFreqs(symbol);
+  const freqs = shape ? shape.positions[0].midi.map(Midi.midiToFreq) : chordFreqs(symbol);
   freqs.forEach((freq, i) => {
     const t = when + i * 0.03; // rasgueo: cada cuerda 30 ms después de la anterior
     const osc = audioCtx.createOscillator();
@@ -62,18 +62,19 @@ function playButton(symbols) {
   return btn;
 }
 
-function diagramsFor(symbols) {
-  const wrap = document.createElement("div");
-  wrap.className = "diagrams";
-  for (const sym of symbols) {
-    const shape = db && findShape(db, sym);
-    if (!shape) continue;
-    const fig = document.createElement("figure");
-    fig.innerHTML = shapeSvg(shape.position);
-    fig.append(Object.assign(document.createElement("figcaption"), { textContent: shape.name }));
-    wrap.append(fig);
+// Nombre de acorde con tooltip de diagramas (varias posiciones/inversiones) al hacer hover.
+function chordSpan(sym) {
+  const span = document.createElement("span");
+  span.className = "chord";
+  span.textContent = sym;
+  const shape = db && findShape(db, sym);
+  if (shape) {
+    const tip = document.createElement("span");
+    tip.className = "tip";
+    tip.innerHTML = shape.positions.slice(0, 4).map(shapeSvg).join("");
+    span.append(tip);
   }
-  return wrap;
+  return span;
 }
 
 form.addEventListener("submit", async e => {
@@ -94,18 +95,19 @@ form.addEventListener("submit", async e => {
   const symbols = progression.map(c => c.symbol);
   const original = document.createElement("p");
   original.className = "original";
-  original.append(playButton(symbols), ` ${symbols.join("  ")}`);
-  results.append(original, diagramsFor(symbols));
+  original.append(playButton(symbols));
+  symbols.forEach(sym => original.append("  ", chordSpan(sym)));
+  results.append(original);
 
   for (const s of suggest(progression)) {
     const applied = applySuggestion(progression, s);
     const li = document.createElement("li");
+    li.append(playButton(applied), " ", chordSpan(s.chord), " → ");
+    s.replacement.forEach((sym, i) => li.append(i ? " " : "", chordSpan(sym)));
     li.append(
-      playButton(applied),
-      ` ${s.chord} → ${s.replacement.join(" ")} `,
+      " ",
       Object.assign(document.createElement("small"), { textContent: `(${s.rule})` }),
-      Object.assign(document.createElement("p"), { className: "why", textContent: s.why }),
-      diagramsFor(s.replacement.filter(sym => sym !== s.chord))
+      Object.assign(document.createElement("p"), { className: "why", textContent: s.why })
     );
     results.append(li);
   }

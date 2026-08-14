@@ -24,7 +24,7 @@ const SUFFIX_BY_TYPE = {
 
 const DISPLAY = { major: "", minor: "m" };
 
-// Busca la primera posición de guitarra para un símbolo de acorde. Null si no hay.
+// Busca las posiciones de guitarra para un símbolo de acorde. Null si no hay.
 export function findShape(db, symbol) {
   const c = Chord.get(symbol);
   const suffix = SUFFIX_BY_TYPE[c.type];
@@ -32,7 +32,7 @@ export function findShape(db, symbol) {
   const key = PC[Note.chroma(c.tonic)];
   const entry = (db.chords[key.replace("#", "sharp")] || []).find(e => e.suffix === suffix);
   if (!entry) return null;
-  return { name: key + (DISPLAY[suffix] ?? suffix), position: entry.positions[0] };
+  return { name: key + (DISPLAY[suffix] ?? suffix), positions: entry.positions };
 }
 
 // Diagrama de acorde como SVG autocontenido (hereda color vía currentColor).

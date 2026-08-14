@@ -42,10 +42,21 @@
     .original { font-weight: bold; }
     small { color: #999; }
     .why { margin: 0.25rem 0 0; font-size: 0.85rem; color: #a8a8b8; }
-    .diagrams { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
-    .diagrams figure { margin: 0; text-align: center; }
-    .diagrams svg { width: 4.5rem; height: auto; }
-    .diagrams figcaption { font-size: 0.8rem; color: #a8a8b8; }
+    .chord { position: relative; text-decoration: underline dotted; text-underline-offset: 0.2rem; }
+    .chord .tip {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: 1.5rem;
+      z-index: 1;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: #2a2a33;
+      border: 0.0625rem solid #555;
+      border-radius: 0.375rem;
+    }
+    .chord:hover .tip { display: flex; }
+    .tip svg { width: 4.5rem; height: auto; }
     #error { color: #e07070; }
   </style>
 </head>
