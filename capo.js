@@ -9,7 +9,7 @@ const STRINGS = [["6ª", 4], ["5ª", 9], ["4ª", 2], ["3ª", 7], ["2ª", 11], ["
 // Lo que no está aquí (b9, #11, b13…) se descarta: choca más que colorea.
 const EXT = {
   maj: { 2: "add9", 5: "sus4", 9: "6", 11: "maj7" },
-  min: { 2: "m(add9)", 5: "m11", 9: "m6", 10: "m7" },
+  min: { 2: "madd9", 5: "m11", 9: "m6", 10: "m7" },
   dom: { 2: "9", 5: "7sus4", 9: "13" },
 };
 

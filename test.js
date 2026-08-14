@@ -98,9 +98,19 @@ test("cejilla: C sin cejilla gana 6, add9 y maj7 en cuerdas al aire", () => {
   assert.deepEqual(best.perChord[0].extensions.map(e => e.as), ["C6", "Cadd9", "Cmaj7"]);
 });
 
-test("cejilla: Am sin cejilla gana m11, m7 y m(add9)", () => {
+test("cejilla: Am sin cejilla gana m11, m7 y madd9", () => {
   const zero = capoSuggestions(parseProgression("Am")).find(cp => cp.capo === 0);
-  assert.deepEqual(zero.perChord[0].extensions.map(e => e.as), ["Am11", "Am7", "Am(add9)"]);
+  assert.deepEqual(zero.perChord[0].extensions.map(e => e.as), ["Am11", "Am7", "Amadd9"]);
+});
+
+test("las extensiones de cejilla tienen diagrama en la BD de guitarra", () => {
+  for (const cp of capoSuggestions(parseProgression("C Am F G7 Em"))) {
+    for (const pc of cp.perChord) {
+      for (const e of pc.extensions) {
+        assert.ok(findShape(guitarDb, e.as), `sin posición de guitarra: ${e.as}`);
+      }
+    }
+  }
 });
 
 test("cejilla: respeta la lista blanca por calidad y no repite acordes", () => {

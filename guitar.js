@@ -27,8 +27,9 @@ const DISPLAY = { major: "", minor: "m" };
 // Busca las posiciones de guitarra para un símbolo de acorde. Null si no hay.
 export function findShape(db, symbol) {
   const c = Chord.get(symbol);
-  const suffix = SUFFIX_BY_TYPE[c.type];
-  if (!c.tonic || !suffix) return null;
+  if (!c.tonic) return null;
+  // Tipo de tonal si lo conoce; si no, el sufijo textual tal cual (add9, madd9, 7sus4, 13…).
+  const suffix = SUFFIX_BY_TYPE[c.type] ?? symbol.replace(/^[A-G](#|b)?/, "");
   const key = PC[Note.chroma(c.tonic)];
   const entry = (db.chords[key.replace("#", "sharp")] || []).find(e => e.suffix === suffix);
   if (!entry) return null;
