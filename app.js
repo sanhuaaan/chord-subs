@@ -1,6 +1,6 @@
 import { parseProgression, suggest, detectKey } from "./rules.js";
-import { capoSuggestions } from "./capo.js";
-import { findShape, shapeSvg, PC } from "./guitar.js";
+import { capoSuggestions, shapeSymbol } from "./capo.js";
+import { findShape, shapeSvg, openString, PC } from "./guitar.js";
 
 const form = document.querySelector("form");
 const input = document.querySelector("#progression");
@@ -15,16 +15,35 @@ const dbReady = fetch("https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0/li
   .then(j => (db = j))
   .catch(() => null); // sin red: sin diagramas y audio de respaldo
 
-// Nombre de acorde con tooltip de diagramas (varias posiciones/inversiones) al hacer hover.
-function chordSpan(sym) {
+// Nombre de acorde con tooltip de diagramas (varias posiciones/inversiones) al hacer
+// hover. Con cejilla, shapeSym es la forma transpuesta que realmente se toca.
+function chordSpan(sym, shapeSym = sym) {
   const span = document.createElement("span");
   span.className = "chord";
   span.textContent = sym;
-  const shape = db && findShape(db, sym);
+  const shape = db && findShape(db, shapeSym);
   if (shape) {
     const tip = document.createElement("span");
     tip.className = "tip";
     tip.innerHTML = shape.positions.slice(0, 4).map(shapeSvg).join("");
+    span.append(tip);
+  }
+  return span;
+}
+
+// Acorde extendido de la pestaña cejilla: el diagrama es la forma del acorde BASE
+// (relativa a la cejilla) con la cuerda de la extensión al aire, no las posiciones
+// absolutas del acorde extendido, que ahí no significan nada.
+function extChordSpan(ext, baseSym) {
+  const span = document.createElement("span");
+  span.className = "chord";
+  span.textContent = ext.as;
+  const shape = db && findShape(db, baseSym);
+  const p = shape && openString(shape.positions[0], ext.stringIdx);
+  if (p) {
+    const tip = document.createElement("span");
+    tip.className = "tip";
+    tip.innerHTML = shapeSvg(p);
     span.append(tip);
   }
   return span;
@@ -71,11 +90,12 @@ form.addEventListener("submit", async e => {
       textContent: cp.capo ? `Cejilla en traste ${cp.capo}` : "Sin cejilla",
     }));
     for (const pc of cp.perChord) {
+      const sh = shapeSymbol(pc.chord, cp.capo);
       const line = document.createElement("p");
       line.className = "why";
-      line.append(chordSpan(pc.chord), " → ");
+      line.append(chordSpan(pc.chord, sh), " → ");
       pc.extensions.forEach((ext, i) => {
-        line.append(i ? ", " : "", chordSpan(ext.as), ` (${ext.note} en ${ext.string} al aire)`);
+        line.append(i ? ", " : "", extChordSpan(ext, sh), ` (${ext.note} en ${ext.string} al aire)`);
       });
       li.append(line);
     }

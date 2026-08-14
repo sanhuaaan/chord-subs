@@ -1,6 +1,11 @@
-import { Note } from "tonal";
+import { Chord, Note } from "tonal";
 import { qualityOf } from "./rules.js";
 import { PC } from "./guitar.js";
+
+// Forma que se toca (relativa a la cejilla) para que suene `symbol` con cejilla
+// en `capo`: el mismo acorde transpuesto hacia abajo tantos semitonos como trastes.
+export const shapeSymbol = (symbol, capo) =>
+  PC[(Note.chroma(Chord.get(symbol).tonic) - capo + 12) % 12] + symbol.replace(/^[A-G](#|b)?/, "");
 
 // Cuerdas al aire de 6ª a 1ª como croma (E A D G B E).
 const STRINGS = [["6ª", 4], ["5ª", 9], ["4ª", 2], ["3ª", 7], ["2ª", 11], ["1ª", 4]];
@@ -29,12 +34,12 @@ export function capoSuggestions(progression, maxFret = 7) {
       const tones = new Set(c.notes.map(Note.chroma));
       const seen = new Set();
       const extensions = [];
-      for (const [string, base] of STRINGS) {
+      for (const [i, [string, base]] of STRINGS.entries()) {
         const sounding = (base + capo) % 12;
         const suffix = ext[(sounding - root + 12) % 12];
         if (!suffix || tones.has(sounding) || seen.has(suffix)) continue;
         seen.add(suffix);
-        extensions.push({ string, note: PC[sounding], as: c.tonic + suffix });
+        extensions.push({ string, stringIdx: i, note: PC[sounding], as: c.tonic + suffix });
       }
       if (extensions.length) perChord.push({ chord: c.symbol, extensions });
     }

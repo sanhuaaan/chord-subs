@@ -36,6 +36,14 @@ export function findShape(db, symbol) {
   return { name: key + (DISPLAY[suffix] ?? suffix), positions: entry.positions };
 }
 
+// La misma posición con una cuerda al aire (para extensiones con cejilla: el 0 es
+// la cejilla, aunque la forma esté en trastes altos). Si la cuerda ya estaba al
+// aire, la forma ya suena la extensión y vale tal cual.
+// ponytail: no valida que el dedo sea levantable (cejillas medias, etc.)
+export function openString(p, stringIdx) {
+  return p.frets[stringIdx] === 0 ? p : { ...p, frets: p.frets.with(stringIdx, 0) };
+}
+
 // Diagrama de acorde como SVG autocontenido (hereda color vía currentColor).
 export function shapeSvg(p) {
   const T = 16;   // margen superior (para × y ○)

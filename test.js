@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { Chord, Note } from "tonal";
 import { parseProgression, suggest, detectKey } from "./rules.js";
-import { capoSuggestions } from "./capo.js";
-import { findShape, shapeSvg, PC } from "./guitar.js";
+import { capoSuggestions, shapeSymbol } from "./capo.js";
+import { findShape, shapeSvg, openString, PC } from "./guitar.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
 
@@ -123,6 +123,31 @@ test("cejilla: respeta la lista blanca por calidad y no repite acordes", () => {
       }
     }
   }
+});
+
+test("shapeSymbol da la forma transpuesta que se toca con cejilla", () => {
+  assert.equal(shapeSymbol("D", 2), "C");
+  assert.equal(shapeSymbol("G7", 5), "D7");
+  assert.equal(shapeSymbol("Em", 7), "Am");
+  assert.equal(shapeSymbol("C", 0), "C");
+});
+
+test("con cejilla 2, Dadd9 (E en 4ª) se dibuja sobre la forma de C", () => {
+  const shape = findShape(guitarDb, shapeSymbol("D", 2));
+  assert.equal(shape.name, "C");
+  const opened = openString(shape.positions[0], 2);
+  assert.ok(opened, "la 4ª de la forma de C se puede abrir");
+  assert.equal(opened.frets[2], 0);
+});
+
+test("openString abre la cuerda pedida sobre la forma en primera posición", () => {
+  const am = findShape(guitarDb, "Am").positions[0]; // x02210
+  const opened = openString(am, 2);
+  assert.equal(opened.frets[2], 0);
+  assert.deepEqual(opened.frets.toSpliced(2, 1), am.frets.toSpliced(2, 1), "solo cambia esa cuerda");
+  assert.deepEqual(openString(am, 5).frets, am.frets, "ya estaba al aire: la forma vale tal cual");
+  const alta = findShape(guitarDb, "Am").positions.find(p => p.baseFret > 1);
+  assert.equal(openString(alta, 2).frets[2], 0, "en formas altas la cuerda al aire es la cejilla");
 });
 
 test("shapeSvg dibuja cuerdas, trastes y puntos", () => {
