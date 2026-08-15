@@ -44,10 +44,17 @@ Cada nota lleva su nombre escrito dentro, la fundamental va en otro color para l
 mástil, y a la derecha de cada cuerda aparece el papel que juega esa nota en el acorde (`1`, `3`,
 `b7`, `11`…). El nombre del acorde se actualiza arriba a cada pulsación.
 
-Debajo salen las notas ordenadas de grave a aguda y el desglose de la lectura principal, que es la
-que un guitarrista daría por buena: fundamental en el bajo, cifrado corriente y sin alteraciones de
-más. Las demás lecturas válidas para esas mismas notas van en «Otras lecturas posibles». La nota más
-grave es la que decide entre `C` y `C/E`.
+Las mismas notas tienen **un nombre por cada una que tomes como fundamental**, y todos son correctos:
+se ofrece una lectura por nota, ordenadas por lo probable que es que sea la que tenías en mente
+(fundamental en el bajo, cifrado corriente y sin alteraciones de más). Al pulsar cualquiera de las
+otras lecturas pasa a ser la principal y el mástil se reetiqueta con sus grados. La nota más grave la
+pone la cuerda que suena, no la lectura, así que las que no la tienen por fundamental salen como
+inversión: `Emb6/G`.
+
+Los cifrados no salen del diccionario de tonal, que solo conoce 106 tipos y deja sin nombre casi
+todo lo que no es un acorde de manual. Se componen intervalo a intervalo (`spell` en `identify.js`):
+tercera, quinta, séptima y sexta se consumen primero y lo que sobra se cuelga como tensión, leída
+según haya séptima o no — el mismo Ab sobre C es `b6` en una tríada y `b13` en un dominante.
 
 | Pulsaciones | Lectura |
 |-------------|---------|
@@ -55,11 +62,7 @@ grave es la que decide entre `C` y `C/E`.
 | `0 3 2 0 1 0` | `C/E` (inversión) |
 | `× 3 2 0 3 0` | `Cadd9` |
 | `3 2 0 0 0 1` | `G7` |
-| `3 3 2 4 0 0` | `Cmaj7/G` |
-
-Las lecturas salen de `Chord.detect` de tonal, que enumera menos relecturas que un analizador
-dedicado: para `G C E B` da `Cmaj7/G` y para ahí, sin ofrecer el `G6/11` ni el `Emb6` que también
-describen esas notas.
+| `3 3 2 4 0 0` | `Cmaj7/G`, y también `G6/11`, `Emb6/G` y `Bsus4b6b9/G` |
 
 ## Stack
 

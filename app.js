@@ -111,12 +111,14 @@ const readout = document.querySelector("#readout");
 const voicing = document.querySelector("#voicing");
 const chordName = document.querySelector("#chord-name");
 const picked = [-1, -1, -1, -1, -1, -1]; // formato chords-db: índice 0 = 6ª cuerda
+let chosenRoot = null; // la lectura que el usuario ha elegido; si no, manda el ranking
 
 const p = (className, textContent) => Object.assign(document.createElement("p"), { className, textContent });
 
 function renderIdent() {
   const { notes, pcs, candidates } = identify(picked);
-  const best = candidates[0];
+  // Si la fundamental elegida ya no suena, se vuelve solo a la lectura mejor valorada.
+  const best = candidates.find(c => c.root === chosenRoot) ?? candidates[0];
 
   // Con la lectura principal, cada cuerda lleva escrito su papel junto al mástil.
   const labels = [];
@@ -139,25 +141,30 @@ function renderIdent() {
   readout.append(p("why", `Notas de grave a aguda: ${notes.map(n => `${n.note} (${n.string})`).join(", ")}`));
 
   if (!best) {
-    readout.append(p("why", pcs.length < 3
-      ? "Con menos de tres notas distintas no hay acorde que nombrar: añade alguna más."
-      : "Esas notas juntas no forman ningún acorde con nombre propio."));
+    readout.append(p("why", `Con ${pcs.length === 1 ? "una sola nota" : "dos notas"} no hay acorde que nombrar: marca al menos tres distintas.`));
     return;
   }
 
   readout.append(p("why", best.degrees.map(d => `${d.note}: ${d.degree}`).join(" · ")));
 
-  // Las mismas notas admiten más nombres, todos correctos: normalmente el mismo
-  // acorde leído desde otra fundamental, es decir, inversiones.
-  const others = candidates.slice(1);
+  // Una lectura por cada nota del acorde, según cuál se tome por fundamental.
+  // Todas describen las mismas notas; al pulsar una, el mástil se reetiqueta
+  // con sus grados y esa pasa a ser la lectura principal.
+  const others = candidates.filter(c => c !== best);
   if (!others.length) return;
   const list = Object.assign(document.createElement("ul"), { id: "others" });
   for (const c of others) {
-    list.append(Object.assign(document.createElement("li"), {
-      textContent: c.inversion ? `${c.symbol} (inversión)` : c.symbol,
-    }));
+    const li = Object.assign(document.createElement("li"), {
+      textContent: c.symbol,
+      title: `Tomando ${c.root} como fundamental: ${c.degrees.map(d => `${d.note} ${d.degree}`).join(", ")}`,
+    });
+    li.dataset.root = c.root;
+    list.append(li);
   }
-  readout.append(Object.assign(document.createElement("h2"), { textContent: "Otras lecturas posibles" }), list);
+  readout.append(
+    Object.assign(document.createElement("h2"), { textContent: "Otras lecturas, según qué nota tomes por fundamental" }),
+    list,
+  );
 }
 
 board.addEventListener("click", e => {
@@ -169,8 +176,17 @@ board.addEventListener("click", e => {
   renderIdent();
 });
 
+// Elegir otra lectura reetiqueta el mástil con los grados desde esa fundamental.
+readout.addEventListener("click", e => {
+  const chip = e.target.closest("[data-root]");
+  if (!chip) return;
+  chosenRoot = chip.dataset.root;
+  renderIdent();
+});
+
 document.querySelector("#clear").addEventListener("click", () => {
   picked.fill(-1);
+  chosenRoot = null;
   renderIdent();
 });
 

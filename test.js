@@ -5,7 +5,7 @@ import { Chord, Note } from "tonal";
 import { parseProgression, suggest, detectKey } from "./rules.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { findShape, shapeSvg, fretboardSvg, openString, PC } from "./guitar.js";
-import { identify, soundingNotes, degreeName } from "./identify.js";
+import { identify, soundingNotes, degreeName, spell } from "./identify.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
 
@@ -203,17 +203,60 @@ test("cada nota recibe su grado dentro del acorde elegido", () => {
   assert.equal(degreeName("Eb", "Eb"), "fundamental");
 });
 
-test("sin pulsaciones útiles no inventa acordes", () => {
+test("con menos de tres notas distintas no hay acorde que nombrar", () => {
   assert.deepEqual(identify([-1, -1, -1, -1, -1, -1]), { notes: [], pcs: [], candidates: [] });
   assert.equal(identify([-1, -1, -1, -1, 1, 0]).candidates.length, 0, "dos notas no son acorde");
-  assert.equal(identify([1, 2, 3, 4, 5, 6]).candidates.length, 0, "un racimo cromático no tiene nombre");
+  assert.equal(identify([0, -1, -1, -1, -1, 0]).candidates.length, 0, "la misma nota en dos cuerdas tampoco");
+});
+
+test("da una lectura por cada nota que se tome como fundamental", () => {
+  const { pcs, candidates } = identify([3, 3, 2, 4, 0, 0]); // G C E B: el acorde de referencia
+  assert.deepEqual(pcs, ["G", "C", "E", "B"]);
+  assert.equal(candidates.length, 4, "una lectura por nota distinta");
+  assert.deepEqual(candidates.map(c => c.root).sort(), ["B", "C", "E", "G"]);
+  assert.deepEqual(candidates.map(c => c.symbol), ["Cmaj7/G", "G6/11", "Emb6/G", "Bsus4b6b9/G"]);
+  assert.ok(candidates.every(c => c.degrees.length === 4), "todas explican las mismas cuatro notas");
+  // El bajo lo pone la cuerda más grave, no la fundamental de cada lectura.
+  assert.ok(candidates.every(c => (c.root === "G") !== c.inversion));
+});
+
+test("cualquier puñado de notas recibe nombre, por raro que sea", () => {
+  for (const frets of [[1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5], [-1, -1, 5, 6, 7, 8]]) {
+    const { pcs, candidates } = identify(frets);
+    assert.equal(candidates.length, pcs.length, `una lectura por nota distinta en ${frets}`);
+    assert.ok(candidates.every(c => c.symbol.length > 1), "ninguna se queda sin cifrar");
+    assert.equal(new Set(candidates.map(c => c.symbol)).size, pcs.length, "sin lecturas repetidas");
+  }
 });
 
 test("las lecturas evidentes van antes que las rebuscadas", () => {
-  const { candidates } = identify([-1, 3, 2, 0, 1, 0]); // C: tonal también lo lee como Em#5/C
+  const { candidates } = identify([-1, 3, 2, 0, 1, 0]); // C
   assert.equal(candidates[0].symbol, "C");
-  assert.ok(candidates.length > 1, "las demás lecturas siguen ahí");
-  assert.ok(candidates.every(c => c.degrees.length === 3), "todas explican las mismas notas");
+  assert.equal(candidates.length, 3, "también se lee desde E y desde G");
+  assert.ok(candidates[0].score > candidates[1].score, "la lectura llana puntúa más");
+});
+
+test("spell cifra los acordes corrientes como en un cancionero", () => {
+  const semis = sym => new Set(Chord.get(sym).notes.map(Note.chroma));
+  const esperado = {
+    C: "", Cm: "m", C7: "7", Cm7: "m7", Cmaj7: "maj7", C6: "6", Cm6: "m6",
+    Csus4: "sus4", Csus2: "sus2", Cdim: "dim", Cdim7: "dim7", Cm7b5: "m7b5",
+    Caug: "aug", C9: "9", Cm9: "m9", Cmaj9: "maj9", C13: "13", Cadd9: "add9",
+    Cmadd9: "madd9", C5: "5", C7sus4: "7sus4", C69: "6/9", Cm11: "m11", C11: "11",
+  };
+  for (const [sym, sufijo] of Object.entries(esperado)) {
+    assert.equal(spell(semis(sym)), sufijo, `${sym} debería cifrarse "${sufijo}"`);
+  }
+});
+
+test("spell lee las alteraciones según haya séptima o no", () => {
+  const s = (...semis) => spell(new Set([0, ...semis]));
+  assert.equal(s(3, 7, 8), "mb6", "sin séptima, el Ab sobre C es b6");
+  assert.equal(s(4, 7, 10, 8), "7b13", "con séptima, ese mismo Ab es b13");
+  assert.equal(s(4, 7, 9), "6", "sin séptima, el A sobre C es la 6ª");
+  assert.equal(s(4, 7, 10, 9), "13", "con séptima, esa 6ª es la 13ª");
+  assert.equal(s(4, 7, 10, 6), "7#11", "el Gb sobre un dominante es #11, no b5");
+  assert.equal(s(4, 5, 9), "6/11", "cifras pegadas se separan con barra");
 });
 
 test("los nombres identificados existen en la BD de guitarra", () => {

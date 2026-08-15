@@ -90,7 +90,8 @@
     #tuning { font-size: 0.75rem; color: #a8a8b8; text-align: right; letter-spacing: 0.08em; }
     #voicing { font-family: ui-monospace, monospace; letter-spacing: 0.1em; }
     #others { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0; margin: 0.4rem 0 0; }
-    #others li { list-style: none; padding: 0.3rem 0.6rem; border: 0.0625rem solid #3a3a45; border-radius: 0.375rem; font-size: 0.9rem; }
+    #others li { list-style: none; padding: 0.3rem 0.6rem; border: 0.0625rem solid #3a3a45; border-radius: 0.375rem; font-size: 0.9rem; cursor: pointer; }
+    #others li:hover { border-color: #4a6cd4; background: #2a2a33; }
     #readout h2 { font-size: 0.8rem; font-weight: normal; color: #a8a8b8; margin: 1.2rem 0 0; text-transform: uppercase; letter-spacing: 0.08em; }
     .actions { display: flex; align-items: center; gap: 0.75rem; }
   </style>
@@ -116,7 +117,8 @@
   <section id="ident">
     <p class="why">Pulsa en el mástil para marcar las notas. Cada cuerda suena una sola nota: al pulsar
       otro traste la nota se mueve, y al pulsar la que ya estaba marcada la cuerda se apaga. La columna
-      de la izquierda alterna cuerda al aire y muda (×).</p>
+      de la izquierda alterna cuerda al aire y muda (×). Las mismas notas admiten un nombre por cada
+      una que tomes como fundamental: pulsa cualquiera de las otras lecturas para verla desglosada.</p>
     <div class="board-head">
       <span id="chord-name"></span>
       <span id="tuning">E A D G B E<br>afinación estándar</span>
