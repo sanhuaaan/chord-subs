@@ -225,12 +225,31 @@ test("los nombres identificados existen en la BD de guitarra", () => {
 });
 
 test("fretboardSvg dibuja el mástil con una zona clicable por traste y cuerda", () => {
-  const svg = fretboardSvg([-1, 3, 2, 0, 1, 0], 12);
+  const svg = fretboardSvg([-1, 3, 2, 0, 1, 0], { maxFret: 12 });
   assert.ok(svg.startsWith("<svg"));
+  assert.match(svg, /width="\d+" height="\d+"/, "medidas explícitas: sin viewBox suelto no colapsa");
   assert.equal((svg.match(/class="cell"/g) ?? []).length, 6 * 13, "6 cuerdas × (12 trastes + al aire)");
   for (let s = 0; s < 6; s++) {
-    assert.ok(svg.includes(`data-string="${s}" data-fret="0"`), `columna de ×/○ de la cuerda ${s}`);
+    assert.ok(svg.includes(`data-string="${s}" data-fret="0"`), `columna de al aire/muda de la cuerda ${s}`);
   }
   assert.ok(svg.includes("×"), "la 6ª muda lleva su aspa");
-  assert.equal((svg.match(/class="dot"/g) ?? []).length, 5, "una marca por cuerda que suena");
+  assert.equal((svg.match(/class="note/g) ?? []).length, 5, "una nota por cuerda que suena");
+  assert.equal((svg.match(/>C</g) ?? []).length, 2, "las dos C del acorde llevan su nombre escrito");
+});
+
+test("el mástil escribe el nombre de cada nota y resalta la fundamental", () => {
+  const svg = fretboardSvg([-1, 3, 2, 0, 1, 0], { root: "C", labels: ["", "1", "3", "5", "1", "3"] });
+  for (const nota of ["C", "E", "G"]) assert.ok(svg.includes(`>${nota}<`), `falta la nota ${nota}`);
+  assert.equal((svg.match(/class="note root"/g) ?? []).length, 2, "las dos C pulsadas son fundamental");
+  assert.equal((svg.match(/class="note open"/g) ?? []).length, 2, "3ª y 1ª al aire");
+  assert.equal((svg.match(/class="degree"/g) ?? []).length, 5, "un grado por cuerda que suena");
+  assert.ok(svg.includes(">5<"), "la 3ª al aire está etiquetada como quinta");
+  assert.ok(!fretboardSvg([-1, -1, -1, -1, -1, -1]).includes("class=\"note"), "sin pulsaciones no hay notas");
+});
+
+test("el mástil llega al traste 15 y numera todos los trastes", () => {
+  const svg = fretboardSvg([-1, -1, -1, -1, -1, -1]);
+  assert.equal((svg.match(/class="cell"/g) ?? []).length, 6 * 16, "6 cuerdas × (15 trastes + al aire)");
+  assert.equal((svg.match(/class="fret-no"/g) ?? []).length, 16, "del 0 al 15");
+  assert.ok(svg.includes('data-fret="15"'), "se puede pulsar el traste 15");
 });

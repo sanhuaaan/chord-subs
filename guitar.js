@@ -87,48 +87,69 @@ export function shapeSvg(p) {
 // 0 al aire, n traste pulsado), así que lo que se marca aquí sirve tal cual para
 // identify(). Cada zona sensible es un <rect class="cell"> con data-string y
 // data-fret: quien lo monte delega un único listener en el contenedor.
-// La columna a la izquierda de la cejuela es el traste 0 (al aire / muda).
-export function fretboardSvg(frets, maxFret = 12) {
-  const M = 26;   // ancho de la columna de ×/○
-  const FW = 34;  // ancho de traste
-  const SS = 18;  // separación entre cuerdas
-  const T = 12;   // margen superior
-  const x = f => M + FW * f;        // f: 0 (cejuela) … maxFret
+//
+// Cada nota pulsada lleva su nombre dentro, las cuerdas al aire y mudas se
+// marcan a la izquierda de la cejuela, y `labels[cuerda]` escribe a la derecha
+// el papel de esa nota (1, 3, b7…), que es quien lo llame sabrá calcularlo.
+// `root` resalta la fundamental para ver de un vistazo dónde cae en el mástil.
+export function fretboardSvg(frets, { maxFret = 15, labels = [], root = null } = {}) {
+  const G = 26;   // ancho de la columna de ×/○ a la izquierda de la cejuela
+  const FW = 30;  // ancho de traste
+  const SS = 22;  // separación entre cuerdas
+  const T = 15;   // margen superior
+  const R = 8.5;  // radio de las notas
+  const x = f => G + FW * f;        // f: 0 (cejuela) … maxFret
   const y = s => T + SS * (5 - s);  // s: 0 (6ª, abajo) … 5 (1ª, arriba)
   const mid = f => x(f) - FW / 2;   // centro del traste f
-  const W = x(maxFret) + 6;
-  const H = y(0) + 22;
-  const el = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`];
+  const W = x(maxFret) + 26;        // hueco a la derecha para los grados
+  const H = y(0) + 20;              // hueco abajo para los números de traste
+  const el = [`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">`];
 
-  // Inlays, debajo de todo: uno en el centro del mástil salvo en el 12, que lleva dos.
+  // Nota con su nombre dentro. La fundamental va en otro color para localizarla.
+  const noteCircle = (cx, cy, note, open) => {
+    const cls = `note${note === root ? " root" : ""}${open ? " open" : ""}`;
+    return `<g class="${cls}"><circle cx="${cx}" cy="${cy}" r="${R}"/>`
+      + `<text x="${cx}" y="${cy + 3}" text-anchor="middle" font-size="${note.length > 1 ? 7.5 : 9}">${note}</text></g>`;
+  };
+
+  // Inlays y numeración, debajo de todo: uno en el centro salvo el 12, con dos.
   const center = T + SS * 2.5;
-  for (const f of [3, 5, 7, 9, 12]) {
-    const ys = f === 12 ? [center - SS, center + SS] : [center];
-    for (const cy of ys) {
-      el.push(`<circle cx="${mid(f)}" cy="${cy}" r="3" fill="currentColor" opacity="0.18"/>`);
+  for (let f = 1; f <= maxFret; f++) {
+    if ([3, 5, 7, 9, 15, 17, 19, 21].includes(f)) {
+      el.push(`<circle cx="${mid(f)}" cy="${center}" r="3" fill="currentColor" opacity="0.2"/>`);
+    } else if (f % 12 === 0) {
+      for (const cy of [center - SS, center + SS]) {
+        el.push(`<circle cx="${mid(f)}" cy="${cy}" r="3" fill="currentColor" opacity="0.2"/>`);
+      }
     }
-    el.push(`<text x="${mid(f)}" y="${H - 6}" fill="currentColor" opacity="0.45" font-size="9" text-anchor="middle">${f}</text>`);
+    el.push(`<text class="fret-no" x="${mid(f)}" y="${H - 6}" text-anchor="middle" font-size="8">${f}</text>`);
   }
+  el.push(`<text class="fret-no" x="${G / 2}" y="${H - 6}" text-anchor="middle" font-size="8">0</text>`);
+
   for (let f = 0; f <= maxFret; f++) {
     el.push(`<line x1="${x(f)}" y1="${y(5)}" x2="${x(f)}" y2="${y(0)}" stroke="currentColor" stroke-width="${f === 0 ? 3 : 0.75}"/>`);
   }
   for (let s = 0; s < 6; s++) {
-    el.push(`<line x1="${x(0)}" y1="${y(s)}" x2="${x(maxFret)}" y2="${y(s)}" stroke="currentColor" stroke-width="${1.3 - s * 0.15}" opacity="0.6"/>`);
+    el.push(`<line x1="${x(0)}" y1="${y(s)}" x2="${x(maxFret)}" y2="${y(s)}" stroke="currentColor" stroke-width="${1.3 - s * 0.15}" opacity="0.55"/>`);
+    if (labels[s]) {
+      el.push(`<text class="degree" x="${x(maxFret) + 6}" y="${y(s) + 3}" font-size="8.5">${labels[s]}</text>`);
+    }
   }
 
   frets.forEach((f, s) => {
+    const note = PC[(STRINGS[s][1] + f) % 12];
     if (f === -1) {
-      el.push(`<text x="${M / 2}" y="${y(s) + 3.5}" fill="currentColor" opacity="0.5" font-size="10" text-anchor="middle">×</text>`);
+      el.push(`<text class="muted" x="${G / 2}" y="${y(s) + 3.5}" text-anchor="middle" font-size="11">×</text>`);
     } else if (f === 0) {
-      el.push(`<circle class="dot" cx="${M / 2}" cy="${y(s)}" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>`);
+      el.push(noteCircle(G / 2, y(s), note, true));
     } else if (f <= maxFret) {
-      el.push(`<circle class="dot" cx="${mid(f)}" cy="${y(s)}" r="5.5" fill="currentColor"/>`);
+      el.push(noteCircle(mid(f), y(s), note, false));
     }
   });
 
   // Zonas clicables al final, para que queden por encima y reciban el puntero.
   for (let s = 0; s < 6; s++) {
-    el.push(`<rect class="cell" data-string="${s}" data-fret="0" x="0" y="${y(s) - SS / 2}" width="${M}" height="${SS}" fill="transparent"/>`);
+    el.push(`<rect class="cell" data-string="${s}" data-fret="0" x="0" y="${y(s) - SS / 2}" width="${G}" height="${SS}" fill="transparent"/>`);
     for (let f = 1; f <= maxFret; f++) {
       el.push(`<rect class="cell" data-string="${s}" data-fret="${f}" x="${x(f - 1)}" y="${y(s) - SS / 2}" width="${FW}" height="${SS}" fill="transparent"/>`);
     }

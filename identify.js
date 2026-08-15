@@ -9,7 +9,12 @@ const DEGREE = [
   "5ª disminuida / #11", "5ª justa", "5ª aumentada / b13", "6ª / 13ª", "7ª menor", "7ª mayor",
 ];
 
-export const degreeName = (root, note) => DEGREE[(Note.chroma(note) - Note.chroma(root) + 12) % 12];
+// Lo mismo cifrado, para escribirlo junto a la cuerda en el mástil.
+const DEGREE_SHORT = ["1", "b9", "9", "b3", "3", "11", "b5", "5", "#5", "13", "b7", "7"];
+
+const step = (root, note) => (Note.chroma(note) - Note.chroma(root) + 12) % 12;
+export const degreeName = (root, note) => DEGREE[step(root, note)];
+export const degreeShort = (root, note) => DEGREE_SHORT[step(root, note)];
 
 // Cifrados que un guitarrista lee de un vistazo (alias canónico de tonal: el
 // mismo repertorio que manejan guitar.js y capo.js). Sirven para que la lectura
@@ -24,7 +29,7 @@ const COMMON = new Set([
 // de la 2ª, por eso se ordena por altura real y no por número de cuerda.
 export function soundingNotes(frets) {
   return frets
-    .map((f, i) => (f < 0 ? null : { string: STRINGS[i][0], fret: f, midi: STRINGS[i][1] + f }))
+    .map((f, i) => (f < 0 ? null : { string: STRINGS[i][0], stringIdx: i, fret: f, midi: STRINGS[i][1] + f }))
     .filter(Boolean)
     .map(n => ({ ...n, note: PC[n.midi % 12] }))
     .sort((a, b) => a.midi - b.midi);
@@ -51,7 +56,9 @@ function score(symbol) {
 // El mismo puñado de notas admite varios nombres y todos son correctos: se
 // ordenan por lo probable que es que sea el que el guitarrista tenía en mente.
 // ponytail: sin acordes de una o dos notas (tonal solo nombra la quinta)
-export function identify(frets, max = 3) {
+// ponytail: Chord.detect enumera menos relecturas que un analizador dedicado
+//   (para G C E B da Cmaj7/G y ya, no el G6/11 ni el Emb6 que también valen)
+export function identify(frets, max = 6) {
   const notes = soundingNotes(frets);
   const pcs = [...new Set(notes.map(n => n.note))]; // Set conserva el orden: pcs[0] es el bajo
   const candidates = Chord.detect(pcs, { assumePerfectFifth: true })

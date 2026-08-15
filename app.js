@@ -1,6 +1,6 @@
 import { parseProgression, suggest, detectKey } from "./rules.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
-import { identify } from "./identify.js";
+import { identify, degreeShort } from "./identify.js";
 import { findShape, shapeSvg, fretboardSvg, openString, PC } from "./guitar.js";
 
 const form = document.querySelector("form");
@@ -109,51 +109,55 @@ form.addEventListener("submit", async e => {
 const board = document.querySelector("#board");
 const readout = document.querySelector("#readout");
 const voicing = document.querySelector("#voicing");
+const chordName = document.querySelector("#chord-name");
 const picked = [-1, -1, -1, -1, -1, -1]; // formato chords-db: índice 0 = 6ª cuerda
 
+const p = (className, textContent) => Object.assign(document.createElement("p"), { className, textContent });
+
 function renderIdent() {
-  board.innerHTML = fretboardSvg(picked);
+  const { notes, pcs, candidates } = identify(picked);
+  const best = candidates[0];
+
+  // Con la lectura principal, cada cuerda lleva escrito su papel junto al mástil.
+  const labels = [];
+  if (best) for (const n of notes) labels[n.stringIdx] = degreeShort(best.root, n.note);
+  board.innerHTML = fretboardSvg(picked, { labels, root: best?.root ?? null });
+
   voicing.textContent = picked.map(f => (f < 0 ? "×" : f)).join(" ");
+  chordName.replaceChildren();
   readout.replaceChildren();
 
-  const { notes, pcs, candidates } = identify(picked);
-  if (!notes.length) return;
-
-  readout.append(Object.assign(document.createElement("p"), {
-    className: "why",
-    textContent: `Notas de grave a aguda: ${notes.map(n => `${n.note} (${n.string})`).join(", ")}`,
-  }));
-
-  if (!candidates.length) {
-    readout.append(Object.assign(document.createElement("p"), {
-      className: "why",
-      textContent: pcs.length < 3
-        ? "Con menos de tres notas distintas no hay acorde que nombrar: añade alguna más."
-        : "Esas notas juntas no forman ningún acorde con nombre propio.",
-    }));
+  if (!notes.length) {
+    readout.append(p("why", "Marca al menos tres notas distintas para que haya acorde que nombrar."));
     return;
   }
 
-  // El primero es la lectura más probable; los demás son nombres igual de
-  // válidos para las mismas notas, normalmente inversiones.
-  const list = document.createElement("ul");
-  for (const c of candidates) {
-    const li = document.createElement("li");
-    // Los diagramas de la BD son posiciones fundamentales, así que solo se cuelgan
-    // del nombre cuando no hay inversión: si no, enseñarían otro bajo del marcado.
-    const name = c.inversion
-      ? Object.assign(document.createElement("span"), { textContent: c.symbol })
-      : chordSpan(c.symbol);
-    name.classList.add("name");
-    li.append(name);
-    if (c.inversion) li.append(" ", Object.assign(document.createElement("small"), { textContent: "(inversión)" }));
-    li.append(Object.assign(document.createElement("p"), {
-      className: "why",
-      textContent: c.degrees.map(d => `${d.note}: ${d.degree}`).join(" · "),
-    }));
-    list.append(li);
+  // Los diagramas de la BD son posiciones fundamentales, así que el nombre solo
+  // lleva tooltip cuando no hay inversión: si no, enseñaría otro bajo del marcado.
+  if (best) chordName.append(best.inversion ? document.createTextNode(best.symbol) : chordSpan(best.symbol));
+
+  readout.append(p("why", `Notas de grave a aguda: ${notes.map(n => `${n.note} (${n.string})`).join(", ")}`));
+
+  if (!best) {
+    readout.append(p("why", pcs.length < 3
+      ? "Con menos de tres notas distintas no hay acorde que nombrar: añade alguna más."
+      : "Esas notas juntas no forman ningún acorde con nombre propio."));
+    return;
   }
-  readout.append(list);
+
+  readout.append(p("why", best.degrees.map(d => `${d.note}: ${d.degree}`).join(" · ")));
+
+  // Las mismas notas admiten más nombres, todos correctos: normalmente el mismo
+  // acorde leído desde otra fundamental, es decir, inversiones.
+  const others = candidates.slice(1);
+  if (!others.length) return;
+  const list = Object.assign(document.createElement("ul"), { id: "others" });
+  for (const c of others) {
+    list.append(Object.assign(document.createElement("li"), {
+      textContent: c.inversion ? `${c.symbol} (inversión)` : c.symbol,
+    }));
+  }
+  readout.append(Object.assign(document.createElement("h2"), { textContent: "Otras lecturas posibles" }), list);
 }
 
 board.addEventListener("click", e => {
