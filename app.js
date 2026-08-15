@@ -26,10 +26,11 @@ const loadablePosition = sym => {
 // que pone escrito, no la forma del tooltip: en la pestaña de cejilla el tooltip
 // enseña la forma transpuesta que se toca, pero el mástil no sabe de cejillas y
 // nombrarla daría el acorde equivocado.
+// Sin title: el hover ya saca los diagramas del acorde y el bocadillo del
+// navegador se les pone encima. Que es pulsable lo dicen el cursor y el color.
 function linkToIdent(span, sym) {
   if (!loadablePosition(sym)) return span;
   span.dataset.load = sym;
-  span.title = `Ver ${sym} en el mástil`;
   return span;
 }
 
