@@ -8,6 +8,14 @@ export const PC = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "
 // el croma para quien solo necesite la altura relativa.
 export const STRINGS = [["6ª", 40], ["5ª", 45], ["4ª", 50], ["3ª", 55], ["2ª", 59], ["1ª", 64]];
 
+// Hasta dónde llega el mástil del analizador.
+export const MAX_FRET = 15;
+
+// chords-db numera los trastes dentro de la ventana del diagrama: su 1 es
+// `baseFret`, y el 0 es la cuerda al aire aunque la forma esté arriba del
+// mástil. Esto los pasa a trastes absolutos, que es como los pide fretboardSvg.
+export const absoluteFrets = p => p.frets.map(f => (f <= 0 ? f : f + p.baseFret - 1));
+
 const SUFFIX_BY_TYPE = {
   "major": "major",
   "minor": "minor",
@@ -92,7 +100,7 @@ export function shapeSvg(p) {
 // marcan a la izquierda de la cejuela, y `labels[cuerda]` escribe a la derecha
 // el papel de esa nota (1, 3, b7…), que es quien lo llame sabrá calcularlo.
 // `root` resalta la fundamental para ver de un vistazo dónde cae en el mástil.
-export function fretboardSvg(frets, { maxFret = 15, labels = [], root = null } = {}) {
+export function fretboardSvg(frets, { maxFret = MAX_FRET, labels = [], root = null } = {}) {
   const G = 26;   // ancho de la columna de ×/○ a la izquierda de la cejuela
   const FW = 30;  // ancho de traste
   const SS = 22;  // separación entre cuerdas

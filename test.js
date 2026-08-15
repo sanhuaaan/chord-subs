@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { Chord, Note } from "tonal";
 import { parseProgression, suggest, detectKey } from "./rules.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
-import { findShape, shapeSvg, fretboardSvg, openString, PC } from "./guitar.js";
+import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, STRINGS, MAX_FRET, PC } from "./guitar.js";
 import { identify, soundingNotes, degreeName, spell } from "./identify.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
@@ -295,4 +295,32 @@ test("el mástil llega al traste 15 y numera todos los trastes", () => {
   assert.equal((svg.match(/class="cell"/g) ?? []).length, 6 * 16, "6 cuerdas × (15 trastes + al aire)");
   assert.equal((svg.match(/class="fret-no"/g) ?? []).length, 16, "del 0 al 15");
   assert.ok(svg.includes('data-fret="15"'), "se puede pulsar el traste 15");
+});
+
+test("absoluteFrets pasa los trastes de chords-db al mástil", () => {
+  const abierto = findShape(guitarDb, "C").positions[0]; // x32010, baseFret 1
+  assert.deepEqual(absoluteFrets(abierto), [-1, 3, 2, 0, 1, 0], "en primera posición no cambia nada");
+
+  const alta = findShape(guitarDb, "C").positions.find(p => p.baseFret === 3);
+  assert.deepEqual(absoluteFrets(alta), [3, 3, 5, 5, 5, 3], "el 1 de la forma es el baseFret");
+
+  // El resultado tiene que sonar lo que dice la BD, que es la prueba de fuego.
+  for (const sym of ["C", "Am", "G7", "F", "Dm7", "Bb", "F#7"]) {
+    for (const p of findShape(guitarDb, sym).positions) {
+      const midi = absoluteFrets(p)
+        .map((f, i) => (f < 0 ? null : STRINGS[i][1] + f))
+        .filter(m => m !== null);
+      assert.deepEqual(midi.toSorted((a, b) => a - b), p.midi.toSorted((a, b) => a - b), `${sym} baseFret ${p.baseFret}`);
+    }
+  }
+});
+
+test("las posiciones de la BD se identifican como el acorde que dicen ser", () => {
+  // Alguna posición de la BD lleva otra nota en el bajo (el primer Cmaj7 empieza
+  // por G), así que vale la inversión: es el mismo acorde con otro bajo.
+  for (const sym of ["C", "Am", "G7", "Dm7", "F", "Cmaj7", "Bb", "Esus4"]) {
+    const p = findShape(guitarDb, sym).positions.find(q => absoluteFrets(q).every(f => f <= MAX_FRET));
+    const leidos = identify(absoluteFrets(p)).candidates.map(c => c.symbol);
+    assert.ok(leidos.some(s => s === sym || s.startsWith(`${sym}/`)), `${sym} no se reconoce en su propia posición: ${leidos}`);
+  }
 });

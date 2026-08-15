@@ -16,7 +16,13 @@ npx serve .
 
 Abre `http://localhost:8123`, escribe una progresión (p. ej. `C Am F G7`, separada por espacios, comas o `|`) y pulsa **Sugerir**. Cada sugerencia muestra por qué funciona, y al posar el ratón sobre cualquier nombre de acorde aparece un tooltip con hasta 4 posiciones del acorde en el mástil.
 
-La pestaña **¿Qué acorde es?** va al revés: marcas las pulsaciones en un mástil de 12 trastes y te dice qué acorde forman. Funciona sin escribir nada en el buscador.
+La pestaña **¿Qué acorde es?** va al revés: marcas las pulsaciones en un mástil de 15 trastes y te
+dice qué acorde forman. Funciona sin escribir nada en el buscador.
+
+Los nombres de acorde de las otras dos pestañas llevan a ella: al pulsar cualquiera, su primera
+posición de la base de datos se carga en el mástil y se cambia de pestaña. Se carga siempre lo que
+pone escrito, no la forma del tooltip — en la pestaña de cejilla el tooltip enseña la forma
+transpuesta que se toca, pero el mástil no sabe de cejillas y nombrarla daría el acorde equivocado.
 
 Las grafías siguen el criterio de la base de datos de guitarra: `C#` y no `Db`, `Eb` y no `D#`.
 

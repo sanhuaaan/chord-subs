@@ -1,7 +1,7 @@
 import { parseProgression, suggest, detectKey } from "./rules.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { identify, degreeShort } from "./identify.js";
-import { findShape, shapeSvg, fretboardSvg, openString, PC } from "./guitar.js";
+import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, MAX_FRET, PC } from "./guitar.js";
 
 const form = document.querySelector("form");
 const input = document.querySelector("#progression");
@@ -16,9 +16,26 @@ const dbReady = fetch("https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0/li
   .then(j => (db = j))
   .catch(() => null); // sin red: todo funciona salvo los diagramas
 
+// Primera posición de la BD que cabe entera en el mástil del analizador.
+const loadablePosition = sym => {
+  const shape = db && findShape(db, sym);
+  return shape?.positions.find(p => absoluteFrets(p).every(f => f <= MAX_FRET)) ?? null;
+};
+
+// Marca un nombre de acorde como cargable en el analizador. Se carga SIEMPRE lo
+// que pone escrito, no la forma del tooltip: en la pestaña de cejilla el tooltip
+// enseña la forma transpuesta que se toca, pero el mástil no sabe de cejillas y
+// nombrarla daría el acorde equivocado.
+function linkToIdent(span, sym) {
+  if (!loadablePosition(sym)) return span;
+  span.dataset.load = sym;
+  span.title = `Ver ${sym} en el mástil`;
+  return span;
+}
+
 // Nombre de acorde con tooltip de diagramas (varias posiciones/inversiones) al hacer
 // hover. Con cejilla, shapeSym es la forma transpuesta que realmente se toca.
-function chordSpan(sym, shapeSym = sym) {
+function chordSpan(sym, shapeSym = sym, link = true) {
   const span = document.createElement("span");
   span.className = "chord";
   span.textContent = sym;
@@ -29,7 +46,7 @@ function chordSpan(sym, shapeSym = sym) {
     tip.innerHTML = shape.positions.slice(0, 4).map(shapeSvg).join("");
     span.append(tip);
   }
-  return span;
+  return link ? linkToIdent(span, sym) : span;
 }
 
 // Acorde extendido de la pestaña cejilla: el diagrama es la forma del acorde BASE
@@ -47,7 +64,7 @@ function extChordSpan(ext, baseSym) {
     tip.innerHTML = shapeSvg(p);
     span.append(tip);
   }
-  return span;
+  return linkToIdent(span, ext.as);
 }
 
 form.addEventListener("submit", async e => {
@@ -70,7 +87,7 @@ form.addEventListener("submit", async e => {
   progression.forEach((c, i) => original.append(i ? "  " : "", chordSpan(c.symbol)));
   summary.append(original, Object.assign(document.createElement("p"), {
     className: "key",
-    textContent: `Tonalidad estimada: ${PC[detectKey(progression)]} mayor`,
+    textContent: `Tonalidad estimada: ${PC[detectKey(progression)]} mayor · pulsa cualquier acorde para verlo en el mástil`,
   }));
 
   for (const s of suggest(progression)) {
@@ -136,7 +153,8 @@ function renderIdent() {
 
   // Los diagramas de la BD son posiciones fundamentales, así que el nombre solo
   // lleva tooltip cuando no hay inversión: si no, enseñaría otro bajo del marcado.
-  if (best) chordName.append(best.inversion ? document.createTextNode(best.symbol) : chordSpan(best.symbol));
+  // Sin enlace: aquí cargar el acorde borraría justo lo que se está marcando.
+  if (best) chordName.append(best.inversion ? document.createTextNode(best.symbol) : chordSpan(best.symbol, best.symbol, false));
 
   readout.append(p("why", `Notas de grave a aguda: ${notes.map(n => `${n.note} (${n.string})`).join(", ")}`));
 
@@ -174,6 +192,20 @@ board.addEventListener("click", e => {
   const f = Number(cell.dataset.fret);
   picked[s] = picked[s] === f ? -1 : f; // volver a pulsar donde ya estaba apaga la cuerda
   renderIdent();
+});
+
+// Cualquier acorde escrito en las otras pestañas lleva al analizador con su
+// primera posición ya marcada en el mástil.
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-load]");
+  if (!el) return;
+  const position = loadablePosition(el.dataset.load);
+  if (!position) return;
+  picked.splice(0, 6, ...absoluteFrets(position));
+  chosenRoot = null;
+  document.querySelector("#tab-ident").checked = true;
+  renderIdent();
+  document.querySelector("#ident").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 // Elegir otra lectura reetiqueta el mástil con los grados desde esa fundamental.
