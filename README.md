@@ -1,6 +1,9 @@
-# chord-subs
+# trasteo
 
-Aplicación web enfocada a guitarra que, dada una progresión de acordes, sugiere sustituciones y acordes intermedios, con su explicación y sus diagramas de guitarra.
+Aplicación web para trastear con la armonía de una canción, enfocada a guitarra. Dada una progresión
+de acordes sugiere sustituciones y acordes de paso con su explicación, propone dónde poner la cejilla
+para ganar cuerdas al aire, y en el otro sentido nombra el acorde que formen las notas que marques en
+un mástil. Todo con sus diagramas.
 
 ## Uso
 
