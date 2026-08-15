@@ -25,9 +25,11 @@
       color: #a8a8b8;
     }
     #tab-subs:checked ~ .tabs label[for="tab-subs"],
-    #tab-capo:checked ~ .tabs label[for="tab-capo"] { background: #2a2a33; color: #e8e8ee; }
+    #tab-capo:checked ~ .tabs label[for="tab-capo"],
+    #tab-ident:checked ~ .tabs label[for="tab-ident"] { background: #2a2a33; color: #e8e8ee; }
     #subs, #capo { display: none; list-style: none; padding: 0; }
-    #tab-subs:checked ~ #subs, #tab-capo:checked ~ #capo { display: block; }
+    #ident { display: none; }
+    #tab-subs:checked ~ #subs, #tab-capo:checked ~ #capo, #tab-ident:checked ~ #ident { display: block; }
     #subs li, #capo li { padding: 0.4rem 0; border-bottom: 0.0625rem solid #333; }
     form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
     input {
@@ -68,6 +70,15 @@
     .chord:hover .tip { display: flex; }
     .tip svg { width: 4.5rem; height: auto; }
     #error { color: #e07070; }
+    #board svg { width: 100%; height: auto; margin: 0.75rem 0; color: #c8c8d8; touch-action: manipulation; }
+    #board .cell { cursor: pointer; }
+    #board .cell:hover { fill: currentColor; fill-opacity: 0.14; }
+    #board .dot { color: #7d97e0; }
+    #voicing { font-family: ui-monospace, monospace; letter-spacing: 0.1em; }
+    #readout .name { font-size: 1.3rem; font-weight: bold; }
+    #readout li { padding: 0.4rem 0; border-bottom: 0.0625rem solid #333; list-style: none; }
+    #readout ul { padding: 0; margin: 0.5rem 0 0; }
+    .actions { display: flex; align-items: center; gap: 0.75rem; }
   </style>
 </head>
 <body>
@@ -80,12 +91,25 @@
   <div id="summary"></div>
   <input type="radio" name="tab" id="tab-subs" checked hidden>
   <input type="radio" name="tab" id="tab-capo" hidden>
+  <input type="radio" name="tab" id="tab-ident" hidden>
   <nav class="tabs">
     <label for="tab-subs">Sustituciones</label>
     <label for="tab-capo">Cejilla</label>
+    <label for="tab-ident">¿Qué acorde es?</label>
   </nav>
   <ul id="subs"></ul>
   <ul id="capo"></ul>
+  <section id="ident">
+    <p class="why">Pulsa en el mástil para marcar las notas. Cada cuerda suena una sola nota: al pulsar
+      otro traste la nota se mueve, y al pulsar la que ya estaba marcada la cuerda se apaga. La columna
+      de la izquierda alterna cuerda al aire (○) y muda (×).</p>
+    <div id="board"></div>
+    <p class="actions">
+      <button type="button" id="clear">Limpiar</button>
+      <span id="voicing" class="key"></span>
+    </p>
+    <div id="readout"></div>
+  </section>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

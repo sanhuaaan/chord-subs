@@ -3,6 +3,11 @@ import { Chord, Note } from "tonal";
 // Grafías tal y como indexa chords-db (y como las busca un guitarrista).
 export const PC = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
+// Afinación estándar de 6ª a 1ª: nombre de la cuerda y su nota MIDI al aire. El
+// orden es el de las posiciones de chords-db (índice 0 = 6ª), y `midi % 12` da
+// el croma para quien solo necesite la altura relativa.
+export const STRINGS = [["6ª", 40], ["5ª", 45], ["4ª", 50], ["3ª", 55], ["2ª", 59], ["1ª", 64]];
+
 const SUFFIX_BY_TYPE = {
   "major": "major",
   "minor": "minor",
@@ -73,6 +78,61 @@ export function shapeSvg(p) {
       el.push(`<circle cx="${x(s)}" cy="${T + FH * f - FH / 2}" r="3.8" fill="currentColor"/>`);
     }
   });
+  el.push("</svg>");
+  return el.join("");
+}
+
+// Mástil completo y clicable para marcar pulsaciones a mano. `frets` va en el
+// mismo formato que las posiciones de chords-db (índice 0 = 6ª cuerda; -1 muda,
+// 0 al aire, n traste pulsado), así que lo que se marca aquí sirve tal cual para
+// identify(). Cada zona sensible es un <rect class="cell"> con data-string y
+// data-fret: quien lo monte delega un único listener en el contenedor.
+// La columna a la izquierda de la cejuela es el traste 0 (al aire / muda).
+export function fretboardSvg(frets, maxFret = 12) {
+  const M = 26;   // ancho de la columna de ×/○
+  const FW = 34;  // ancho de traste
+  const SS = 18;  // separación entre cuerdas
+  const T = 12;   // margen superior
+  const x = f => M + FW * f;        // f: 0 (cejuela) … maxFret
+  const y = s => T + SS * (5 - s);  // s: 0 (6ª, abajo) … 5 (1ª, arriba)
+  const mid = f => x(f) - FW / 2;   // centro del traste f
+  const W = x(maxFret) + 6;
+  const H = y(0) + 22;
+  const el = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`];
+
+  // Inlays, debajo de todo: uno en el centro del mástil salvo en el 12, que lleva dos.
+  const center = T + SS * 2.5;
+  for (const f of [3, 5, 7, 9, 12]) {
+    const ys = f === 12 ? [center - SS, center + SS] : [center];
+    for (const cy of ys) {
+      el.push(`<circle cx="${mid(f)}" cy="${cy}" r="3" fill="currentColor" opacity="0.18"/>`);
+    }
+    el.push(`<text x="${mid(f)}" y="${H - 6}" fill="currentColor" opacity="0.45" font-size="9" text-anchor="middle">${f}</text>`);
+  }
+  for (let f = 0; f <= maxFret; f++) {
+    el.push(`<line x1="${x(f)}" y1="${y(5)}" x2="${x(f)}" y2="${y(0)}" stroke="currentColor" stroke-width="${f === 0 ? 3 : 0.75}"/>`);
+  }
+  for (let s = 0; s < 6; s++) {
+    el.push(`<line x1="${x(0)}" y1="${y(s)}" x2="${x(maxFret)}" y2="${y(s)}" stroke="currentColor" stroke-width="${1.3 - s * 0.15}" opacity="0.6"/>`);
+  }
+
+  frets.forEach((f, s) => {
+    if (f === -1) {
+      el.push(`<text x="${M / 2}" y="${y(s) + 3.5}" fill="currentColor" opacity="0.5" font-size="10" text-anchor="middle">×</text>`);
+    } else if (f === 0) {
+      el.push(`<circle class="dot" cx="${M / 2}" cy="${y(s)}" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>`);
+    } else if (f <= maxFret) {
+      el.push(`<circle class="dot" cx="${mid(f)}" cy="${y(s)}" r="5.5" fill="currentColor"/>`);
+    }
+  });
+
+  // Zonas clicables al final, para que queden por encima y reciban el puntero.
+  for (let s = 0; s < 6; s++) {
+    el.push(`<rect class="cell" data-string="${s}" data-fret="0" x="0" y="${y(s) - SS / 2}" width="${M}" height="${SS}" fill="transparent"/>`);
+    for (let f = 1; f <= maxFret; f++) {
+      el.push(`<rect class="cell" data-string="${s}" data-fret="${f}" x="${x(f - 1)}" y="${y(s) - SS / 2}" width="${FW}" height="${SS}" fill="transparent"/>`);
+    }
+  }
   el.push("</svg>");
   return el.join("");
 }

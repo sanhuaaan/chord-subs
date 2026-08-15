@@ -1,6 +1,7 @@
 import { parseProgression, suggest, detectKey } from "./rules.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
-import { findShape, shapeSvg, openString, PC } from "./guitar.js";
+import { identify } from "./identify.js";
+import { findShape, shapeSvg, fretboardSvg, openString, PC } from "./guitar.js";
 
 const form = document.querySelector("form");
 const input = document.querySelector("#progression");
@@ -13,7 +14,7 @@ let db = null;
 const dbReady = fetch("https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0/lib/guitar.json")
   .then(r => r.json())
   .then(j => (db = j))
-  .catch(() => null); // sin red: sin diagramas y audio de respaldo
+  .catch(() => null); // sin red: todo funciona salvo los diagramas
 
 // Nombre de acorde con tooltip de diagramas (varias posiciones/inversiones) al hacer
 // hover. Con cejilla, shapeSym es la forma transpuesta que realmente se toca.
@@ -102,3 +103,72 @@ form.addEventListener("submit", async e => {
     capoList.append(li);
   }
 });
+
+// ── Pestaña "¿Qué acorde es?": mástil clicable → nombre del acorde ──────────
+
+const board = document.querySelector("#board");
+const readout = document.querySelector("#readout");
+const voicing = document.querySelector("#voicing");
+const picked = [-1, -1, -1, -1, -1, -1]; // formato chords-db: índice 0 = 6ª cuerda
+
+function renderIdent() {
+  board.innerHTML = fretboardSvg(picked);
+  voicing.textContent = picked.map(f => (f < 0 ? "×" : f)).join(" ");
+  readout.replaceChildren();
+
+  const { notes, pcs, candidates } = identify(picked);
+  if (!notes.length) return;
+
+  readout.append(Object.assign(document.createElement("p"), {
+    className: "why",
+    textContent: `Notas de grave a aguda: ${notes.map(n => `${n.note} (${n.string})`).join(", ")}`,
+  }));
+
+  if (!candidates.length) {
+    readout.append(Object.assign(document.createElement("p"), {
+      className: "why",
+      textContent: pcs.length < 3
+        ? "Con menos de tres notas distintas no hay acorde que nombrar: añade alguna más."
+        : "Esas notas juntas no forman ningún acorde con nombre propio.",
+    }));
+    return;
+  }
+
+  // El primero es la lectura más probable; los demás son nombres igual de
+  // válidos para las mismas notas, normalmente inversiones.
+  const list = document.createElement("ul");
+  for (const c of candidates) {
+    const li = document.createElement("li");
+    // Los diagramas de la BD son posiciones fundamentales, así que solo se cuelgan
+    // del nombre cuando no hay inversión: si no, enseñarían otro bajo del marcado.
+    const name = c.inversion
+      ? Object.assign(document.createElement("span"), { textContent: c.symbol })
+      : chordSpan(c.symbol);
+    name.classList.add("name");
+    li.append(name);
+    if (c.inversion) li.append(" ", Object.assign(document.createElement("small"), { textContent: "(inversión)" }));
+    li.append(Object.assign(document.createElement("p"), {
+      className: "why",
+      textContent: c.degrees.map(d => `${d.note}: ${d.degree}`).join(" · "),
+    }));
+    list.append(li);
+  }
+  readout.append(list);
+}
+
+board.addEventListener("click", e => {
+  const cell = e.target.closest("[data-string]");
+  if (!cell) return;
+  const s = Number(cell.dataset.string);
+  const f = Number(cell.dataset.fret);
+  picked[s] = picked[s] === f ? -1 : f; // volver a pulsar donde ya estaba apaga la cuerda
+  renderIdent();
+});
+
+document.querySelector("#clear").addEventListener("click", () => {
+  picked.fill(-1);
+  renderIdent();
+});
+
+renderIdent();
+dbReady.then(renderIdent); // repinta cuando ya hay diagramas que colgar de los nombres

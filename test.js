@@ -4,7 +4,8 @@ import { createRequire } from "node:module";
 import { Chord, Note } from "tonal";
 import { parseProgression, suggest, detectKey } from "./rules.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
-import { findShape, shapeSvg, openString, PC } from "./guitar.js";
+import { findShape, shapeSvg, fretboardSvg, openString, PC } from "./guitar.js";
+import { identify, soundingNotes, degreeName } from "./identify.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
 
@@ -155,4 +156,81 @@ test("shapeSvg dibuja cuerdas, trastes y puntos", () => {
   assert.ok(svg.startsWith("<svg"));
   assert.ok(svg.includes("<circle"));
   assert.ok(svg.includes("<line"));
+});
+
+test("identifica acordes abiertos corrientes por sus pulsaciones", () => {
+  const casos = {
+    "C": [-1, 3, 2, 0, 1, 0],
+    "Am": [-1, 0, 2, 2, 1, 0],
+    "E": [0, 2, 2, 1, 0, 0],
+    "G7": [3, 2, 0, 0, 0, 1],
+    "F": [1, 3, 3, 2, 1, 1],
+    "Dm7": [-1, -1, 0, 2, 1, 1],
+    "Dsus4": [-1, -1, 0, 2, 3, 3],
+  };
+  for (const [nombre, frets] of Object.entries(casos)) {
+    assert.equal(identify(frets).candidates[0].symbol, nombre, `${nombre} = ${frets}`);
+  }
+});
+
+test("el bajo distingue la inversión: C/E no es C", () => {
+  const { candidates } = identify([0, 3, 2, 0, 1, 0]); // C con la 6ª al aire
+  assert.equal(candidates[0].symbol, "C/E");
+  assert.ok(candidates[0].inversion);
+  assert.ok(!identify([-1, 3, 2, 0, 1, 0]).candidates[0].inversion, "C en fundamental no es inversión");
+});
+
+test("las notas salen ordenadas de grave a aguda, no por cuerda", () => {
+  const notes = soundingNotes([-1, 0, 2, 2, 1, 0]); // Am
+  assert.deepEqual(notes.map(n => n.note), ["A", "E", "A", "C", "E"]);
+  assert.deepEqual(notes.map(n => n.string), ["5ª", "4ª", "3ª", "2ª", "1ª"]);
+  assert.ok(notes.every((n, i) => i === 0 || n.midi >= notes[i - 1].midi), "orden por altura real");
+  // La 3ª cuerda muy pisada suena por encima de la 2ª: el bajo es el de la 2ª.
+  const alta = soundingNotes([-1, -1, -1, 8, 1, 3]);
+  assert.deepEqual(alta.map(n => n.string), ["2ª", "3ª", "1ª"]);
+  assert.equal(identify([-1, -1, -1, 8, 1, 3]).candidates[0].symbol, "Cm", "sin inversión: el bajo es C");
+});
+
+test("cada nota recibe su grado dentro del acorde elegido", () => {
+  const [c] = identify([-1, 3, 2, 0, 1, 0]).candidates; // C
+  assert.equal(c.root, "C");
+  assert.deepEqual(c.degrees, [
+    { note: "C", degree: "fundamental" },
+    { note: "E", degree: "3ª mayor" },
+    { note: "G", degree: "5ª justa" },
+  ]);
+  assert.equal(degreeName("C", "Bb"), "7ª menor");
+  assert.equal(degreeName("Eb", "Eb"), "fundamental");
+});
+
+test("sin pulsaciones útiles no inventa acordes", () => {
+  assert.deepEqual(identify([-1, -1, -1, -1, -1, -1]), { notes: [], pcs: [], candidates: [] });
+  assert.equal(identify([-1, -1, -1, -1, 1, 0]).candidates.length, 0, "dos notas no son acorde");
+  assert.equal(identify([1, 2, 3, 4, 5, 6]).candidates.length, 0, "un racimo cromático no tiene nombre");
+});
+
+test("las lecturas evidentes van antes que las rebuscadas", () => {
+  const { candidates } = identify([-1, 3, 2, 0, 1, 0]); // C: tonal también lo lee como Em#5/C
+  assert.equal(candidates[0].symbol, "C");
+  assert.ok(candidates.length > 1, "las demás lecturas siguen ahí");
+  assert.ok(candidates.every(c => c.degrees.length === 3), "todas explican las mismas notas");
+});
+
+test("los nombres identificados existen en la BD de guitarra", () => {
+  const voicings = [[-1, 3, 2, 0, 1, 0], [-1, 0, 2, 2, 1, 0], [3, 2, 0, 0, 0, 1], [-1, 3, 2, 0, 3, 0], [-1, -1, 0, 2, 1, 1]];
+  for (const frets of voicings) {
+    const [c] = identify(frets).candidates;
+    assert.ok(findShape(guitarDb, c.symbol), `sin diagrama: ${c.symbol}`);
+  }
+});
+
+test("fretboardSvg dibuja el mástil con una zona clicable por traste y cuerda", () => {
+  const svg = fretboardSvg([-1, 3, 2, 0, 1, 0], 12);
+  assert.ok(svg.startsWith("<svg"));
+  assert.equal((svg.match(/class="cell"/g) ?? []).length, 6 * 13, "6 cuerdas × (12 trastes + al aire)");
+  for (let s = 0; s < 6; s++) {
+    assert.ok(svg.includes(`data-string="${s}" data-fret="0"`), `columna de ×/○ de la cuerda ${s}`);
+  }
+  assert.ok(svg.includes("×"), "la 6ª muda lleva su aspa");
+  assert.equal((svg.match(/class="dot"/g) ?? []).length, 5, "una marca por cuerda que suena");
 });
