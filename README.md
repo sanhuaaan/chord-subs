@@ -19,6 +19,14 @@ npx serve .
 
 Abre `http://localhost:8123`, escribe una progresión (p. ej. `C Am F G7`, separada por espacios, comas o `|`) y pulsa **Sugerir**. Cada sugerencia muestra por qué funciona, y al posar el ratón sobre cualquier nombre de acorde aparece un tooltip con hasta 4 posiciones del acorde en el mástil.
 
+Un acorde corriente saca del orden de doce opciones, así que la pestaña de
+**Sustituciones** las pliega por acorde (abierta la del primero) y dentro las agrupa por lo que le
+hacen, que es la decisión de verdad antes de mirar la regla concreta:
+
+- **Adornar** — el mismo acorde con más notas: cambia el color, no la función (`C → Cmaj7`, `C6`, `Cadd9`, `Csus2`).
+- **Cambiar** — otro acorde en su lugar, que hace el mismo papel (`C → Am`, `Em`, `Cm`).
+- **Añadir** — acordes que lo preparan o lo alargan, repartiéndose su tiempo (`C → Dm7 G7 C`, `Fm C`, `Bb7 C`).
+
 La pestaña **¿Qué acorde es?** va al revés: marcas las pulsaciones en un mástil de 15 trastes y te
 dice qué acorde forman. Funciona sin escribir nada en el buscador.
 
@@ -31,21 +39,53 @@ Las grafías siguen el criterio de la base de datos de guitarra: `C#` y no `Db`,
 
 ## Reglas implementadas
 
+Adornar el acorde:
+
+| Regla | Ejemplo |
+|-------|---------|
+| Séptima diatónica | `C → Cmaj7`, `Am → Am7`, y `G → G7` si es el V |
+| Sexta | `C → C6`, `Am → Am6` |
+| Novena | `C → Cadd9`, `Am7 → Am9`, `Cmaj7 → Cmaj9` |
+| Suspensión sus2 | `C → Csus2` |
+| Tensión del dominante | `G7 → G13` |
+| Dominante alterado | `G7 → G7#9`, y `7b9` si resuelve a menor |
+
+Cambiarlo por otro:
+
 | Regla | Ejemplo |
 |-------|---------|
 | Sustitución de tritono | `G7 → Db7` |
 | Relativo mayor/menor | `C → Am`, `Am → C` |
+| Mediante | `C → Em` |
+| Intercambio modal | `F → Fm` |
+| Dominante sin fundamental | `G7 → Bm7b5` |
+| Disminuido dominante | `G7 → Bdim7` |
+
+Añadir acordes delante o alrededor:
+
+| Regla | Ejemplo |
+|-------|---------|
 | Dominante secundario | `Dm → A7 Dm` |
 | Inserción ii-V | `G7 → Dm7 G7` |
-| Disminuido de paso (ascendente) | `C Dm → C C#dim7 Dm` |
+| ii-V secundario | `C → Dm7 G7 C`, `Am → Bm7b5 E7 Am` |
+| Aproximación cromática | `C → C#7 C` |
+| Dominante de puerta trasera | `C → Bb7 C` |
+| Subdominante menor | `C → Fm C` |
+| Retardo sus4 | `C → Csus4 C`, `G7 → G7sus4 G7` |
+| Disminuido de paso (tono entero, arriba o abajo) | `C Dm → C C#dim7 Dm`, `Am G → Am Abdim7 G` |
 | Paso diatónico (saltos de tercera) | `C Em → C Dm Em`, `Am F → Am G F` |
-| Intercambio modal | `F → Fm` |
+| Línea cromática interna | `Am → Am AmMaj7 Am7 Am6` |
+| Línea hacia el IV | `C F → C Cmaj7 C7 F` |
 
-La tonalidad mayor se estima automáticamente a partir de la progresión (se muestra en el resultado) y es la que usa el paso diatónico.
+La tonalidad mayor se estima automáticamente a partir de la progresión (se muestra en el resultado) y es
+la que usan el paso diatónico y la séptima diatónica.
+
+Todo cifrado que sale de una regla tiene posiciones en la base de datos de guitarra, así que cualquier
+sugerencia se puede ver dibujada y abrir en el mástil. Hay un test que lo comprueba.
 
 ## Rearmonizar la progresión entera
 
-La pestaña de **Sustituciones** da opciones sueltas: para una canción de doce acordes son casi cuarenta
+La pestaña de **Sustituciones** da opciones sueltas: para cuatro acordes ya son medio centenar de
 sugerencias independientes, y montar el arreglo queda de tu parte. **Rearmonizar** hace ese trabajo:
 elige unas cuantas que encajen entre sí y devuelve la progresión completa, tocable de principio a fin.
 
@@ -55,9 +95,9 @@ o nota pedal— y debajo de los diagramas se ve la línea conseguida y cuántos 
 por grado conjunto.
 
 Que la línea mande cambia qué acordes salen y con qué digitación. Para `C Am F G7` la versión
-descendente propone `C E7 Am F G7`, con la voz de arriba en `C → B → A → A → G`: el dominante
-secundario entra precisamente porque su `B` completa la bajada. Para `D A Bm G` propone `D A Bm Gm`,
-con `D → C# → B → Bb`, tomando el `Gm` prestado del modo menor para conseguir el `Bb`.
+descendente propone `C Amadd9 F G7`, con la voz de arriba en `C → B → A → G`: la novena entra
+precisamente porque su `B` completa la bajada. Para `D A Bm G` propone `D A7 Bm G6`, con
+`A → G → F# → E`, y la ascendente `D A7 Bm7 G` con `F# → G → A → B`.
 
 Es un camino mínimo (Viterbi) sobre un grafo por capas: cada hueco de la progresión ofrece varios
 acordes, cada acorde varias digitaciones de la base de datos, y el coste de encadenar dos lo pone el
@@ -67,7 +107,8 @@ salto de la voz superior. Sobre eso mandan tres reglas de sentido común:
 - No se admiten dos acordes iguales seguidos si el original tenía movimiento ahí: eso no es
   rearmonizar, es quedarse sin un acorde.
 - Hay **presupuesto de cambios** (un tercio de la progresión). Sin tope, un `Fm` prestado en el sitio
-  justo deja de ser un hallazgo y se convierte en otra canción.
+  justo deja de ser un hallazgo y se convierte en otra canción. Se cuenta en medios: adornar un acorde
+  gasta la mitad que cambiarlo por otro, porque no lo es.
 
 Al pulsar cualquier acorde del arreglo se abre en el analizador **esa digitación concreta**, no la
 primera de la base de datos, que es justamente la que hace la línea.

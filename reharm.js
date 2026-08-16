@@ -39,12 +39,15 @@ export const INTENTIONS = [
 // los acordes de paso), y entonces se reparten su tiempo.
 function slotOptions(progression, key) {
   return progression.map((c, i) => {
-    const options = [{ chords: [c.symbol], rule: null, why: "" }];
+    const options = [{ chords: [c.symbol], kind: null, rule: null, why: "" }];
+    const seen = new Set([c.symbol]);
     for (const rule of RULES) {
       const r = rule.apply(c, progression[i + 1], key);
-      if (r && r.chords.join(" ") !== c.symbol) {
-        options.push({ chords: r.chords, rule: rule.name, why: r.why });
-      }
+      if (!r) continue;
+      const chords = r.chords.join(" ");
+      if (seen.has(chords)) continue;
+      seen.add(chords);
+      options.push({ chords: r.chords, kind: rule.kind, rule: rule.name, why: r.why });
     }
     return options;
   });
@@ -89,11 +92,26 @@ function linkCost(prev, next, dir) {
 
 // Sustituir tiene que ganarse el sitio, pero barato: quien de verdad limita los
 // cambios es el presupuesto de abajo. Meter acordes de más densifica la
-// progresión, así que eso sí se cobra aparte.
+// progresión, así que eso sí se cobra aparte. Adornar (un maj7, una 9ª) no
+// cambia de acorde, así que cuesta menos que cambiarlo por otro.
 // El primer acorde es el que planta la tonalidad: cambiarlo desdibuja la canción
 // de entrada, así que se cobra aparte y solo cae si compensa de sobra.
 const optionCost = (option, slot) =>
-  (option.rule ? 0.8 : 0) + (option.chords.length - 1) * 1.5 + (option.rule && slot === 0 ? 6 : 0);
+  (option.rule ? (option.kind === "color" ? 0.4 : 0.8) : 0)
+  + (option.chords.length - 1) * 1.5
+  + (option.rule && slot === 0 ? 6 : 0);
+
+// Cuánto presupuesto gasta cada opción. Se cuenta en medios para que un adorno
+// valga la mitad que una sustitución de verdad: con dos docenas de reglas, si
+// todas costasen lo mismo el arreglo se iría en maj7 y se quedaría sin cambiar
+// un solo acorde.
+const budgetCost = option => (!option.rule ? 0 : option.kind === "color" ? 1 : 2);
+
+// Cuántas digitaciones se prueban por acorde. Las opciones que meten varios
+// acordes multiplican combinaciones (tres acordes a cinco digitaciones son 125
+// caminos por hueco), así que ahí se recorta: con dos por acorde ya hay de sobra
+// para que la línea encuentre por dónde ir.
+const voicingsFor = (option, max) => (option.chords.length > 2 ? 2 : option.chords.length > 1 ? 3 : max);
 
 // Un cambio que deja el mismo acorde dos veces seguidas donde el original tenía
 // movimiento no es rearmonizar: es quedarse sin un acorde. Si la repetición ya
@@ -112,9 +130,9 @@ export function reharmonize(db, progression, intention, maxVoicings = 5) {
   const key = detectKey(progression);
   const dir = intention.dir;
   const cache = new Map();
-  const voi = sym => {
+  const voi = (sym, max) => {
     if (!cache.has(sym)) cache.set(sym, voicings(db, sym, maxVoicings));
-    return cache.get(sym);
+    return cache.get(sym).slice(0, max);
   };
 
   // Cada capa son los caminos posibles dentro de un hueco: una opción de acorde
@@ -122,8 +140,9 @@ export function reharmonize(db, progression, intention, maxVoicings = 5) {
   const layers = slotOptions(progression, key).map((options, slot) => {
     const nodes = [];
     for (const option of options) {
+      const per = voicingsFor(option, maxVoicings);
       const chains = option.chords.reduce(
-        (acc, sym) => acc.flatMap(chain => voi(sym).map(v => [...chain, v])),
+        (acc, sym) => acc.flatMap(chain => voi(sym, per).map(v => [...chain, v])),
         [[]],
       );
       for (const chain of chains) {
@@ -138,13 +157,13 @@ export function reharmonize(db, progression, intention, maxVoicings = 5) {
 
   // Viterbi con el presupuesto de sustituciones dentro del estado: para cada
   // hueco se guarda el mejor camino que llega habiendo gastado b cambios.
-  const budget = budgetFor(progression);
+  const budget = budgetFor(progression) * 2; // en medios: adornar cuesta 1, cambiar 2
   const slots = Array.from({ length: budget + 1 }, (_, i) => i);
   layers.forEach((layer, i) => {
     for (const node of layer) {
       node.costs = new Array(budget + 1).fill(Infinity);
       node.froms = new Array(budget + 1).fill(null);
-      const used = node.option.rule ? 1 : 0;
+      const used = budgetCost(node.option);
       if (i === 0) {
         if (used <= budget) node.costs[used] = node.internal;
         continue;

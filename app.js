@@ -1,4 +1,4 @@
-import { parseProgression, suggest, detectKey } from "./rules.js";
+import { parseProgression, suggest, detectKey, KINDS } from "./rules.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { identify, degreeShort } from "./identify.js";
 import { reharmonizations } from "./reharm.js";
@@ -93,17 +93,7 @@ form.addEventListener("submit", async e => {
     textContent: `Tonalidad estimada: ${PC[detectKey(progression)]} mayor · pulsa cualquier acorde para verlo en el mástil`,
   }));
 
-  for (const s of suggest(progression)) {
-    const li = document.createElement("li");
-    li.append(chordSpan(s.chord), " → ");
-    s.replacement.forEach((sym, i) => li.append(i ? " " : "", chordSpan(sym)));
-    li.append(
-      " ",
-      Object.assign(document.createElement("small"), { textContent: `(${s.rule})` }),
-      Object.assign(document.createElement("p"), { className: "why", textContent: s.why })
-    );
-    subsList.append(li);
-  }
+  renderSubs(progression);
 
   for (const cp of capoSuggestions(progression).slice(0, 3)) {
     const li = document.createElement("li");
@@ -125,6 +115,52 @@ form.addEventListener("submit", async e => {
 
   renderReharm(progression);
 });
+
+// ── Pestaña "Sustituciones": todas las opciones, acorde por acorde ──────────
+
+// Cada acorde saca más de diez opciones, así que en plano no hay quien lo lea:
+// van plegadas por acorde (abierta la del primero) y dentro agrupadas por lo que
+// le hacen —adornarlo, cambiarlo o añadirle acordes delante—, que es la decisión
+// de verdad; la regla concreta viene después.
+// El nombre del resumen no es pulsable a propósito: dentro de un <summary>, el
+// clic pliega el acorde además de saltar al mástil. Para eso está la progresión
+// de arriba, que sí lleva enlace.
+function renderSubs(progression) {
+  const suggestions = suggest(progression);
+  progression.forEach((c, i) => {
+    const mine = suggestions.filter(s => s.index === i);
+    if (!mine.length) return;
+    const li = document.createElement("li");
+    const box = document.createElement("details");
+    box.open = i === 0;
+    box.append(Object.assign(document.createElement("summary"), {
+      innerHTML: `<strong>${c.symbol}</strong> <small>· acorde ${i + 1} de ${progression.length} · ${mine.length} opciones</small>`,
+    }));
+
+    for (const kind of KINDS) {
+      const group = mine.filter(s => s.kind === kind.id);
+      if (!group.length) continue;
+      box.append(
+        Object.assign(document.createElement("h4"), { textContent: kind.name }),
+        Object.assign(document.createElement("p"), { className: "why hint", textContent: kind.hint }),
+      );
+      const list = Object.assign(document.createElement("ul"), { className: "options" });
+      for (const s of group) {
+        const opt = document.createElement("li");
+        s.replacement.forEach((sym, k) => opt.append(k ? " " : "", chordSpan(sym)));
+        opt.append(
+          " ",
+          Object.assign(document.createElement("small"), { textContent: `(${s.rule})` }),
+          Object.assign(document.createElement("p"), { className: "why", textContent: s.why }),
+        );
+        list.append(opt);
+      }
+      box.append(list);
+    }
+    li.append(box);
+    subsList.append(li);
+  });
+}
 
 // ── Pestaña "Rearmonizar": la progresión entera, no acorde a acorde ─────────
 

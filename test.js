@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { Chord, Note } from "tonal";
-import { parseProgression, suggest, detectKey, RULES } from "./rules.js";
+import { parseProgression, suggest, detectKey, RULES, KINDS } from "./rules.js";
 import { reharmonizations } from "./reharm.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, STRINGS, MAX_FRET, PC } from "./guitar.js";
@@ -55,6 +55,67 @@ test("intercambio modal: F → Fm, pero no sobre menores ni dominantes", () => {
   assert.equal(find("G7", "Intercambio modal").s, undefined);
 });
 
+test("mediante: C → Em, solo sobre tríadas mayores", () => {
+  assert.equal(find("C", "Mediante").s.replacement[0], "Em");
+  assert.equal(find("Am", "Mediante").s, undefined);
+  assert.equal(find("Cmaj7", "Mediante").s, undefined, "ya lleva séptima: no es tríada");
+});
+
+test("dominante sin fundamental: G7 → Bm7b5 y → Bdim7", () => {
+  assert.equal(find("G7", "Dominante sin fundamental").s.replacement[0], "Bm7b5");
+  assert.equal(find("G7", "Disminuido dominante").s.replacement[0], "Bdim7");
+  assert.equal(find("C", "Dominante sin fundamental").s, undefined);
+});
+
+test("adornos: séptima según el grado, sexta y novena según lo que ya suene", () => {
+  // En C mayor el V pide séptima menor y el I mayor; el ii, m7.
+  assert.equal(find("C G", "Séptima diatónica", 1).s.replacement[0], "G7");
+  assert.equal(find("C G", "Séptima diatónica", 0).s.replacement[0], "Cmaj7");
+  assert.equal(find("Am", "Séptima diatónica").s.replacement[0], "Am7");
+  assert.equal(find("C", "Sexta").s.replacement[0], "C6");
+  assert.equal(find("C", "Novena").s.replacement[0], "Cadd9");
+  assert.equal(find("Am7", "Novena").s.replacement[0], "Am9", "sobre un m7 la novena es m9, no madd9");
+  assert.equal(find("Cmaj7", "Séptima diatónica").s, undefined, "la séptima ya está puesta");
+});
+
+test("aproximaciones prestadas: puerta trasera, IV menor y cromática", () => {
+  assert.deepEqual(find("C", "Dominante de puerta trasera").s.replacement, ["Bb7", "C"]);
+  assert.deepEqual(find("C", "Subdominante menor").s.replacement, ["Fm", "C"]);
+  assert.deepEqual(find("C", "Aproximación cromática").s.replacement, ["C#7", "C"]);
+  assert.deepEqual(find("C", "ii-V secundario").s.replacement, ["Dm7", "G7", "C"]);
+  assert.deepEqual(find("Am", "ii-V secundario").s.replacement, ["Bm7b5", "E7", "Am"],
+    "el ii de un menor es semidisminuido");
+});
+
+test("líneas: la voz interna baja mientras el acorde se queda", () => {
+  assert.deepEqual(find("Am", "Línea cromática interna").s.replacement, ["Am", "AmMaj7", "Am7", "Am6"]);
+  assert.deepEqual(find("C F", "Línea hacia el IV").s.replacement, ["C", "Cmaj7", "C7"]);
+  assert.equal(find("C G", "Línea hacia el IV").s, undefined, "G no es el IV de C");
+});
+
+test("el disminuido de paso también rellena el tono descendente", () => {
+  const { s } = find("Am G", "Disminuido de paso");
+  sameChroma(s.replacement[1], "Abdim7");
+  assert.match(s.replacement[1], /dim7$/);
+  assert.equal(find("C G", "Disminuido de paso").s, undefined, "cuarta justa: no es paso de tono");
+});
+
+test("cada acorde recibe un buen puñado de opciones, agrupadas y sin repetir", () => {
+  const kinds = new Set(KINDS.map(k => k.id));
+  for (const rule of RULES) assert.ok(kinds.has(rule.kind), `regla sin grupo válido: ${rule.name}`);
+
+  const progression = parseProgression("C Am F G7");
+  const suggestions = suggest(progression);
+  progression.forEach((c, i) => {
+    const mine = suggestions.filter(s => s.index === i);
+    assert.ok(mine.length >= 9, `${c.symbol} solo saca ${mine.length} opciones`);
+    assert.equal(new Set(mine.map(s => s.replacement.join(" "))).size, mine.length,
+      `${c.symbol} repite alguna propuesta`);
+    assert.ok(mine.every(s => kinds.has(s.kind)), `${c.symbol} tiene opciones sin grupo`);
+    assert.ok(new Set(mine.map(s => s.kind)).size === 3, `${c.symbol} no llega a los tres grupos`);
+  });
+});
+
 test("toda sugerencia lleva explicación con sus acordes", () => {
   const suggestions = suggest(parseProgression("C Am F G7"));
   assert.ok(suggestions.length > 0);
@@ -87,9 +148,16 @@ test("findShape encuentra varias posiciones y usa la enarmonía de la BD", () =>
 });
 
 test("las reglas generan grafías que existen en la BD de guitarra", () => {
-  for (const s of suggest(parseProgression("C Am F G7 Bb Ebm7"))) {
-    for (const sym of s.replacement) {
-      assert.ok(findShape(guitarDb, sym), `sin posición de guitarra: ${sym}`);
+  // Las doce fundamentales por cada calidad que se puede escribir en el buscador:
+  // ninguna regla debe proponer un cifrado que luego no se pueda dibujar.
+  const raices = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+  for (const raiz of raices) {
+    for (const calidad of ["", "m", "7", "m7", "maj7", "6", "sus4"]) {
+      for (const s of suggest(parseProgression(`${raiz}${calidad} ${raiz}`))) {
+        for (const sym of s.replacement) {
+          assert.ok(findShape(guitarDb, sym), `sin posición de guitarra: ${sym} (de ${raiz}${calidad})`);
+        }
+      }
     }
   }
 });

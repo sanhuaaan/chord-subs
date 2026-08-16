@@ -33,6 +33,14 @@ const SUFFIX_BY_TYPE = {
   "dominant ninth": "9",
   "major ninth": "maj9",
   "minor ninth": "m9",
+  "minor eleventh": "m11",
+  "major eleventh": "maj11",
+  "dominant thirteenth": "13",
+  "dominant flat ninth": "7b9",
+  "dominant sharp ninth": "7#9",
+  "sixth added ninth": "69",
+  // tonal solo lo escribe "AmMaj7"; la BD lo indexa en minúsculas.
+  "minor/major seventh": "mmaj7",
 };
 
 const DISPLAY = { major: "", minor: "m" };
