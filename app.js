@@ -1,6 +1,7 @@
 import { parseProgression, suggest, detectKey } from "./rules.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { identify, degreeShort } from "./identify.js";
+import { reharmonizations } from "./reharm.js";
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, MAX_FRET, PC } from "./guitar.js";
 
 const form = document.querySelector("form");
@@ -8,6 +9,7 @@ const input = document.querySelector("#progression");
 const summary = document.querySelector("#summary");
 const subsList = document.querySelector("#subs");
 const capoList = document.querySelector("#capo");
+const reharmList = document.querySelector("#reharm");
 const error = document.querySelector("#error");
 
 let db = null;
@@ -120,7 +122,76 @@ form.addEventListener("submit", async e => {
     }
     capoList.append(li);
   }
+
+  renderReharm(progression);
 });
+
+// ── Pestaña "Rearmonizar": la progresión entera, no acorde a acorde ─────────
+
+// Cada versión aplica unas cuantas sustituciones que encajan entre sí y elige
+// las digitaciones de modo que la nota más aguda dibuje una línea. Se enseña esa
+// línea debajo de los diagramas, que es lo que justifica cada elección.
+function renderReharm(progression) {
+  reharmList.replaceChildren();
+  if (!db) {
+    reharmList.append(Object.assign(document.createElement("li"), {
+      className: "why",
+      textContent: "Sin las posiciones de guitarra no se puede elegir digitación, así que esta pestaña necesita conexión.",
+    }));
+    return;
+  }
+
+  const versions = reharmonizations(db, progression);
+  if (!versions.length) {
+    reharmList.append(Object.assign(document.createElement("li"), {
+      className: "why",
+      textContent: "Alguno de estos acordes no tiene posiciones en la base de datos, así que no se puede armar el arreglo.",
+    }));
+    return;
+  }
+
+  for (const v of versions) {
+    const li = document.createElement("li");
+    li.append(
+      Object.assign(document.createElement("h3"), { textContent: v.intention.name }),
+      Object.assign(document.createElement("p"), { className: "why", textContent: v.intention.why }),
+    );
+
+    const chart = document.createElement("div");
+    chart.className = "chart";
+    for (const s of v.steps) {
+      const step = document.createElement("div");
+      step.className = s.changed ? "step changed" : "step";
+      // Sin tooltip de posiciones alternativas: aquí la digitación que importa
+      // es la que hace la línea, y está dibujada justo debajo. Al pulsar se abre
+      // esa misma en el analizador, no la primera que tenga la BD.
+      const name = Object.assign(document.createElement("span"), { className: "chord", textContent: s.symbol });
+      name.dataset.frets = s.frets.join(",");
+      const svg = document.createElement("span");
+      svg.innerHTML = shapeSvg(s.position);
+      step.append(name, svg, Object.assign(document.createElement("span"), { className: "top", textContent: s.topNote }));
+      chart.append(step);
+    }
+    li.append(chart);
+
+    li.append(Object.assign(document.createElement("p"), {
+      className: "line",
+      textContent: `Voz de arriba: ${v.line.join(" → ")}`,
+    }));
+    const conjunct = `${v.conjunct} de ${v.moves} movimientos por grado conjunto`;
+    li.append(Object.assign(document.createElement("p"), {
+      className: "why",
+      textContent: `${conjunct}, ${v.held} nota${v.held === 1 ? "" : "s"} repetida${v.held === 1 ? "" : "s"} y ${v.leaps} salto${v.leaps === 1 ? "" : "s"}.`,
+    }));
+    for (const s of v.steps.filter(x => x.rule && x.changed)) {
+      li.append(Object.assign(document.createElement("p"), {
+        className: "why",
+        textContent: `${s.from} → ${s.symbol} (${s.rule}). ${s.why}`,
+      }));
+    }
+    reharmList.append(li);
+  }
+}
 
 // ── Pestaña "¿Qué acorde es?": mástil clicable → nombre del acorde ──────────
 
@@ -198,11 +269,16 @@ board.addEventListener("click", e => {
 // Cualquier acorde escrito en las otras pestañas lleva al analizador con su
 // primera posición ya marcada en el mástil.
 document.addEventListener("click", e => {
-  const el = e.target.closest("[data-load]");
+  const el = e.target.closest("[data-load], [data-frets]");
   if (!el) return;
-  const position = loadablePosition(el.dataset.load);
-  if (!position) return;
-  picked.splice(0, 6, ...absoluteFrets(position));
+  // La pestaña de rearmonización trae su propia digitación: es la que hace la
+  // línea, así que carga esa y no la primera que tenga la BD para ese acorde.
+  const position = el.dataset.frets ? null : loadablePosition(el.dataset.load);
+  const frets = el.dataset.frets ? el.dataset.frets.split(",").map(Number)
+    : position ? absoluteFrets(position)
+    : [];
+  if (frets.length !== 6) return;
+  picked.splice(0, 6, ...frets);
   chosenRoot = null;
   document.querySelector("#tab-ident").checked = true;
   renderIdent();

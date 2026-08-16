@@ -43,6 +43,35 @@ Las grafías siguen el criterio de la base de datos de guitarra: `C#` y no `Db`,
 
 La tonalidad mayor se estima automáticamente a partir de la progresión (se muestra en el resultado) y es la que usa el paso diatónico.
 
+## Rearmonizar la progresión entera
+
+La pestaña de **Sustituciones** da opciones sueltas: para una canción de doce acordes son casi cuarenta
+sugerencias independientes, y montar el arreglo queda de tu parte. **Rearmonizar** hace ese trabajo:
+elige unas cuantas que encajen entre sí y devuelve la progresión completa, tocable de principio a fin.
+
+El criterio para que encajen es la **voz de arriba**: la nota más aguda de cada acorde tiene que
+dibujar una línea en vez de dar saltos. Cada versión la empuja hacia un lado —descendente, ascendente
+o nota pedal— y debajo de los diagramas se ve la línea conseguida y cuántos de sus movimientos son
+por grado conjunto.
+
+Que la línea mande cambia qué acordes salen y con qué digitación. Para `C Am F G7` la versión
+descendente propone `C E7 Am F G7`, con la voz de arriba en `C → B → A → A → G`: el dominante
+secundario entra precisamente porque su `B` completa la bajada. Para `D A Bm G` propone `D A Bm Gm`,
+con `D → C# → B → Bb`, tomando el `Gm` prestado del modo menor para conseguir el `Bb`.
+
+Es un camino mínimo (Viterbi) sobre un grafo por capas: cada hueco de la progresión ofrece varios
+acordes, cada acorde varias digitaciones de la base de datos, y el coste de encadenar dos lo pone el
+salto de la voz superior. Sobre eso mandan tres reglas de sentido común:
+
+- El **primer acorde no se toca**, que es el que planta la tonalidad.
+- No se admiten dos acordes iguales seguidos si el original tenía movimiento ahí: eso no es
+  rearmonizar, es quedarse sin un acorde.
+- Hay **presupuesto de cambios** (un tercio de la progresión). Sin tope, un `Fm` prestado en el sitio
+  justo deja de ser un hallazgo y se convierte en otra canción.
+
+Al pulsar cualquier acorde del arreglo se abre en el analizador **esa digitación concreta**, no la
+primera de la base de datos, que es justamente la que hace la línea.
+
 ## Identificar un acorde desde el mástil
 
 En la pestaña **¿Qué acorde es?** hay un mástil de 15 trastes donde cada cuerda suena una sola nota:

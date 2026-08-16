@@ -26,10 +26,12 @@
     }
     #tab-subs:checked ~ .tabs label[for="tab-subs"],
     #tab-capo:checked ~ .tabs label[for="tab-capo"],
+    #tab-reharm:checked ~ .tabs label[for="tab-reharm"],
     #tab-ident:checked ~ .tabs label[for="tab-ident"] { background: #2a2a33; color: #e8e8ee; }
-    #subs, #capo { display: none; list-style: none; padding: 0; }
+    #subs, #capo, #reharm { display: none; list-style: none; padding: 0; }
     #ident { display: none; }
-    #tab-subs:checked ~ #subs, #tab-capo:checked ~ #capo, #tab-ident:checked ~ #ident { display: block; }
+    #tab-subs:checked ~ #subs, #tab-capo:checked ~ #capo,
+    #tab-reharm:checked ~ #reharm, #tab-ident:checked ~ #ident { display: block; }
     #subs li, #capo li { padding: 0.4rem 0; border-bottom: 0.0625rem solid #333; }
     form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
     input {
@@ -55,8 +57,8 @@
     small { color: #999; }
     .why { margin: 0.25rem 0 0; font-size: 0.85rem; color: #a8a8b8; }
     .chord { position: relative; text-decoration: underline dotted; text-underline-offset: 0.2rem; }
-    .chord[data-load] { cursor: pointer; }
-    .chord[data-load]:hover { color: #9db0ea; text-decoration-style: solid; }
+    .chord[data-load], .chord[data-frets] { cursor: pointer; }
+    .chord[data-load]:hover, .chord[data-frets]:hover { color: #9db0ea; text-decoration-style: solid; }
     .chord .tip {
       display: none;
       position: absolute;
@@ -96,6 +98,15 @@
     #others li:hover { border-color: #4a6cd4; background: #2a2a33; }
     #readout h2 { font-size: 0.8rem; font-weight: normal; color: #a8a8b8; margin: 1.2rem 0 0; text-transform: uppercase; letter-spacing: 0.08em; }
     .actions { display: flex; align-items: center; gap: 0.75rem; }
+    #reharm > li { padding: 0.75rem 0 1rem; border-bottom: 0.0625rem solid #333; }
+    #reharm h3 { font-size: 1rem; margin: 0; }
+    .chart { display: flex; gap: 0.4rem; overflow-x: auto; padding: 0.6rem 0 0.2rem; }
+    .chart .step { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; flex: 0 0 auto;
+      padding: 0.4rem 0.3rem; border: 0.0625rem solid transparent; border-radius: 0.375rem; }
+    .chart .step.changed { border-color: #3f9c72; background: #22302a; }
+    .chart .step svg { width: 3.6rem; height: auto; color: #c8c8d8; }
+    .chart .top { font-family: ui-monospace, monospace; font-size: 0.8rem; color: #6fc79c; }
+    .line { font-family: ui-monospace, monospace; font-size: 0.85rem; color: #9db0ea; margin: 0.2rem 0 0; }
   </style>
 </head>
 <body>
@@ -108,14 +119,17 @@
   <div id="summary"></div>
   <input type="radio" name="tab" id="tab-subs" checked hidden>
   <input type="radio" name="tab" id="tab-capo" hidden>
+  <input type="radio" name="tab" id="tab-reharm" hidden>
   <input type="radio" name="tab" id="tab-ident" hidden>
   <nav class="tabs">
     <label for="tab-subs">Sustituciones</label>
     <label for="tab-capo">Cejilla</label>
+    <label for="tab-reharm">Rearmonizar</label>
     <label for="tab-ident">¿Qué acorde es?</label>
   </nav>
   <ul id="subs"></ul>
   <ul id="capo"></ul>
+  <ul id="reharm"></ul>
   <section id="ident">
     <p class="why">Pulsa en el mástil para marcar las notas. Cada cuerda suena una sola nota: al pulsar
       otro traste la nota se mueve, y al pulsar la que ya estaba marcada la cuerda se apaga. La columna

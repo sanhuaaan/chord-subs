@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { Chord, Note } from "tonal";
-import { parseProgression, suggest, detectKey } from "./rules.js";
+import { parseProgression, suggest, detectKey, RULES } from "./rules.js";
+import { reharmonizations } from "./reharm.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, STRINGS, MAX_FRET, PC } from "./guitar.js";
 import { identify, soundingNotes, degreeName, spell } from "./identify.js";
@@ -322,5 +323,62 @@ test("las posiciones de la BD se identifican como el acorde que dicen ser", () =
     const p = findShape(guitarDb, sym).positions.find(q => absoluteFrets(q).every(f => f <= MAX_FRET));
     const leidos = identify(absoluteFrets(p)).candidates.map(c => c.symbol);
     assert.ok(leidos.some(s => s === sym || s.startsWith(`${sym}/`)), `${sym} no se reconoce en su propia posición: ${leidos}`);
+  }
+});
+
+test("rearmoniza la progresión entera respetando el original donde toca", () => {
+  const prog = parseProgression("C Am F G7");
+  const versiones = reharmonizations(guitarDb, prog);
+  assert.ok(versiones.length >= 2, "varias versiones");
+  for (const v of versiones) {
+    assert.ok(v.steps.length >= prog.length, "no se pierde ningún hueco");
+    assert.equal(v.steps[0].from, "C");
+    assert.ok(!v.steps[0].changed, "el primer acorde planta la tonalidad: no se toca");
+    assert.equal(v.line.length, v.steps.length, "una nota de línea por acorde");
+    // Ningún acorde repetido seguido que no viniera ya en el original.
+    for (let i = 1; i < v.steps.length; i++) {
+      if (v.steps[i].symbol !== v.steps[i - 1].symbol) continue;
+      assert.equal(prog[v.steps[i].slot]?.symbol, prog[v.steps[i - 1].slot]?.symbol,
+        `repetición inventada: ${v.steps.map(s => s.symbol).join(" ")}`);
+    }
+    // Cada digitación tiene que sonar el acorde que dice.
+    for (const s of v.steps) {
+      const leidos = identify(s.frets).candidates.map(c => c.symbol);
+      assert.ok(leidos.some(x => x === s.symbol || x.startsWith(`${s.symbol}/`)),
+        `${s.symbol} no suena a lo que dice: ${leidos}`);
+      assert.equal(s.top, Math.max(...s.frets.map((f, i) => (f < 0 ? -1 : STRINGS[i][1] + f))), "la voz de arriba es la nota más aguda");
+    }
+  }
+});
+
+test("la línea se mueve hacia donde pide cada intención", () => {
+  const prog = parseProgression("D A Bm G");
+  const versiones = reharmonizations(guitarDb, prog);
+  const saltos = v => v.steps.slice(1).map((s, i) => s.top - v.steps[i].top);
+
+  const baja = versiones.find(v => v.intention.id === "descendente");
+  if (baja) assert.ok(saltos(baja).every(d => d <= 0), `la descendente sube: ${baja.line.join(" ")}`);
+
+  const pedal = versiones.find(v => v.intention.id === "pedal");
+  if (pedal) assert.ok(pedal.held >= 1, "la pedal debería repetir alguna nota");
+
+  // Ninguna versión debe dar saltos grandes en la voz de arriba: ese es el punto.
+  for (const v of versiones) {
+    assert.equal(v.leaps, 0, `${v.intention.name} da saltos: ${v.line.join(" → ")}`);
+  }
+});
+
+test("las sustituciones del arreglo salen de las reglas y van explicadas", () => {
+  const nombres = new Set(RULES.map(r => r.name));
+  for (const texto of ["C Am F G7", "Am F C G", "D A Bm G", "C Am F G7 C Am Dm G7"]) {
+    for (const v of reharmonizations(guitarDb, parseProgression(texto))) {
+      const cambios = v.steps.filter(s => s.changed);
+      assert.ok(cambios.length <= Math.max(1, Math.round(parseProgression(texto).length / 3)) * 2,
+        `demasiados cambios en "${texto}": ${v.steps.map(s => s.symbol).join(" ")}`);
+      for (const s of v.steps.filter(x => x.rule)) {
+        assert.ok(nombres.has(s.rule), `regla desconocida: ${s.rule}`);
+        assert.ok(s.why.length > 20, `sin explicación: ${s.rule}`);
+      }
+    }
   }
 });
