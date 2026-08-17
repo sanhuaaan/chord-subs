@@ -6,7 +6,7 @@ no funcionará hasta desplegar el proxy. Esto es lo que falta y por qué.
 
 ## Por qué hace falta un proxy propio
 
-- Trasteo es estático (GitHub Pages): todo corre en el navegador, y CORS impide
+- Jangle es estático (GitHub Pages): todo corre en el navegador, y CORS impide
   leer respuestas de `ultimate-guitar.com`, que no manda `Access-Control-Allow-Origin`.
 - Los proxys CORS públicos no valen: UG tiene fichadas sus IPs de datacenter
   (allorigins y codetabs devuelven 522, corsproxy.io 403). Comprobado 2026-08-17.
@@ -30,14 +30,14 @@ no funcionará hasta desplegar el proxy. Esto es lo que falta y por qué.
 2. Desplegar el worker (pide login en el navegador la primera vez):
 
    ```bash
-   cd trasteo
-   npx wrangler deploy proxy-worker.js --name trasteo-proxy --compatibility-date 2026-08-17
+   cd jangle
+   npx wrangler deploy proxy-worker.js --name jangle-proxy --compatibility-date 2026-08-17
    ```
 
 3. Apuntar la app a la URL que devuelve el deploy
-   (`https://trasteo-proxy.<subdominio>.workers.dev`): cambiar la constante
+   (`https://jangle-proxy.<subdominio>.workers.dev`): cambiar la constante
    `PROXY` en `song.js` y pushear (Pages redespliega solo).
-4. Probar en https://sanhuaaan.github.io/trasteo/ → «…o búscala por canción».
+4. Probar en https://sanhuaaan.github.io/jangle/ → «…o búscala por canción».
 
 Para probar en local sin cuenta: `npx wrangler dev proxy-worker.js` (sirve el
 proxy en `http://localhost:8787`, que es el valor por defecto de la app).

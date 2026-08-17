@@ -1,4 +1,4 @@
-# trasteo
+# jangle
 
 Aplicación web para trastear con la armonía de una canción, enfocada a guitarra. Dada una progresión
 de acordes sugiere sustituciones y acordes de paso con su explicación, propone dónde poner la cejilla
@@ -157,11 +157,11 @@ Ultimate Guitar bloquea los proxys CORS públicos, así que hace falta un proxy 
 npx wrangler dev proxy-worker.js
 
 # desplegar (cuenta gratuita de Cloudflare, pide login la primera vez)
-npx wrangler deploy proxy-worker.js --name trasteo-proxy --compatibility-date 2026-08-17
+npx wrangler deploy proxy-worker.js --name jangle-proxy --compatibility-date 2026-08-17
 ```
 
 Tras desplegar, apunta la app al worker: o cambias la constante `PROXY` en `song.js`,
-o en la consola del navegador `localStorage.proxy = "https://trasteo-proxy.<tu-subdominio>.workers.dev"`.
+o en la consola del navegador `localStorage.proxy = "https://jangle-proxy.<tu-subdominio>.workers.dev"`.
 
 ## Stack
 

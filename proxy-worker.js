@@ -1,6 +1,6 @@
 // Proxy CORS mínimo para Ultimate Guitar (bloquea los proxys públicos, pero no
 // las peticiones con pinta de navegador). Desplegar en Cloudflare Workers:
-//   npx wrangler deploy proxy-worker.js --name trasteo-proxy --compatibility-date 2026-08-17
+//   npx wrangler deploy proxy-worker.js --name jangle-proxy --compatibility-date 2026-08-17
 // y poner la URL resultante en localStorage.proxy (o en PROXY de song.js).
 // Probar en local sin cuenta: npx wrangler dev proxy-worker.js
 
