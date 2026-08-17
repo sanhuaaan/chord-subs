@@ -159,6 +159,14 @@ Ya está desplegado en `https://jangle-proxy.jangle.workers.dev` (plan gratuito,
 peticiones/día), y es lo que usa `PROXY` en `song.js`. Para trabajar contra una copia local del
 worker no hace falta tocar el código: `localStorage.proxy` manda sobre la constante.
 
+El worker solo atiende a la propia app: mira el `Origin` y deja pasar `sanhuaaan.github.io` y
+cualquier puerto de `localhost`; al resto, y a quien no manda `Origin` —una navegación pegando la
+URL en la barra, o un `curl` pelado—, les responde `403`. No es una barrera de seguridad, que esa
+cabecera se falsifica en un segundo, sino lo que evita que el worker termine siendo el proxy CORS
+gratuito de terceros y se coma la cuota. Y acota a la cuenta más que al repo: `Origin` es un
+dominio y no una ruta, así que otra página publicada en `sanhuaaan.github.io` pasaría igual. Si
+publicas Jangle en otro sitio, añade su origen a `ALLOWED_ORIGIN` en `proxy-worker.js`.
+
 ```bash
 # levantar el worker en local, en http://localhost:8787
 npx wrangler dev proxy-worker.js
