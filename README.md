@@ -27,7 +27,7 @@ hacen, que es la decisión de verdad antes de mirar la regla concreta:
 - **Cambiar** — otro acorde en su lugar, que hace el mismo papel (`C → Am`, `Em`, `Cm`).
 - **Añadir** — acordes que lo preparan o lo alargan, repartiéndose su tiempo (`C → Dm7 G7 C`, `Fm C`, `Bb7 C`).
 
-El botón **¿Qué acorde es?** (arriba a la derecha) va al revés: abre un mástil de 15 trastes donde
+El botón **Identificador de acordes** (arriba a la derecha) va al revés: abre un mástil de 15 trastes donde
 marcas pulsaciones y te dice qué acorde forman. Funciona sin escribir nada en el buscador.
 
 Los nombres de acorde del resto de la app llevan a él: al pulsar cualquiera, su primera
@@ -115,7 +115,7 @@ primera de la base de datos, que es justamente la que hace la línea.
 
 ## Identificar un acorde desde el mástil
 
-En el panel **¿Qué acorde es?** hay un mástil de 15 trastes donde cada cuerda suena una sola nota:
+En el panel **Identificador de acordes** hay un mástil de 15 trastes donde cada cuerda suena una sola nota:
 al pulsar un traste la nota se mueve ahí, al volver a pulsar donde ya estaba la cuerda se apaga, y la
 columna a la izquierda de la cejuela alterna al aire y muda (×).
 
@@ -130,6 +130,25 @@ otras lecturas pasa a ser la principal y el mástil se reetiqueta con sus grados
 pone la cuerda que suena, no la lectura, así que las que no la tienen por fundamental salen como
 inversión: `Emb6/G`.
 
+**Dos notas ya son acorde.** La quinta justa es el acorde de quinta de toda la vida (`C5`) y la
+tercera es la que decide el carácter, así que se nombran igual, diciendo lo que no suena para no
+prometer notas que no están: `C(no5)`, `Cm(no5)`, `Csus4(no5)`. Las sextas son esas mismas terceras
+vistas desde la otra nota y salen solas: `C-A` da `C6(no3,no5)` leyendo desde C y `Am(no5)` desde A,
+y lo que decide cuál va primera es cuál quede en el bajo. Con una sola nota no hay nada que nombrar.
+
+**Acordes a los que no les suena la fundamental.** En cuanto hay un bajo, la guitarra deja de tocar
+la fundamental y se queda con lo que define el acorde, así que `B-D-F` no es solo un `Bdim`: es el
+`G7` sin el `G`. Bajo las lecturas corrientes aparece un grupo aparte, **Sin la fundamental**, que
+prueba como fundamental las notas que *no* suenan. Solo pasan las que dejan un cifrado corriente y
+con notas guía —3ª y 7ª, que son las que hacen echar de menos una fundamental—; sin ese filtro cada
+acorde arrastraría una docena de lecturas rebuscadas, que es lo que vuelve inútil una lista. Y van
+siempre detrás de las lecturas cuya fundamental está pisada, que son las notas que de verdad tienes
+puestas.
+
+Con dos notas no se especula: la fundamental ausente sería una de las dos que faltan de cuatro, más
+suposición que dato. La excepción es el tritono, que no puede ser otra cosa que la 3ª y la 7ª de un
+dominante, así que `B-F` sí da `G7/B` y `C#7/B`.
+
 Los cifrados no salen del diccionario de tonal, que solo conoce 106 tipos y deja sin nombre casi
 todo lo que no es un acorde de manual. Se componen intervalo a intervalo (`spell` en `identify.js`):
 tercera, quinta, séptima y sexta se consumen primero y lo que sobra se cuelga como tensión, leída
@@ -141,6 +160,9 @@ según haya séptima o no — el mismo Ab sobre C es `b6` en una tríada y `b13`
 | `0 3 2 0 1 0` | `C/E` (inversión) |
 | `× 3 2 0 3 0` | `Cadd9` |
 | `3 2 0 0 0 1` | `G7` |
+| `× 3 5 × × ×` | `C5` |
+| `× 3 2 × × ×` | `C(no5)`, la tercera sola |
+| `× × × 4 3 1` | `Bdim`, y `G7/B` sin la fundamental |
 | `3 3 2 4 0 0` | `Cmaj7/G`, y también `G6/11`, `Emb6/G` y `Bsus4b6b9/G` |
 
 ## Buscar canciones («…o búscala por canción», bajo el campo de progresión)

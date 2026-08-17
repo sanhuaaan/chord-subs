@@ -18,12 +18,12 @@
       line-height: 1.5;
     }
     /* Todo lo pulsable responde suave, y al hacer clic se hunde un pelín. */
-    button, .tabs label, h1 label, .chord, #others li, #song-results li,
+    button, .tabs label, h1 label, .chord, .others li, #song-results li,
     #subs summary, #song-box summary {
       transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
     }
     button:hover { background: #5b7de0; }
-    button:active, #others li:active, #song-results li:active, h1 label:active { transform: scale(0.96); }
+    button:active, .others li:active, #song-results li:active, h1 label:active { transform: scale(0.96); }
     .tabs label:hover { color: #e8e8ee; }
     @keyframes fade-in { from { opacity: 0; transform: translateY(0.25rem); } }
     /* Plegado fluido de los <details> (acordes de Sustituciones y buscador de
@@ -150,10 +150,19 @@
     .board-head { display: flex; justify-content: flex-end; }
     #tuning { font-size: 0.75rem; color: #a8a8b8; text-align: right; letter-spacing: 0.08em; }
     #voicing { font-family: ui-monospace, monospace; letter-spacing: 0.1em; }
-    #others { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0; margin: 0.5rem 0 0.75rem; }
-    #others li { list-style: none; padding: 0.35rem 0.7rem; border: 0.0625rem solid #3a3a45; border-radius: 0.375rem; font-size: 1rem; cursor: pointer; }
-    #others li:hover { border-color: #4a6cd4; background: #2a2a33; }
-    #others li.active { border-color: #4a6cd4; background: #2a2a33; color: #e8e8ee; font-weight: 600; }
+    .others { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0; margin: 0.5rem 0 0.75rem; }
+    .others li { list-style: none; padding: 0.35rem 0.7rem; border: 0.0625rem solid #3a3a45; border-radius: 0.375rem; font-size: 1rem; cursor: pointer; }
+    .others li:hover { border-color: #4a6cd4; background: #2a2a33; }
+    .others li.active { border-color: #4a6cd4; background: #2a2a33; color: #e8e8ee; font-weight: 600; }
+    #readout h3 {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: #9db0ea;
+      margin: 0.75rem 0 0;
+    }
+    #readout .hint { margin: 0.2rem 0 0; font-size: 0.78rem; opacity: 0.8; }
     .actions { display: flex; align-items: center; gap: 0.75rem; }
     #reharm > li { padding: 0.75rem 0 1rem; border-bottom: 0.0625rem solid #333; }
     #reharm h3 { font-size: 1rem; margin: 0; }
@@ -168,7 +177,7 @@
 </head>
 <body>
   <input type="checkbox" id="toggle-ident" hidden>
-  <h1>Jangle <label for="toggle-ident">¿Qué acorde es?</label></h1>
+  <h1>Jangle <label for="toggle-ident">Identificador de acordes</label></h1>
   <form>
     <input id="progression" placeholder="Ej.: C Am F G7" autofocus>
     <button type="submit">Sugerir</button>

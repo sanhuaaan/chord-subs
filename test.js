@@ -273,36 +273,82 @@ test("cada nota recibe su grado dentro del acorde elegido", () => {
   assert.equal(degreeName("Eb", "Eb"), "fundamental");
 });
 
-test("con menos de tres notas distintas no hay acorde que nombrar", () => {
+test("con una sola nota no hay acorde que nombrar; con dos ya sí", () => {
   assert.deepEqual(identify([-1, -1, -1, -1, -1, -1]), { notes: [], pcs: [], candidates: [] });
-  assert.equal(identify([-1, -1, -1, -1, 1, 0]).candidates.length, 0, "dos notas no son acorde");
-  assert.equal(identify([0, -1, -1, -1, -1, 0]).candidates.length, 0, "la misma nota en dos cuerdas tampoco");
+  assert.equal(identify([0, -1, -1, -1, -1, 0]).candidates.length, 0, "la misma nota en dos cuerdas no es acorde");
+  assert.equal(identify([-1, -1, -1, -1, 1, 0]).candidates.length, 2, "dos notas: una lectura por nota");
+});
+
+test("dos notas ya son acorde: quintas, terceras y sextas", () => {
+  const nombres = frets => identify(frets).candidates.filter(c => !c.rootless).map(c => c.symbol);
+  // La quinta justa es el acorde de quinta de toda la vida, y se lleva la lectura
+  // buena: la otra tendría que inventarse una fundamental que no está en el bajo.
+  assert.deepEqual(nombres([-1, 3, 5, -1, -1, -1]), ["C5", "Gsus4(no5)/C"]);
+  // La tercera decide el carácter; el cifrado avisa de que no hay quinta.
+  assert.deepEqual(nombres([-1, 3, 2, -1, -1, -1]), ["C(no5)", "E(#5,no3)/C"]);
+  assert.equal(nombres([-1, 3, 1, -1, -1, -1])[0], "Cm(no5)");
+  // Una sexta es esa misma tercera vista desde la otra nota, así que las dos
+  // lecturas son las mismas dos y lo que cambia el orden es cuál queda en el bajo.
+  assert.deepEqual(nombres([-1, 3, 7, -1, -1, -1]), ["C6(no3,no5)", "Am(no5)/C"]);
+  assert.deepEqual(nombres([-1, -1, -1, 2, 1, -1]), ["Am(no5)", "C6(no3,no5)/A"]);
+  // Ningún cifrado de díada promete notas que no suenan.
+  for (const frets of [[-1, 3, 5, -1, -1, -1], [-1, 3, 2, -1, -1, -1], [-1, 3, 7, -1, -1, -1]]) {
+    const { pcs, candidates } = identify(frets);
+    assert.equal(pcs.length, 2);
+    assert.ok(candidates.every(c => c.degrees.length === 2), "cada lectura explica las dos notas");
+  }
+});
+
+test("nombra el acorde aunque no suene su fundamental", () => {
+  const sinRaiz = frets => identify(frets).candidates.filter(c => c.rootless).map(c => c.symbol);
+  // El caso de manual: B-D-F no es un Bdim cualquiera, es el G7 sin el G.
+  assert.ok(sinRaiz([-1, -1, -1, 4, 3, 1]).includes("G7/B"), "B-D-F es G7 sin fundamental");
+  assert.ok(sinRaiz([-1, -1, -1, 9, 8, 7]).includes("Cmaj7/E"), "E-G-B es Cmaj7 sin fundamental");
+  assert.ok(sinRaiz([-1, -1, 3, 2, 1, 0]).includes("Dm9/F"), "F-A-C-E es Dm9 sin fundamental");
+  assert.ok(sinRaiz([-1, -1, -1, 9, 11, 10]).includes("C9/E"), "E-Bb-D es C9 sin fundamental");
+
+  const { candidates } = identify([-1, -1, -1, 4, 3, 1]); // B-D-F
+  assert.equal(candidates[0].symbol, "Bdim", "manda lo que suena: la fundamental pisada va primero");
+  assert.equal(candidates.findIndex(c => c.rootless), candidates.filter(c => !c.rootless).length,
+    "las lecturas sin fundamental van todas detrás");
+  assert.ok(candidates.filter(c => c.rootless).every(c => !c.degrees.some(d => d.degree === "fundamental")),
+    "si la lectura es sin fundamental, ninguna nota marcada lo es");
+
+  // Sin notas guía no se inventa nada: hacen falta 3ª y 7ª para echar de menos
+  // una fundamental, y con dos notas la suposición sería mayor que el dato.
+  assert.deepEqual(sinRaiz([-1, 3, 3, 0, -1, -1]), [], "un sus4 no arrastra lecturas sin fundamental");
+  assert.deepEqual(sinRaiz([-1, 3, 1, 11, 10, -1]), [], "ni un dim7, que no tiene 7ª de las que valen");
+  assert.deepEqual(sinRaiz([-1, 3, 5, -1, -1, -1]), [], "una quinta pelada tampoco");
+  // Salvo el tritono, que solo puede ser la 3ª y la 7ª de un dominante.
+  assert.deepEqual(sinRaiz([-1, -1, -1, 4, 6, -1]).sort(), ["C#7/B", "G7/B"]);
 });
 
 test("da una lectura por cada nota que se tome como fundamental", () => {
   const { pcs, candidates } = identify([3, 3, 2, 4, 0, 0]); // G C E B: el acorde de referencia
+  const sonando = candidates.filter(c => !c.rootless);
   assert.deepEqual(pcs, ["G", "C", "E", "B"]);
-  assert.equal(candidates.length, 4, "una lectura por nota distinta");
-  assert.deepEqual(candidates.map(c => c.root).sort(), ["B", "C", "E", "G"]);
-  assert.deepEqual(candidates.map(c => c.symbol), ["Cmaj7/G", "G6/11", "Emb6/G", "Bsus4b6b9/G"]);
+  assert.equal(sonando.length, 4, "una lectura por nota distinta");
+  assert.deepEqual(sonando.map(c => c.root).sort(), ["B", "C", "E", "G"]);
+  assert.deepEqual(sonando.map(c => c.symbol), ["Cmaj7/G", "G6/11", "Emb6/G", "Bsus4b6b9/G"]);
   assert.ok(candidates.every(c => c.degrees.length === 4), "todas explican las mismas cuatro notas");
   // El bajo lo pone la cuerda más grave, no la fundamental de cada lectura.
-  assert.ok(candidates.every(c => (c.root === "G") !== c.inversion));
+  assert.ok(sonando.every(c => (c.root === "G") !== c.inversion));
 });
 
 test("cualquier puñado de notas recibe nombre, por raro que sea", () => {
   for (const frets of [[1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5], [-1, -1, 5, 6, 7, 8]]) {
     const { pcs, candidates } = identify(frets);
-    assert.equal(candidates.length, pcs.length, `una lectura por nota distinta en ${frets}`);
+    const sonando = candidates.filter(c => !c.rootless);
+    assert.equal(sonando.length, pcs.length, `una lectura por nota distinta en ${frets}`);
     assert.ok(candidates.every(c => c.symbol.length > 1), "ninguna se queda sin cifrar");
-    assert.equal(new Set(candidates.map(c => c.symbol)).size, pcs.length, "sin lecturas repetidas");
+    assert.equal(new Set(candidates.map(c => c.symbol)).size, candidates.length, "sin lecturas repetidas");
   }
 });
 
 test("las lecturas evidentes van antes que las rebuscadas", () => {
   const { candidates } = identify([-1, 3, 2, 0, 1, 0]); // C
   assert.equal(candidates[0].symbol, "C");
-  assert.equal(candidates.length, 3, "también se lee desde E y desde G");
+  assert.equal(candidates.filter(c => !c.rootless).length, 3, "también se lee desde E y desde G");
   assert.ok(candidates[0].score > candidates[1].score, "la lectura llana puntúa más");
 });
 
@@ -327,6 +373,21 @@ test("spell lee las alteraciones según haya séptima o no", () => {
   assert.equal(s(4, 7, 10, 9), "13", "con séptima, esa 6ª es la 13ª");
   assert.equal(s(4, 7, 10, 6), "7#11", "el Gb sobre un dominante es #11, no b5");
   assert.equal(s(4, 5, 9), "6/11", "cifras pegadas se separan con barra");
+});
+
+test("spell cifra los intervalos sueltos diciendo lo que falta", () => {
+  const s = (...semis) => spell(new Set([0, ...semis]));
+  assert.equal(s(7), "5", "la quinta justa ya se llama así: no hace falta añadir nada");
+  assert.equal(s(4), "(no5)");
+  assert.equal(s(3), "m(no5)");
+  assert.equal(s(9), "6(no3,no5)");
+  assert.equal(s(5), "sus4(no5)", "la suspensión ya dice que no hay tercera");
+  assert.equal(s(2), "sus2(no5)");
+  assert.equal(s(6), "(b5,no3)", "escrito entre paréntesis: Cb5 se leería como Cb");
+  // Dos notas SIN la fundamental no son un intervalo pelado, son notas guía: la
+  // 3ª y la 7ª de un dominante al que le falta el resto.
+  assert.equal(spell(new Set([4, 10])), "7");
+  assert.equal(spell(new Set([3, 10])), "m7");
 });
 
 test("los nombres identificados existen en la BD de guitarra", () => {

@@ -243,7 +243,7 @@ function renderReharm(progression) {
   }
 }
 
-// ── Pestaña "¿Qué acorde es?": mástil clicable → nombre del acorde ──────────
+// ── Identificador de acordes: mástil clicable → nombre del acorde ───────────
 
 const board = document.querySelector("#board");
 const readout = document.querySelector("#readout");
@@ -267,12 +267,12 @@ function renderIdent() {
   readout.replaceChildren();
 
   if (!notes.length) {
-    readout.append(p("why", "Marca al menos tres notas distintas para que haya acorde que nombrar."));
+    readout.append(p("why", "Marca al menos dos notas distintas para que haya acorde que nombrar."));
     return;
   }
   if (!best) {
     readout.append(
-      p("why", `Con ${pcs.length === 1 ? "una sola nota" : "dos notas"} no hay acorde que nombrar: marca al menos tres distintas.`),
+      p("why", "Con una sola nota no hay acorde que nombrar: marca al menos dos distintas."),
       p("why", `Notas de grave a aguda: ${notes.map(n => `${n.note} (${n.string})`).join(", ")}`),
     );
     return;
@@ -281,18 +281,34 @@ function renderIdent() {
   // Todas las lecturas siempre debajo del mástil, la activa marcada: son las
   // mismas notas con un nombre por cada fundamental posible, y pulsar otra la
   // vuelve la principal y reetiqueta los grados del mástil.
-  const list = Object.assign(document.createElement("ul"), { id: "others" });
-  for (const c of candidates) {
-    const li = Object.assign(document.createElement("li"), {
-      textContent: c.symbol,
-      className: c === best ? "active" : "",
-      title: `Tomando ${c.root} como fundamental: ${c.degrees.map(d => `${d.note} ${d.degree}`).join(", ")}`,
-    });
-    li.dataset.root = c.root;
-    list.append(li);
+  const chips = group => {
+    const list = Object.assign(document.createElement("ul"), { className: "others" });
+    for (const c of group) {
+      const li = Object.assign(document.createElement("li"), {
+        textContent: c.symbol,
+        className: c === best ? "active" : "",
+        title: `Tomando ${c.root} como fundamental: ${c.degrees.map(d => `${d.note} ${d.degree}`).join(", ")}`,
+      });
+      li.dataset.root = c.root;
+      list.append(li);
+    }
+    return list;
+  };
+
+  readout.append(chips(candidates.filter(c => !c.rootless)));
+
+  // Las lecturas cuya fundamental no suena van aparte y avisando: el cifrado
+  // nombra una nota que no está marcada, y leerlo sin saberlo lleva a engaño.
+  const sinRaiz = candidates.filter(c => c.rootless);
+  if (sinRaiz.length) {
+    readout.append(
+      Object.assign(document.createElement("h3"), { textContent: "Sin la fundamental" }),
+      p("why hint", "Estas lecturas no tienen su fundamental entre las notas marcadas: la pone el bajo. Es lo corriente cuando no tocas solo, y la guitarra se queda con las notas que definen el acorde."),
+      chips(sinRaiz),
+    );
   }
+
   readout.append(
-    list,
     p("why", best.degrees.map(d => `${d.note}: ${d.degree}`).join(" · ")),
     p("why", `Notas de grave a aguda: ${notes.map(n => `${n.note} (${n.string})`).join(", ")}`),
   );

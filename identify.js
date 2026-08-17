@@ -38,11 +38,27 @@ const COMMON = new Set([
   "dim", "dim7", "aug", "m7b5", "add9", "madd9", "9", "m9", "maj9", "11", "m11", "13", "6/9",
 ]);
 
+// Dos notas no hacen tríada, pero el intervalo ya dice bastante: la 5ª justa es
+// el acorde de quinta de toda la vida, y la 3ª decide el carácter. Las sextas son
+// esas mismas terceras vistas desde la otra nota, y salen solas al leer desde
+// ella (C-A es C6 desde C y Am desde A). Se cifran diciendo lo que NO suena, para
+// no prometer una quinta que no está; el desglose de grados de debajo es lo que
+// de verdad informa cuando el intervalo no es ninguno de los tres corrientes.
+const DYAD = [
+  null, "(b9,no3,no5)", "sus2(no5)", "m(no5)", "(no5)", "sus4(no5)",
+  "(b5,no3)", "5", "(#5,no3)", "6(no3,no5)", "7(no3,no5)", "maj7(no3,no5)",
+];
+
 // Cifra un conjunto de semitonos desde la fundamental como se escribiría en un
 // cancionero. Va consumiendo intervalos —tercera, quinta, séptima, sexta— y lo
 // que sobra se cuelga como tensión, así que siempre sale un nombre aunque el
 // conjunto sea raro: es lo que permite ofrecer una lectura por cada nota.
 export function spell(steps) {
+  // Dos notas contando la fundamental: no hay tríada que consumir, el intervalo es
+  // todo lo que hay. Ojo, dos notas SIN la fundamental siguen el camino normal: no
+  // son un intervalo pelado sino notas guía, y B-F sobre G es un G7 en condiciones.
+  if (steps.size === 2 && steps.has(0)) return DYAD[[...steps].find(n => n !== 0)];
+
   const rest = new Set(steps);
   rest.delete(0);
   const take = n => { const hit = rest.has(n); rest.delete(n); return hit; };
@@ -122,26 +138,54 @@ const score = (suffix, isBass) =>
 // correctos: se devuelve uno por cada una, ordenados por lo probable que es que
 // sea el que el guitarrista tenía en mente. La más grave manda en el cifrado,
 // así que las que no la tienen por fundamental salen como inversión (X/bajo).
-// ponytail: sin acordes de una o dos notas (una quinta no basta para nombrar)
+// ponytail: con una sola nota no hay nada que nombrar; desde dos sí
 export function identify(frets) {
   const notes = soundingNotes(frets);
   const pcs = [...new Set(notes.map(n => n.note))]; // Set conserva el orden: pcs[0] es el bajo
-  if (pcs.length < 3) return { notes, pcs, candidates: [] };
+  if (pcs.length < 2) return { notes, pcs, candidates: [] };
 
   const bass = pcs[0];
-  const candidates = pcs
-    .map(root => {
-      const suffix = spell(new Set(pcs.map(n => step(root, n))));
-      const inversion = root !== bass;
-      return {
-        symbol: root + suffix + (inversion ? `/${bass}` : ""),
-        root,
-        suffix,
-        inversion,
-        score: score(suffix, !inversion),
-        degrees: pcs.map(note => ({ note, degree: degreeName(root, note) })),
-      };
-    })
-    .sort((a, b) => b.score - a.score);
+  const read = (root, rootless) => {
+    const suffix = spell(new Set(pcs.map(n => step(root, n))));
+    const inversion = root !== bass;
+    return {
+      symbol: root + suffix + (inversion ? `/${bass}` : ""),
+      root,
+      suffix,
+      inversion,
+      rootless,
+      score: score(suffix, !inversion),
+      degrees: pcs.map(note => ({ note, degree: degreeName(root, note) })),
+    };
+  };
+
+  // Notas guía: la 3ª da el carácter y la 7ª es la que hace echar de menos una
+  // fundamental. Sin las dos, una fundamental ausente no se sostiene.
+  const guide = root => {
+    const s = pcs.map(n => step(root, n));
+    return (s.includes(3) || s.includes(4)) && (s.includes(10) || s.includes(11));
+  };
+
+  // Con dos notas la fundamental ausente sería una de las dos que faltan de cuatro:
+  // demasiada suposición, y el intervalo ya se nombra solo. Salvo el tritono, que
+  // no puede ser otra cosa que la 3ª y la 7ª de un dominante: ahí la lectura sin
+  // fundamental dice mucho más que el intervalo pelado.
+  const enough = pcs.length > 2 || step(pcs[0], pcs[1]) === 6;
+
+  // Acordes sin fundamental: en un voicing de jazz la fundamental se le deja al
+  // bajo y la guitarra toca solo lo que define el acorde, así que B-D-F no es un
+  // Bdim cualquiera, es el G7 al que le falta el G. Se prueban como fundamental
+  // las notas que no suenan, y solo pasan las que dejan un cifrado corriente con
+  // notas guía; sin ese filtro cada acorde arrastraría una docena de lecturas
+  // rebuscadas, que es lo que hace inútil una lista de lecturas.
+  const rootless = (enough ? PC : [])
+    .filter(root => !pcs.includes(root))
+    .map(root => read(root, true))
+    .filter(c => COMMON.has(c.suffix) && guide(c.root));
+
+  // Las lecturas cuya fundamental suena van siempre delante: son las notas que el
+  // guitarrista tiene pisadas, y lo que falta es siempre más discutible.
+  const candidates = [...pcs.map(root => read(root, false)), ...rootless]
+    .sort((a, b) => (a.rootless ? 1 : 0) - (b.rootless ? 1 : 0) || b.score - a.score);
   return { notes, pcs, candidates };
 }
