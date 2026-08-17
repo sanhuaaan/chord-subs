@@ -3,6 +3,10 @@ import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { identify, degreeShort } from "./identify.js";
 import { reharmonizations } from "./reharm.js";
 import { searchSongs, fetchSong, suggestions } from "./song.js";
+import {
+  readLibrary, writeLibrary, libraryJson, parseLibrary, mergeLibrary,
+  saveSection, removeSection, removeSong, songKey,
+} from "./library.js";
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, MAX_FRET, PC } from "./guitar.js";
 
 const form = document.querySelector("form");
@@ -14,6 +18,9 @@ const reharmList = document.querySelector("#reharm");
 const error = document.querySelector("#error");
 
 // De qué canción y parte salió la progresión actual (null si se tecleó a mano).
+// Lleva también intérprete, tonalidad y enlace: son los datos que se guardan con
+// ella en el cancionero, y así retocar una progresión traída de Ultimate Guitar y
+// volver a guardarla no pierde de dónde venía.
 let songContext = null;
 
 let db = null;
@@ -422,14 +429,19 @@ songResults.addEventListener("click", async e => {
       const chords = document.createElement("div");
       chords.className = "chords";
       for (const sym of sec.chords) chords.append(chordSpan(sym));
+      const meta = { song: s.song, artist: s.artist, key: s.key, url: li.dataset.url, part: sec.name };
       const use = Object.assign(document.createElement("button"), { type: "button", textContent: "Usar" });
-      use.addEventListener("click", () => {
-        input.value = sec.chords.join(" ");
-        songContext = { label: `${sec.name} · ${s.song} — ${s.artist}`, chords: input.value };
-        document.querySelector("#song-box").open = false; // el buscador se pliega: la progresión ya está arriba
-        form.requestSubmit();
+      use.addEventListener("click", () => useSection(meta, sec.chords));
+      // Guardar sin pasar por "Usar": al mirar una transcripción interesa quedarse
+      // con dos o tres partes de golpe, no cargarlas una a una para conservarlas.
+      const keep = Object.assign(document.createElement("button"), { type: "button", textContent: "Guardar" });
+      keep.addEventListener("click", () => {
+        const msg = saveToLibrary(meta, sec.chords);
+        if (!msg) return;
+        keep.textContent = msg;
+        keep.disabled = true;
       });
-      chords.append(use);
+      chords.append(use, keep);
       box.append(chords);
       songSections.append(box);
     }
@@ -438,8 +450,181 @@ songResults.addEventListener("click", async e => {
   }
 });
 
+// ── Cancionero: las progresiones que se guardan en este navegador ───────────
+
+const libraryBox = document.querySelector("#library-box");
+const libraryList = document.querySelector("#library-list");
+const libraryCount = document.querySelector("#library-count");
+const libraryStatus = document.querySelector("#library-status");
+const librarySong = document.querySelector("#library-song");
+const libraryPart = document.querySelector("#library-part");
+
+let lib = readLibrary();
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+// Toda escritura pasa por aquí: si el navegador no deja guardar, la pantalla no
+// puede quedarse enseñando un cancionero que en realidad no se ha almacenado.
+const commit = (next, done = "") => {
+  try {
+    writeLibrary(next);
+  } catch (err) {
+    libraryStatus.textContent = err.message;
+    return false;
+  }
+  lib = next;
+  renderLibrary();
+  libraryStatus.textContent = done;
+  return true;
+};
+
+// Usar una parte: la progresión sube al campo de arriba y de ahí sigue el camino
+// de siempre —requestSubmit escribe el hash, y el hash es lo que pinta—, así que
+// el cancionero no es una segunda fuente de verdad, solo otra forma de rellenarlo.
+function useSection(meta, chords) {
+  input.value = chords.join(" ");
+  songContext = {
+    ...meta,
+    label: `${meta.part} · ${meta.song}${meta.artist ? ` — ${meta.artist}` : ""}`,
+    chords: input.value,
+  };
+  // El formulario de guardar queda apuntando a esta parte: retocar la progresión
+  // y volver a guardarla actualiza la que ya está, sin teclear los nombres otra vez.
+  librarySong.value = meta.song;
+  libraryPart.value = meta.part;
+  document.querySelector("#song-box").open = false; // el buscador se pliega: la progresión ya está arriba
+  libraryBox.open = false;
+  form.requestSubmit();
+}
+
+// Devuelve qué contarle al usuario, o null si no se ha podido guardar (que con
+// localStorage pasa de verdad: cuota llena o almacenamiento desactivado).
+function saveToLibrary(meta, chords) {
+  let next, added;
+  try {
+    ({ lib: next, added } = saveSection(lib, meta, { name: meta.part, chords }));
+  } catch (err) {
+    libraryStatus.textContent = err.message;
+    libraryBox.open = true;
+    return null;
+  }
+  if (!commit(next)) {
+    libraryBox.open = true;
+    return null;
+  }
+  return added ? "Guardada" : "Ya la tenías";
+}
+
+function renderLibrary() {
+  const parts = lib.songs.reduce((n, s) => n + s.sections.length, 0);
+  libraryCount.textContent = parts
+    ? `(${plural(lib.songs.length, "canción", "canciones")}, ${plural(parts, "parte", "partes")})`
+    : "";
+
+  libraryList.replaceChildren();
+  // Por título, que es lo primero que se lee de cada línea; el intérprete solo
+  // desempata. Ordenar por intérprete pondría delante las progresiones propias,
+  // que no tienen ninguno. El orden en que se guardaron se queda en el fichero,
+  // donde lo que importa es que exportar dos veces dé lo mismo.
+  const songs = [...lib.songs].sort((a, b) => a.song.localeCompare(b.song) || a.artist.localeCompare(b.artist));
+  for (const s of songs) {
+    const key = songKey(s);
+    const head = document.createElement("h3");
+    head.append(s.song);
+    const detail = [s.artist, s.key && `tonalidad ${s.key}`].filter(Boolean).join(" · ");
+    if (detail) head.append(Object.assign(document.createElement("small"), { textContent: `— ${detail}` }));
+    const dropSong = Object.assign(document.createElement("button"), { type: "button", textContent: "Borrar" });
+    dropSong.addEventListener("click", () => commit(removeSong(lib, key), `Borrada "${s.song}".`));
+    head.append(dropSong);
+    libraryList.append(head);
+
+    s.sections.forEach((sec, i) => {
+      const box = document.createElement("div");
+      box.className = "section";
+      box.append(Object.assign(document.createElement("strong"), { textContent: sec.name }));
+      const chords = document.createElement("div");
+      chords.className = "chords";
+      for (const sym of sec.chords) chords.append(chordSpan(sym));
+      const meta = { song: s.song, artist: s.artist, key: s.key, url: s.url, part: sec.name };
+      const use = Object.assign(document.createElement("button"), { type: "button", textContent: "Usar" });
+      use.addEventListener("click", () => useSection(meta, sec.chords));
+      const drop = Object.assign(document.createElement("button"), {
+        type: "button", className: "drop", textContent: "Quitar",
+      });
+      drop.addEventListener("click", () => commit(removeSection(lib, key, i), `Quitada la parte "${sec.name}".`));
+      chords.append(use, drop);
+      box.append(chords);
+      libraryList.append(box);
+    });
+  }
+}
+
+// Guardar lo que hay escrito arriba, que es la vía para las progresiones propias:
+// las de Ultimate Guitar ya tienen su botón junto a cada parte.
+document.querySelector("#library-form").addEventListener("submit", e => {
+  e.preventDefault();
+  let progression;
+  try {
+    progression = parseProgression(input.value);
+  } catch (err) {
+    libraryStatus.textContent = err.message;
+    return;
+  }
+  if (!progression.length) {
+    libraryStatus.textContent = "Escribe primero una progresión ahí arriba y luego guárdala con un nombre.";
+    return;
+  }
+  const song = librarySong.value.trim();
+  if (!song) {
+    librarySong.focus();
+    libraryStatus.textContent = "Ponle nombre a la canción para poder encontrarla luego.";
+    return;
+  }
+  // Si el nombre coincide con el de la canción cargada se conservan sus datos:
+  // retocar una progresión traída de Ultimate Guitar y volver a guardarla no
+  // debería perder el intérprete ni el enlace de la transcripción.
+  const from = songContext?.song === song ? songContext : {};
+  const meta = { song, artist: from.artist ?? "", key: from.key, url: from.url, part: libraryPart.value.trim() };
+  const msg = saveToLibrary(meta, progression.map(c => c.symbol));
+  if (msg) libraryStatus.textContent = `${msg}: ${song} · ${meta.part || "Progresión"}.`;
+});
+
+// Descargar y cargar son lo que compensa que el cancionero viva en un navegador:
+// la copia de seguridad, el paso a otro dispositivo y la manera de compartirlo.
+document.querySelector("#library-download").addEventListener("click", () => {
+  if (!lib.songs.length) {
+    libraryStatus.textContent = "El cancionero está vacío: no hay nada que descargar.";
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([libraryJson(lib)], { type: "application/json" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: "cancionero-jangle.json" });
+  a.click();
+  URL.revokeObjectURL(url);
+  libraryStatus.textContent = "Descargado cancionero-jangle.json.";
+});
+
+document.querySelector("#library-file").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = ""; // sin esto, cargar dos veces el mismo fichero no vuelve a disparar el evento
+  try {
+    const { lib: incoming, dropped } = parseLibrary(await file.text());
+    const { lib: next, songs, sections } = mergeLibrary(lib, incoming);
+    const aviso = dropped ? ` Se ha descartado ${plural(dropped, "entrada por el formato", "entradas por el formato")}.` : "";
+    if (!songs && !sections) {
+      libraryStatus.textContent = `Ese cancionero ya lo tenías entero: no hay nada nuevo que añadir.${aviso}`;
+      return;
+    }
+    commit(next, `Cargado: ${plural(songs, "canción nueva", "canciones nuevas")} y ${plural(sections, "parte nueva", "partes nuevas")}.${aviso}`);
+  } catch (err) {
+    libraryStatus.textContent = err.message;
+  }
+});
+
 renderIdent();
+renderLibrary();
 dbReady.then(renderIdent); // repinta cuando ya hay diagramas que colgar de los nombres
+dbReady.then(renderLibrary);
 
 // Al cargar o navegar por el historial, la progresión de la URL manda.
 function applyHash() {

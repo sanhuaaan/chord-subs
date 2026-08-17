@@ -7,9 +7,13 @@ const PROXY = globalThis.localStorage?.proxy || "https://jangle-proxy.jangle.wor
 
 const fetchUG = url =>
   fetch(`${PROXY}/?url=${encodeURIComponent(url)}`).catch(() => {
-    throw new Error(`No se llega al proxy (${PROXY}): la búsqueda necesita desplegarlo, o arrancarlo en local con npx wrangler dev proxy-worker.js. Ver PENDIENTE.md`);
+    throw new Error(`No se llega al proxy (${PROXY}), y sin él no hay búsqueda. Si estás trabajando en local, arráncalo con npx wrangler dev proxy-worker.js. Ver el README.`);
   }).then(r => {
-    if (!r.ok) throw new Error(`El proxy respondió ${r.status}. ¿Está desplegado? (ver PENDIENTE.md)`);
+    if (!r.ok) {
+      throw new Error(r.status === 403
+        ? `El proxy ha respondido 403: solo atiende a la propia app. Añade este origen a ALLOWED_ORIGIN en proxy-worker.js.`
+        : `El proxy ha respondido ${r.status}. Ver el README.`);
+    }
     return r.text();
   });
 

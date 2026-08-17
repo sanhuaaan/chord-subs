@@ -8,6 +8,10 @@ import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { parseSearch, parseTab, suggestionSlug } from "./song.js";
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, STRINGS, MAX_FRET, PC } from "./guitar.js";
 import { identify, soundingNotes, degreeName, spell } from "./identify.js";
+import {
+  KEY, emptyLibrary, readLibrary, writeLibrary, libraryJson, parseLibrary,
+  mergeLibrary, saveSection, removeSection, removeSong, songKey,
+} from "./library.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
 
@@ -568,4 +572,121 @@ test("suggestionSlug normaliza como espera el endpoint de sugerencias de UG", ()
   assert.equal(suggestionSlug("  Rosalía "), "rosal"); // sin tildes ni espacios sobrantes
   assert.equal(suggestionSlug("AC/DC"), "ac_dc"); // símbolos como _
   assert.equal(suggestionSlug(""), "");
+});
+
+// ── Cancionero ──────────────────────────────────────────────────────────────
+
+// localStorage no existe en node, y tampoco hace falta: al módulo se le pasa el
+// almacenamiento, así que aquí basta un Map con la misma cara.
+const fakeStore = () => {
+  const data = new Map();
+  return { getItem: k => data.get(k) ?? null, setItem: (k, v) => data.set(k, String(v)) };
+};
+
+test("el cancionero guarda partes por canción, sin duplicar progresiones", () => {
+  const beatles = { song: "Let It Be", artist: "The Beatles", key: "C" };
+  let lib = emptyLibrary();
+  ({ lib } = saveSection(lib, beatles, { name: "Estrofa", chords: ["C", "G", "Am", "F"] }));
+  ({ lib } = saveSection(lib, beatles, { name: "Estribillo", chords: ["Am", "G", "F", "C"] }));
+  assert.equal(lib.songs.length, 1);
+  assert.deepEqual(lib.songs[0].sections.map(s => s.name), ["Estrofa", "Estribillo"]);
+  assert.equal(lib.songs[0].key, "C");
+
+  // La misma progresión con otro nombre no entra otra vez: lo que se guarda es
+  // la progresión, y "added" es lo que distingue guardarla de ya tenerla.
+  const again = saveSection(lib, beatles, { name: "Estrofa 2", chords: ["C", "G", "Am", "F"] });
+  assert.equal(again.added, false);
+  assert.equal(again.lib.songs[0].sections.length, 2);
+
+  // Mismo título y otro intérprete es otra canción: la identidad son los dos.
+  ({ lib } = saveSection(lib, { song: "Let It Be", artist: "Nick Cave" }, { name: "Estrofa", chords: ["C", "G"] }));
+  assert.equal(lib.songs.length, 2);
+
+  // Sin nombre no se puede encontrar luego, y sin acordes no hay nada que guardar.
+  assert.throws(() => saveSection(lib, { song: "" }, { name: "A", chords: ["C"] }));
+  assert.throws(() => saveSection(lib, { song: "Vacía" }, { name: "A", chords: [] }));
+  assert.throws(() => saveSection(lib, { song: "Inventada" }, { name: "A", chords: ["Zx9"] }));
+});
+
+test("quitar la última parte se lleva la canción por delante", () => {
+  let lib = emptyLibrary();
+  ({ lib } = saveSection(lib, { song: "Dos partes" }, { name: "A", chords: ["C"] }));
+  ({ lib } = saveSection(lib, { song: "Dos partes" }, { name: "B", chords: ["G"] }));
+  ({ lib } = saveSection(lib, { song: "Otra" }, { name: "A", chords: ["D"] }));
+
+  const key = songKey({ song: "Dos partes" });
+  lib = removeSection(lib, key, 0);
+  assert.deepEqual(lib.songs.find(s => songKey(s) === key).sections.map(s => s.name), ["B"]);
+  lib = removeSection(lib, key, 0);
+  assert.deepEqual(lib.songs.map(s => s.song), ["Otra"]);
+  assert.equal(removeSong(lib, songKey({ song: "Otra" })).songs.length, 0);
+});
+
+test("leer el cancionero nunca rompe, y lo escrito se vuelve a leer igual", () => {
+  const store = fakeStore();
+  assert.deepEqual(readLibrary(store), emptyLibrary()); // sin la clave
+  store.setItem(KEY, "{esto no es json");
+  assert.deepEqual(readLibrary(store), emptyLibrary()); // contenido corrompido
+  assert.deepEqual(readLibrary({ getItem: () => { throw new Error("bloqueado"); } }), emptyLibrary());
+
+  const { lib } = saveSection(emptyLibrary(), { song: "Ida y vuelta", artist: "Yo" }, { name: "A", chords: ["C", "F"] });
+  writeLibrary(lib, store);
+  assert.deepEqual(readLibrary(store), lib);
+
+  // Escribir sí avisa cuando falla: la cuota y el modo privado son reales.
+  assert.throws(() => writeLibrary(lib, { setItem: () => { throw new Error("QuotaExceeded"); } }), /no ha dejado guardar/);
+});
+
+test("cargar un cancionero funde con el que ya hay y cuenta lo que entra", () => {
+  let mine = emptyLibrary();
+  ({ lib: mine } = saveSection(mine, { song: "Común", artist: "A" }, { name: "Estrofa", chords: ["C", "G"] }));
+
+  const { lib: incoming, dropped } = parseLibrary(JSON.stringify({
+    version: 1,
+    songs: [
+      { song: "Común", artist: "A", sections: [
+        { name: "Estrofa", chords: ["C", "G"] },  // esta ya la tengo
+        { name: "Puente", chords: ["Dm", "E7"] }, // esta es nueva
+      ] },
+      { song: "Común", artist: "A", sections: [{ name: "Coda", chords: ["F", "C"] }] }, // repetida en el propio fichero
+      { song: "Nueva", artist: "B", key: "G", sections: [{ name: "A", chords: ["G", "D"] }] },
+      { song: "Rota", sections: [{ name: "A", chords: ["Zx9"] }] },
+    ],
+  }));
+  assert.equal(dropped, 1); // "Rota"
+  assert.equal(incoming.songs.length, 2); // las dos entradas de "Común" se funden al leer
+
+  const merged = mergeLibrary(mine, incoming);
+  assert.equal(merged.songs, 1); // "Nueva"
+  assert.equal(merged.sections, 3); // "Puente", "Coda" y la parte de "Nueva"
+  assert.deepEqual(
+    merged.lib.songs.find(s => s.song === "Común").sections.map(s => s.name),
+    ["Estrofa", "Puente", "Coda"],
+  );
+
+  // Cargar dos veces el mismo fichero no cambia nada: fundir es idempotente.
+  assert.deepEqual(mergeLibrary(merged.lib, incoming), { lib: merged.lib, songs: 0, sections: 0 });
+});
+
+test("solo se cargan ficheros que sean cancioneros, con envoltorio o sin él", () => {
+  assert.throws(() => parseLibrary("no soy json"), /JSON/);
+  assert.throws(() => parseLibrary('{"canciones":[]}'), /lista de canciones/);
+  assert.throws(() => parseLibrary('{"version":9,"songs":[]}'), /versión 9/);
+
+  // Una lista pelada vale: es lo que queda al recortar el fichero a mano.
+  const { lib } = parseLibrary('[{"song":"Suelta","sections":[{"chords":["C","Am"]}]}]');
+  assert.equal(lib.version, 1);
+  assert.equal(lib.songs[0].artist, "");
+  assert.equal(lib.songs[0].sections[0].name, "Progresión"); // sin nombre, uno por defecto
+});
+
+test("exportar el mismo cancionero da siempre el mismo fichero", () => {
+  let lib = emptyLibrary();
+  ({ lib } = saveSection(lib, { song: "Estable", artist: "A", url: "https://x/y" }, { name: "A", chords: ["C", "G7"] }));
+  const json = libraryJson(lib);
+  assert.equal(json, libraryJson(parseLibrary(json).lib)); // ida y vuelta sin deriva
+  assert.deepEqual(JSON.parse(json), {
+    version: 1,
+    songs: [{ song: "Estable", artist: "A", url: "https://x/y", sections: [{ name: "A", chords: ["C", "G7"] }] }],
+  });
 });

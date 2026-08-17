@@ -3,7 +3,8 @@
 Aplicación web para trastear con la armonía de una canción, enfocada a guitarra. Dada una progresión
 de acordes sugiere sustituciones y acordes de paso con su explicación, propone dónde poner la cejilla
 para ganar cuerdas al aire, y en el otro sentido nombra el acorde que formen las notas que marques en
-un mástil. Todo con sus diagramas.
+un mástil. Las progresiones se pueden buscar por canción y guardar en un cancionero propio. Todo con
+sus diagramas.
 
 ## Uso
 
@@ -169,7 +170,8 @@ según haya séptima o no — el mismo Ab sobre C es `b6` en una tríada y `b13`
 
 Escribe título e intérprete y la app saca las progresiones de la transcripción de acordes
 mejor votada de Ultimate Guitar, separadas por partes (`[Intro]`, `[Verse]`, `[Chorus]`…).
-Cada parte tiene un botón «Usar» que la convierte en la progresión actual.
+Cada parte tiene un botón «Usar» que la convierte en la progresión actual y un «Guardar» que la
+manda al cancionero.
 
 El autocompletado del buscador va directo a UG, que sirve su endpoint de sugerencias con CORS
 abierto. La búsqueda y la descarga del tab no: UG no manda `Access-Control-Allow-Origin` y tiene
@@ -202,6 +204,58 @@ npx wrangler deploy proxy-worker.js --name jangle-proxy --compatibility-date 202
 Los datos salen del JSON incrustado en `div.js-store[data-content]` de las páginas de UG, que no
 tiene API oficial: si rediseñan la web, `song.js` dejará de parsear. Los tests con fixture marcan
 el punto exacto de la rotura.
+
+## Guardar canciones («…o tu cancionero», bajo el buscador)
+
+Una canción es un puñado de partes, y cada parte una progresión. Se guardan desde los dos sitios
+donde aparecen: el botón **Guardar** que lleva cada parte de una transcripción de Ultimate Guitar, y
+el formulario del cancionero, que guarda con nombre lo que haya escrito arriba. Cada parte guardada
+tiene su **Usar**, que la sube al campo de progresión, y de ahí sigue el camino de siempre: la
+progresión se escribe en el hash de la URL y es el hash lo que pinta. El cancionero no es una segunda
+fuente de verdad, solo otra manera de rellenar ese campo.
+
+**Todo vive en el `localStorage` del navegador**, bajo la clave `jangle.songs`. No hay servidor ni
+cuentas: la app es estática y lo único que hay detrás es el proxy, que no guarda nada. El precio es
+que el cancionero no viaja de un dispositivo a otro y se lo lleva un borrado de datos del sitio
+(Safari, además, desaloja el almacenamiento tras unos días sin visitar la página). De eso se encargan
+**Descargar cancionero** y **Cargar cancionero**, que son a la vez la copia de seguridad, el paso a
+otro dispositivo y la manera de pasárselo a alguien. Cargar **funde, no reemplaza**: se pueden juntar
+varios ficheros y cargar el propio dos veces no cambia nada.
+
+```json
+{
+  "version": 1,
+  "songs": [
+    {
+      "song": "Let It Be",
+      "artist": "The Beatles",
+      "key": "C",
+      "url": "https://tabs.ultimate-guitar.com/…",
+      "sections": [
+        { "name": "Verse", "chords": ["C", "G", "Am", "F"] },
+        { "name": "Chorus", "chords": ["Am", "G", "F", "C"] }
+      ]
+    }
+  ]
+}
+```
+
+Sin ids y sin fechas, a propósito. La identidad de una canción es intérprete + título, así que
+guardar dos veces la misma no duplica, y exportar dos veces el mismo cancionero da el mismo fichero
+—que es lo que permite llevarlo en git y que el diff diga algo—. También se edita a mano sin tener
+que inventarse identificadores: `artist`, `key` y `url` son opcionales, `name` sale «Progresión» si
+falta, y una lista pelada de canciones, sin el envoltorio `{version, songs}`, se carga igual.
+
+Lo que no se entiende se descarta **contándolo**, no en silencio: una canción sin título o sin
+partes, y cualquier parte con algún acorde que tonal no sepa leer (la misma criba que se aplica a las
+transcripciones de UG, aquí para que un fichero de fuera no cuele progresiones que reventarían al
+usarlas). Dos partes con la misma progresión son la misma parte aunque las llamen distinto, igual que
+al leer una transcripción se funden `Verse 1` y `Verse 2`. Y **quitar la última parte se lleva la
+canción**: una canción sin progresiones no es nada que se pueda enseñar.
+
+Lo que no hace: editar una parte guardada en el sitio. Se carga con «Usar», se retoca arriba y se
+vuelve a guardar; el formulario queda apuntando a ella —con su intérprete y su enlace— así que es un
+par de clics.
 
 ## Stack
 
