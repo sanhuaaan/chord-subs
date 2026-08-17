@@ -26,14 +26,31 @@
     }
     #tab-subs:checked ~ .tabs label[for="tab-subs"],
     #tab-capo:checked ~ .tabs label[for="tab-capo"],
-    #tab-reharm:checked ~ .tabs label[for="tab-reharm"],
-    #tab-ident:checked ~ .tabs label[for="tab-ident"],
-    #tab-song:checked ~ .tabs label[for="tab-song"] { background: #2a2a33; color: #e8e8ee; }
+    #tab-reharm:checked ~ .tabs label[for="tab-reharm"] { background: #2a2a33; color: #e8e8ee; }
     #subs, #capo, #reharm { display: none; list-style: none; padding: 0; }
-    #ident, #song { display: none; }
     #tab-subs:checked ~ #subs, #tab-capo:checked ~ #capo,
-    #tab-reharm:checked ~ #reharm, #tab-ident:checked ~ #ident,
-    #tab-song:checked ~ #song { display: block; }
+    #tab-reharm:checked ~ #reharm { display: block; }
+    /* Estados vacíos: qué hace cada pestaña mientras no hay progresión. */
+    #subs:empty::before, #capo:empty::before, #reharm:empty::before {
+      display: block; padding: 1rem 0; font-size: 0.85rem; color: #a8a8b8;
+    }
+    #subs:empty::before { content: "Escribe una progresión arriba (o búscala por canción) y aquí saldrán sustituciones acorde a acorde."; }
+    #capo:empty::before { content: "Con una progresión arriba, aquí saldrán posiciones de cejilla cuyas cuerdas al aire añaden color."; }
+    #reharm:empty::before { content: "Con una progresión arriba, aquí saldrán versiones enteras del acompañamiento guiadas por la voz aguda."; }
+    /* El mástil es una herramienta aparte: se abre con el botón de la cabecera. */
+    h1 { display: flex; justify-content: space-between; align-items: center; }
+    h1 label {
+      font-size: 0.85rem; font-weight: normal; color: #a8a8b8; cursor: pointer;
+      padding: 0.3rem 0.7rem; border: 0.0625rem solid #3a3a45; border-radius: 0.375rem;
+    }
+    h1 label:hover { border-color: #4a6cd4; }
+    #toggle-ident:checked ~ h1 label { background: #2a2a33; color: #e8e8ee; border-color: #4a6cd4; }
+    #ident { display: none; padding: 0.5rem 0 1rem; border-bottom: 0.0625rem solid #333; margin-bottom: 1rem; }
+    #toggle-ident:checked ~ #ident { display: block; }
+    /* Buscador de canciones: la otra manera de traer la progresión. */
+    #song-box { margin: -1rem 0 1.5rem; }
+    #song-box summary { cursor: pointer; font-size: 0.85rem; color: #9db0ea; }
+    #song-box[open] { padding-bottom: 0.5rem; border-bottom: 0.0625rem solid #333; }
     #song-results { list-style: none; padding: 0; }
     #song-results li { padding: 0.45rem 0.6rem; border: 0.0625rem solid #3a3a45; border-radius: 0.375rem; margin: 0.35rem 0; cursor: pointer; }
     #song-results li:hover { border-color: #4a6cd4; background: #2a2a33; }
@@ -133,28 +150,27 @@
   </style>
 </head>
 <body>
-  <h1>Trasteo</h1>
+  <input type="checkbox" id="toggle-ident" hidden>
+  <h1>Trasteo <label for="toggle-ident">¿Qué acorde es?</label></h1>
   <form>
     <input id="progression" placeholder="Ej.: C Am F G7" autofocus>
     <button type="submit">Sugerir</button>
   </form>
+  <details id="song-box">
+    <summary>…o búscala por canción</summary>
+    <p class="why">Título e intérprete: los acordes salen de las transcripciones mejor votadas de
+      Ultimate Guitar, separados por partes. Cada parte se puede usar como progresión.</p>
+    <form id="song-form">
+      <input id="song-query" list="song-suggest" placeholder="Ej.: let it be beatles" autocomplete="off">
+      <datalist id="song-suggest"></datalist>
+      <button type="submit">Buscar</button>
+    </form>
+    <p id="song-status" class="why"></p>
+    <ul id="song-results"></ul>
+    <div id="song-sections"></div>
+  </details>
   <p id="error"></p>
   <div id="summary"></div>
-  <input type="radio" name="tab" id="tab-subs" checked hidden>
-  <input type="radio" name="tab" id="tab-capo" hidden>
-  <input type="radio" name="tab" id="tab-reharm" hidden>
-  <input type="radio" name="tab" id="tab-ident" hidden>
-  <input type="radio" name="tab" id="tab-song" hidden>
-  <nav class="tabs">
-    <label for="tab-subs">Sustituciones</label>
-    <label for="tab-capo">Cejilla</label>
-    <label for="tab-reharm">Rearmonizar</label>
-    <label for="tab-ident">¿Qué acorde es?</label>
-    <label for="tab-song">Canción</label>
-  </nav>
-  <ul id="subs"></ul>
-  <ul id="capo"></ul>
-  <ul id="reharm"></ul>
   <section id="ident">
     <p class="why">Pulsa en el mástil para marcar las notas. Cada cuerda suena una sola nota: al pulsar
       otro traste la nota se mueve, y al pulsar la que ya estaba marcada la cuerda se apaga. La columna
@@ -175,19 +191,17 @@
     </p>
     <div id="readout"></div>
   </section>
-  <section id="song">
-    <p class="why">Busca una canción por título e intérprete: los acordes salen de las transcripciones
-      mejor votadas de Ultimate Guitar, separados por partes (estrofa, estribillo…). Cada parte se puede
-      mandar al analizador con su botón.</p>
-    <form id="song-form">
-      <input id="song-query" list="song-suggest" placeholder="Ej.: let it be beatles" autocomplete="off">
-      <datalist id="song-suggest"></datalist>
-      <button type="submit">Buscar</button>
-    </form>
-    <p id="song-status" class="why"></p>
-    <ul id="song-results"></ul>
-    <div id="song-sections"></div>
-  </section>
+  <input type="radio" name="tab" id="tab-subs" checked hidden>
+  <input type="radio" name="tab" id="tab-capo" hidden>
+  <input type="radio" name="tab" id="tab-reharm" hidden>
+  <nav class="tabs">
+    <label for="tab-subs">Sustituciones</label>
+    <label for="tab-capo">Cejilla</label>
+    <label for="tab-reharm">Rearmonizar</label>
+  </nav>
+  <ul id="subs"></ul>
+  <ul id="capo"></ul>
+  <ul id="reharm"></ul>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

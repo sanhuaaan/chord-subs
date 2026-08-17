@@ -1,6 +1,6 @@
 # Pendiente: activar la búsqueda de canciones en producción
 
-La pestaña «Canción» (buscar título+intérprete en Ultimate Guitar y sacar las
+La búsqueda de canciones (título+intérprete en Ultimate Guitar y sacar las
 progresiones por partes) está implementada y probada, pero en la web publicada
 no funcionará hasta desplegar el proxy. Esto es lo que falta y por qué.
 
@@ -37,7 +37,7 @@ no funcionará hasta desplegar el proxy. Esto es lo que falta y por qué.
 3. Apuntar la app a la URL que devuelve el deploy
    (`https://trasteo-proxy.<subdominio>.workers.dev`): cambiar la constante
    `PROXY` en `song.js` y pushear (Pages redespliega solo).
-4. Probar en https://sanhuaaan.github.io/trasteo/ → pestaña «Canción».
+4. Probar en https://sanhuaaan.github.io/trasteo/ → «…o búscala por canción».
 
 Para probar en local sin cuenta: `npx wrangler dev proxy-worker.js` (sirve el
 proxy en `http://localhost:8787`, que es el valor por defecto de la app).

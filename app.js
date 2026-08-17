@@ -13,6 +13,9 @@ const capoList = document.querySelector("#capo");
 const reharmList = document.querySelector("#reharm");
 const error = document.querySelector("#error");
 
+// De qué canción y parte salió la progresión actual (null si se tecleó a mano).
+let songContext = null;
+
 let db = null;
 const dbReady = fetch("https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0/lib/guitar.json")
   .then(r => r.json())
@@ -85,6 +88,16 @@ form.addEventListener("submit", async e => {
     return;
   }
   if (!progression.length) return;
+
+  // La progresión vive en la URL: recargar la conserva, atrás navega entre
+  // progresiones y el enlace se puede compartir.
+  const h = encodeURIComponent(progression.map(c => c.symbol).join("-"));
+  if (location.hash.slice(1) !== h) location.hash = h;
+
+  if (songContext && songContext.chords !== input.value.trim()) songContext = null;
+  if (songContext) {
+    summary.append(Object.assign(document.createElement("p"), { className: "key", textContent: songContext.label }));
+  }
 
   const original = document.createElement("p");
   original.className = "original";
@@ -317,7 +330,7 @@ document.addEventListener("click", e => {
   if (frets.length !== 6) return;
   picked.splice(0, 6, ...frets);
   chosenRoot = null;
-  document.querySelector("#tab-ident").checked = true;
+  document.querySelector("#toggle-ident").checked = true;
   renderIdent();
   document.querySelector("#ident").scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -402,14 +415,14 @@ songResults.addEventListener("click", async e => {
       const chords = document.createElement("div");
       chords.className = "chords";
       for (const sym of sec.chords) chords.append(chordSpan(sym));
-      const analyze = Object.assign(document.createElement("button"), { type: "button", textContent: "Analizar" });
-      analyze.addEventListener("click", () => {
+      const use = Object.assign(document.createElement("button"), { type: "button", textContent: "Usar" });
+      use.addEventListener("click", () => {
         input.value = sec.chords.join(" ");
-        document.querySelector("#tab-subs").checked = true;
+        songContext = { label: `${sec.name} · ${s.song} — ${s.artist}`, chords: input.value };
+        document.querySelector("#song-box").open = false; // el buscador se pliega: la progresión ya está arriba
         form.requestSubmit();
-        window.scrollTo({ top: 0, behavior: "smooth" });
       });
-      chords.append(analyze);
+      chords.append(use);
       box.append(chords);
       songSections.append(box);
     }
@@ -420,3 +433,14 @@ songResults.addEventListener("click", async e => {
 
 renderIdent();
 dbReady.then(renderIdent); // repinta cuando ya hay diagramas que colgar de los nombres
+
+// Al cargar o navegar por el historial, la progresión de la URL manda.
+function applyHash() {
+  const p = decodeURIComponent(location.hash.slice(1)).replaceAll("-", " ").trim();
+  if (p && p !== input.value.trim()) {
+    input.value = p;
+    form.requestSubmit();
+  }
+}
+window.addEventListener("hashchange", applyHash);
+applyHash();

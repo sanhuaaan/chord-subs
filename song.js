@@ -6,8 +6,10 @@ import { Chord } from "tonal";
 const PROXY = globalThis.localStorage?.proxy || "http://localhost:8787";
 
 const fetchUG = url =>
-  fetch(`${PROXY}/?url=${encodeURIComponent(url)}`).then(r => {
-    if (!r.ok) throw new Error(`El proxy respondió ${r.status}. ¿Está desplegado? (ver README)`);
+  fetch(`${PROXY}/?url=${encodeURIComponent(url)}`).catch(() => {
+    throw new Error(`No se llega al proxy (${PROXY}): la búsqueda necesita desplegarlo, o arrancarlo en local con npx wrangler dev proxy-worker.js. Ver PENDIENTE.md`);
+  }).then(r => {
+    if (!r.ok) throw new Error(`El proxy respondió ${r.status}. ¿Está desplegado? (ver PENDIENTE.md)`);
     return r.text();
   });
 

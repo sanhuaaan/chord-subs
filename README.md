@@ -27,11 +27,11 @@ hacen, que es la decisión de verdad antes de mirar la regla concreta:
 - **Cambiar** — otro acorde en su lugar, que hace el mismo papel (`C → Am`, `Em`, `Cm`).
 - **Añadir** — acordes que lo preparan o lo alargan, repartiéndose su tiempo (`C → Dm7 G7 C`, `Fm C`, `Bb7 C`).
 
-La pestaña **¿Qué acorde es?** va al revés: marcas las pulsaciones en un mástil de 15 trastes y te
-dice qué acorde forman. Funciona sin escribir nada en el buscador.
+El botón **¿Qué acorde es?** (arriba a la derecha) va al revés: abre un mástil de 15 trastes donde
+marcas pulsaciones y te dice qué acorde forman. Funciona sin escribir nada en el buscador.
 
-Los nombres de acorde de las otras dos pestañas llevan a ella: al pulsar cualquiera, su primera
-posición de la base de datos se carga en el mástil y se cambia de pestaña. Se carga siempre lo que
+Los nombres de acorde del resto de la app llevan a él: al pulsar cualquiera, su primera
+posición de la base de datos se carga en el mástil y el panel se abre. Se carga siempre lo que
 pone escrito, no la forma del tooltip — en la pestaña de cejilla el tooltip enseña la forma
 transpuesta que se toca, pero el mástil no sabe de cejillas y nombrarla daría el acorde equivocado.
 
@@ -115,7 +115,7 @@ primera de la base de datos, que es justamente la que hace la línea.
 
 ## Identificar un acorde desde el mástil
 
-En la pestaña **¿Qué acorde es?** hay un mástil de 15 trastes donde cada cuerda suena una sola nota:
+En el panel **¿Qué acorde es?** hay un mástil de 15 trastes donde cada cuerda suena una sola nota:
 al pulsar un traste la nota se mueve ahí, al volver a pulsar donde ya estaba la cuerda se apaga, y la
 columna a la izquierda de la cejuela alterna al aire y muda (×).
 
@@ -143,11 +143,11 @@ según haya séptima o no — el mismo Ab sobre C es `b6` en una tríada y `b13`
 | `3 2 0 0 0 1` | `G7` |
 | `3 3 2 4 0 0` | `Cmaj7/G`, y también `G6/11`, `Emb6/G` y `Bsus4b6b9/G` |
 
-## Buscar canciones (pestaña «Canción»)
+## Buscar canciones («…o búscala por canción», bajo el campo de progresión)
 
 Escribe título e intérprete y la app saca las progresiones de la transcripción de acordes
 mejor votada de Ultimate Guitar, separadas por partes (`[Intro]`, `[Verse]`, `[Chorus]`…).
-Cada parte tiene un botón «Analizar» que la manda al resto de pestañas.
+Cada parte tiene un botón «Usar» que la convierte en la progresión actual.
 
 Ultimate Guitar bloquea los proxys CORS públicos, así que hace falta un proxy propio
 (`proxy-worker.js`, un Cloudflare Worker de 20 líneas que solo acepta URLs de UG):
