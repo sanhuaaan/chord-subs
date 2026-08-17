@@ -1,9 +1,9 @@
 import { Chord } from "tonal";
 
 // Ultimate Guitar bloquea los proxys CORS públicos, así que hace falta uno propio:
-// proxy-worker.js desplegado en Cloudflare (o `npx wrangler dev` en local).
-// ponytail: tras desplegar el worker, pon aquí su URL
-const PROXY = globalThis.localStorage?.proxy || "http://localhost:8787";
+// proxy-worker.js desplegado en Cloudflare. localStorage.proxy lo sobrescribe, que
+// es la vía para desarrollar contra `npx wrangler dev` (http://localhost:8787).
+const PROXY = globalThis.localStorage?.proxy || "https://jangle-proxy.jangle.workers.dev";
 
 const fetchUG = url =>
   fetch(`${PROXY}/?url=${encodeURIComponent(url)}`).catch(() => {

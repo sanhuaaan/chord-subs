@@ -149,19 +149,29 @@ Escribe título e intérprete y la app saca las progresiones de la transcripció
 mejor votada de Ultimate Guitar, separadas por partes (`[Intro]`, `[Verse]`, `[Chorus]`…).
 Cada parte tiene un botón «Usar» que la convierte en la progresión actual.
 
-Ultimate Guitar bloquea los proxys CORS públicos, así que hace falta un proxy propio
-(`proxy-worker.js`, un Cloudflare Worker de 20 líneas que solo acepta URLs de UG):
+El autocompletado del buscador va directo a UG, que sirve su endpoint de sugerencias con CORS
+abierto. La búsqueda y la descarga del tab no: UG no manda `Access-Control-Allow-Origin` y tiene
+fichadas las IPs de los proxys CORS públicos (allorigins y codetabs devuelven 522, corsproxy.io
+403). Por eso hay un proxy propio, `proxy-worker.js`: un Cloudflare Worker de 20 líneas que solo
+acepta URLs de `ultimate-guitar.com` y las reenvía con user-agent de navegador.
+
+Ya está desplegado en `https://jangle-proxy.jangle.workers.dev` (plan gratuito, 100.000
+peticiones/día), y es lo que usa `PROXY` en `song.js`. Para trabajar contra una copia local del
+worker no hace falta tocar el código: `localStorage.proxy` manda sobre la constante.
 
 ```bash
-# probar en local (sin cuenta de Cloudflare): sirve el proxy en http://localhost:8787
+# levantar el worker en local, en http://localhost:8787
 npx wrangler dev proxy-worker.js
+# y en la consola del navegador:
+#   localStorage.proxy = "http://localhost:8787"
 
-# desplegar (cuenta gratuita de Cloudflare, pide login la primera vez)
+# volver a desplegar tras cambiarlo
 npx wrangler deploy proxy-worker.js --name jangle-proxy --compatibility-date 2026-08-17
 ```
 
-Tras desplegar, apunta la app al worker: o cambias la constante `PROXY` en `song.js`,
-o en la consola del navegador `localStorage.proxy = "https://jangle-proxy.<tu-subdominio>.workers.dev"`.
+Los datos salen del JSON incrustado en `div.js-store[data-content]` de las páginas de UG, que no
+tiene API oficial: si rediseñan la web, `song.js` dejará de parsear. Los tests con fixture marcan
+el punto exacto de la rotura.
 
 ## Stack
 
