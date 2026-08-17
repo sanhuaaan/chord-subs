@@ -2,6 +2,7 @@ import { parseProgression, suggest, detectKey, KINDS } from "./rules.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { identify, degreeShort } from "./identify.js";
 import { reharmonizations } from "./reharm.js";
+import { searchSongs, fetchSong, suggestions } from "./song.js";
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, MAX_FRET, PC } from "./guitar.js";
 
 const form = document.querySelector("form");
@@ -333,6 +334,88 @@ document.querySelector("#clear").addEventListener("click", () => {
   picked.fill(-1);
   chosenRoot = null;
   renderIdent();
+});
+
+// ── Pestaña "Canción": título e intérprete → progresiones por partes ────────
+
+const songQuery = document.querySelector("#song-query");
+const songStatus = document.querySelector("#song-status");
+const songResults = document.querySelector("#song-results");
+const songSections = document.querySelector("#song-sections");
+
+// Autocompletado con <datalist>: el desplegable, las teclas y el filtrado los
+// pone el navegador; aquí solo se rellenan las opciones con un pequeño debounce.
+// ponytail: sin dropdown propio; si el datalist nativo se queda corto, hacerlo a mano
+const songSuggest = document.querySelector("#song-suggest");
+let suggestTimer;
+songQuery.addEventListener("input", () => {
+  clearTimeout(suggestTimer);
+  suggestTimer = setTimeout(async () => {
+    const typed = songQuery.value;
+    const list = await suggestions(typed);
+    if (songQuery.value !== typed) return; // respuesta tardía: ya se teclea otra cosa
+    songSuggest.replaceChildren(...list.map(s => Object.assign(document.createElement("option"), { value: s })));
+  }, 200);
+});
+
+document.querySelector("#song-form").addEventListener("submit", async e => {
+  e.preventDefault();
+  songResults.replaceChildren();
+  songSections.replaceChildren();
+  if (!songQuery.value.trim()) return;
+  songStatus.textContent = "Buscando…";
+  try {
+    const results = await searchSongs(songQuery.value);
+    songStatus.textContent = results.length ? "" : "Sin transcripciones de acordes para esa búsqueda.";
+    for (const r of results.slice(0, 10)) {
+      const li = document.createElement("li");
+      li.dataset.url = r.url;
+      li.append(
+        Object.assign(document.createElement("strong"), { textContent: r.song }),
+        ` — ${r.artist} `,
+        Object.assign(document.createElement("small"), {
+          textContent: `★ ${r.rating?.toFixed(1) ?? "?"} (${r.votes} votos)`,
+        }),
+      );
+      songResults.append(li);
+    }
+  } catch (err) {
+    songStatus.textContent = err.message;
+  }
+});
+
+songResults.addEventListener("click", async e => {
+  const li = e.target.closest("[data-url]");
+  if (!li) return;
+  songSections.replaceChildren();
+  songStatus.textContent = "Cargando acordes…";
+  try {
+    const s = await fetchSong(li.dataset.url);
+    songStatus.textContent = "";
+    songSections.append(Object.assign(document.createElement("h3"), {
+      textContent: `${s.song} — ${s.artist}${s.key ? ` · tonalidad ${s.key}` : ""}`,
+    }));
+    for (const sec of s.sections) {
+      const box = document.createElement("div");
+      box.className = "section";
+      box.append(Object.assign(document.createElement("strong"), { textContent: sec.name }));
+      const chords = document.createElement("div");
+      chords.className = "chords";
+      for (const sym of sec.chords) chords.append(chordSpan(sym));
+      const analyze = Object.assign(document.createElement("button"), { type: "button", textContent: "Analizar" });
+      analyze.addEventListener("click", () => {
+        input.value = sec.chords.join(" ");
+        document.querySelector("#tab-subs").checked = true;
+        form.requestSubmit();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      chords.append(analyze);
+      box.append(chords);
+      songSections.append(box);
+    }
+  } catch (err) {
+    songStatus.textContent = err.message;
+  }
 });
 
 renderIdent();

@@ -5,6 +5,7 @@ import { Chord, Note } from "tonal";
 import { parseProgression, suggest, detectKey, RULES, KINDS } from "./rules.js";
 import { reharmonizations } from "./reharm.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
+import { parseSearch, parseTab, suggestionSlug } from "./song.js";
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, STRINGS, MAX_FRET, PC } from "./guitar.js";
 import { identify, soundingNotes, degreeName, spell } from "./identify.js";
 
@@ -449,4 +450,61 @@ test("las sustituciones del arreglo salen de las reglas y van explicadas", () =>
       }
     }
   }
+});
+
+// Página de UG simulada: los datos van HTML-escapados en el atributo data-content.
+const ugPage = data => {
+  const json = JSON.stringify({ store: { page: { data } } })
+    .replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  return `<html><div class="js-store" data-content="${json}"></div></html>`;
+};
+
+test("parseSearch filtra a acordes y se queda la versión más votada de cada canción", () => {
+  const html = ugPage({ results: [
+    { song_name: "Let It Be", artist_name: "The Beatles", type: null, tab_url: "pro" },
+    { song_name: "Let It Be", artist_name: "The Beatles", type: "Chords", rating: 4.7, votes: 100, tab_url: "peor" },
+    { song_name: "Let It Be", artist_name: "The Beatles", type: "Chords", rating: 4.8, votes: 14046, tab_url: "mejor" },
+    { song_name: "Let It Be", artist_name: "The Beatles", type: "Tabs", rating: 5, votes: 99999, tab_url: "tab" },
+    { song_name: "Otra", artist_name: "Alguien", type: "Chords", rating: 4, votes: 3, tab_url: "otra" },
+  ] });
+  const results = parseSearch(html);
+  assert.deepEqual(results.map(r => r.url), ["mejor", "otra"]);
+  assert.equal(results[0].votes, 14046);
+});
+
+test("parseTab separa secciones, limpia bajos y N.C. y funde secciones repetidas", () => {
+  const content = [
+    "[Intro]",
+    "[ch]C[/ch] [ch]G[/ch]",
+    "[Verse 1]",
+    "[tab][ch]C[/ch] [ch]C[/ch] [ch]Am/G[/ch] [ch]N.C.[/ch] [ch]F[/ch]",
+    "letra que no importa[/tab]",
+    "[Verse 2]",
+    "[tab][ch]C[/ch] [ch]Am[/ch] [ch]F[/ch][/tab]",
+    "[Solo]",
+  ].join("\n");
+  const s = parseTab(ugPage({
+    tab: { song_name: "Prueba", artist_name: "Nadie", tonality_name: "C" },
+    tab_view: { wiki_tab: { content } },
+  }));
+  assert.equal(s.song, "Prueba");
+  assert.equal(s.key, "C");
+  // C C → C (repetido seguido), Am/G → Am (sin bajo), N.C. fuera; Verse 1 y 2
+  // quedan con la misma progresión, así que se funden; Solo sin acordes, fuera.
+  assert.equal(s.sections.length, 2);
+  assert.deepEqual(s.sections[0], { name: "Intro", chords: ["C", "G"] });
+  assert.deepEqual(s.sections[1], { name: "Verse 1, Verse 2", chords: ["C", "Am", "F"] });
+});
+
+test("las progresiones de una canción pasan por parseProgression sin ajustes", () => {
+  const content = "[Verse]\n[ch]Cadd9[/ch] [ch]Dsus4/A[/ch] [ch]Em7[/ch] [ch]G/B[/ch]";
+  const s = parseTab(ugPage({ tab: {}, tab_view: { wiki_tab: { content } } }));
+  assert.equal(parseProgression(s.sections[0].chords.join(" ")).length, 4);
+});
+
+test("suggestionSlug normaliza como espera el endpoint de sugerencias de UG", () => {
+  assert.equal(suggestionSlug("Let It Be"), "let_i"); // 5 caracteres máximo
+  assert.equal(suggestionSlug("  Rosalía "), "rosal"); // sin tildes ni espacios sobrantes
+  assert.equal(suggestionSlug("AC/DC"), "ac_dc"); // símbolos como _
+  assert.equal(suggestionSlug(""), "");
 });

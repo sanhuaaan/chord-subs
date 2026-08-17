@@ -143,6 +143,26 @@ según haya séptima o no — el mismo Ab sobre C es `b6` en una tríada y `b13`
 | `3 2 0 0 0 1` | `G7` |
 | `3 3 2 4 0 0` | `Cmaj7/G`, y también `G6/11`, `Emb6/G` y `Bsus4b6b9/G` |
 
+## Buscar canciones (pestaña «Canción»)
+
+Escribe título e intérprete y la app saca las progresiones de la transcripción de acordes
+mejor votada de Ultimate Guitar, separadas por partes (`[Intro]`, `[Verse]`, `[Chorus]`…).
+Cada parte tiene un botón «Analizar» que la manda al resto de pestañas.
+
+Ultimate Guitar bloquea los proxys CORS públicos, así que hace falta un proxy propio
+(`proxy-worker.js`, un Cloudflare Worker de 20 líneas que solo acepta URLs de UG):
+
+```bash
+# probar en local (sin cuenta de Cloudflare): sirve el proxy en http://localhost:8787
+npx wrangler dev proxy-worker.js
+
+# desplegar (cuenta gratuita de Cloudflare, pide login la primera vez)
+npx wrangler deploy proxy-worker.js --name trasteo-proxy --compatibility-date 2026-08-17
+```
+
+Tras desplegar, apunta la app al worker: o cambias la constante `PROXY` en `song.js`,
+o en la consola del navegador `localStorage.proxy = "https://trasteo-proxy.<tu-subdominio>.workers.dev"`.
+
 ## Stack
 
 - Vanilla JS (módulos ES), sin build ni framework.
