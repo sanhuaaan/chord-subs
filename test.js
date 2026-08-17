@@ -5,7 +5,7 @@ import { Chord, Note } from "tonal";
 import { parseProgression, suggest, detectKey, RULES, KINDS } from "./rules.js";
 import { reharmonizations } from "./reharm.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
-import { parseSearch, parseTab, suggestionSlug } from "./song.js";
+import { parseSearch, parseTab, suggestionSlug, decodeEntities } from "./song.js";
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, STRINGS, MAX_FRET, PC } from "./guitar.js";
 import { identify, soundingNotes, degreeName, spell } from "./identify.js";
 import {
@@ -565,6 +565,30 @@ test("las progresiones de una canción pasan por parseProgression sin ajustes", 
   const content = "[Verse]\n[ch]Cadd9[/ch] [ch]Dsus4/A[/ch] [ch]Em7[/ch] [ch]G/B[/ch]";
   const s = parseTab(ugPage({ tab: {}, tab_view: { wiki_tab: { content } } }));
   assert.equal(parseProgression(s.sections[0].chords.join(" ")).length, 4);
+});
+
+test("deshace las entidades HTML que UG guarda dentro de su propio JSON", () => {
+  // El caso real: el intérprete de "Hentai" viene como "Rosal&iacute;a".
+  assert.equal(decodeEntities("Rosal&iacute;a (Rosal&iacute;a Vila)"), "Rosalía (Rosalía Vila)");
+  assert.equal(decodeEntities("Sinéad O&#039;Connor"), "Sinéad O'Connor");
+  assert.equal(decodeEntities("Bj&ouml;rk &amp; Beck"), "Björk & Beck");
+  assert.equal(decodeEntities("Mot&#246;rhead"), "Motörhead");
+  assert.equal(decodeEntities("Sigur R&#xF3;s"), "Sigur Rós");
+  assert.equal(decodeEntities("Nick Cave"), "Nick Cave"); // sin entidades, intacto
+  assert.equal(decodeEntities("caf&eacute;s &hellip; y m&aacute;s"), "cafés &hellip; y más",
+    "lo que no está en la tabla se queda literal, no roto");
+
+  const html = ugPage({ results: [
+    { song_name: "Hentai", artist_name: "Rosal&iacute;a", type: "Chords", votes: 1, tab_url: "u" },
+  ] });
+  assert.equal(parseSearch(html)[0].artist, "Rosalía");
+
+  const tab = parseTab(ugPage({
+    tab: { song_name: "Hentai", artist_name: "Rosal&iacute;a" },
+    tab_view: { wiki_tab: { content: "[Estribillo con &ntilde;]\n[ch]F[/ch] [ch]A7[/ch]" } },
+  }));
+  assert.equal(tab.artist, "Rosalía");
+  assert.equal(tab.sections[0].name, "Estribillo con ñ"); // también los nombres de parte
 });
 
 test("suggestionSlug normaliza como espera el endpoint de sugerencias de UG", () => {

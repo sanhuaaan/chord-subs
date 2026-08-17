@@ -257,6 +257,9 @@ Lo que no hace: editar una parte guardada en el sitio. Se carga con «Usar», se
 vuelve a guardar; el formulario queda apuntando a ella —con su intérprete y su enlace— así que es un
 par de clics.
 
+En el repo hay uno guardado, `cancionero.json`, como copia de seguridad. La app no lo carga sola: se
+importa con «Cargar cancionero», como cualquier otro.
+
 ## Stack
 
 - Vanilla JS (módulos ES), sin build ni framework.

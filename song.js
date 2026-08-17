@@ -17,6 +17,29 @@ const fetchUG = url =>
     return r.text();
   });
 
+// UG guarda los nombres con entidades HTML dentro de su propio JSON —el intérprete
+// de "Hentai" viene como "Rosal&iacute;a"—, así que no basta con desescapar el
+// atributo: hay que deshacerlas otra vez sobre el texto ya parseado. Las nombradas
+// de letra acentuada se resuelven componiendo la letra con su marca combinante, que
+// sale más corto que una tabla de doscientas entradas y las cubre todas.
+// ponytail: lo que no case (&hellip;, &mdash;…) se queda literal, que es feo pero no roto.
+const MARK = {
+  acute: "́", grave: "̀", circ: "̂", tilde: "̃",
+  uml: "̈", ring: "̊", cedil: "̧",
+};
+const NAMED = { amp: "&", quot: '"', apos: "'", lt: "<", gt: ">", nbsp: " " };
+
+// Deja pasar lo que no sea texto: en las páginas de UG los metadatos del tab
+// faltan a veces, y aquí no es sitio para decidir qué hacer con eso.
+export const decodeEntities = s => (typeof s !== "string" ? s : s
+  .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(n))
+  .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+  .replace(/&([a-z]+);/gi, (whole, name) => {
+    if (NAMED[name.toLowerCase()]) return NAMED[name.toLowerCase()];
+    const mark = MARK[name.slice(1).toLowerCase()];
+    return mark ? (name[0] + mark).normalize("NFC") : whole;
+  }));
+
 // Las páginas de UG llevan todos sus datos en un atributo HTML-escapado.
 export function jsStore(html) {
   const m = html.match(/class="js-store" data-content="([^"]+)"/);
@@ -34,7 +57,13 @@ export function parseSearch(html) {
     if (r.type !== "Chords") continue;
     const key = `${r.artist_name}|${r.song_name}`.toLowerCase();
     if ((best.get(key)?.votes ?? -1) < (r.votes ?? 0)) {
-      best.set(key, { artist: r.artist_name, song: r.song_name, rating: r.rating, votes: r.votes ?? 0, url: r.tab_url });
+      best.set(key, {
+        artist: decodeEntities(r.artist_name),
+        song: decodeEntities(r.song_name),
+        rating: r.rating,
+        votes: r.votes ?? 0,
+        url: r.tab_url,
+      });
     }
   }
   return [...best.values()].sort((a, b) => b.votes - a.votes);
@@ -52,7 +81,8 @@ const clean = sym => {
 // en una (Verse 1, Verse 2…): lo que interesa es la progresión, no la letra.
 export function parseTab(html) {
   const data = jsStore(html);
-  const content = data.tab_view.wiki_tab.content.replace(/\[\/?tab\]/g, "");
+  // También el cuerpo: de ahí salen los nombres de las partes ([Estribillo]).
+  const content = decodeEntities(data.tab_view.wiki_tab.content.replace(/\[\/?tab\]/g, ""));
   const sections = [];
   let current = null;
   for (const line of content.split("\n")) {
@@ -76,8 +106,8 @@ export function parseTab(html) {
     else merged.set(key, s);
   }
   return {
-    song: data.tab.song_name,
-    artist: data.tab.artist_name,
+    song: decodeEntities(data.tab.song_name),
+    artist: decodeEntities(data.tab.artist_name),
     key: data.tab.tonality_name || null,
     sections: [...merged.values()],
   };

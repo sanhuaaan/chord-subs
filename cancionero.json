@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "songs": [
+    {
+      "song": "Hentai",
+      "artist": "Rosalía (Rosalía Vila)",
+      "key": "F",
+      "url": "https://tabs.ultimate-guitar.com/tab/4112905",
+      "sections": [
+        {
+          "name": "Intro",
+          "chords": [
+            "F",
+            "A7",
+            "Dm",
+            "F7",
+            "F",
+            "Bb",
+            "Am",
+            "Bb",
+            "Csus4",
+            "C"
+          ]
+        }
+      ]
+    },
+    {
+      "song": "Surf Rider",
+      "artist": "",
+      "sections": [
+        {
+          "name": "Chorus",
+          "chords": [
+            "Am",
+            "F",
+            "E",
+            "Am",
+            "E"
+          ]
+        }
+      ]
+    },
+    {
+      "song": "Munsters",
+      "artist": "",
+      "sections": [
+        {
+          "name": "Chorus",
+          "chords": [
+            "Em",
+            "Am",
+            "Em",
+            "B7",
+            "Em"
+          ]
+        }
+      ]
+    },
+    {
+      "song": "Fumado en Ondarreta",
+      "artist": "",
+      "sections": [
+        {
+          "name": "Verse",
+          "chords": [
+            "D",
+            "G",
+            "A",
+            "D"
+          ]
+        }
+      ]
+    },
+    {
+      "song": "Chatunga",
+      "artist": "",
+      "sections": [
+        {
+          "name": "Verse",
+          "chords": [
+            "Em",
+            "D",
+            "C",
+            "B"
+          ]
+        }
+      ]
+    },
+    {
+      "song": "Common people",
+      "artist": "",
+      "sections": [
+        {
+          "name": "Verse",
+          "chords": [
+            "C",
+            "G",
+            "C",
+            "G",
+            "F",
+            "C",
+            "G",
+            "C"
+          ]
+        }
+      ]
+    },
+    {
+      "song": "Mendizaleak",
+      "artist": "",
+      "sections": [
+        {
+          "name": "Verse",
+          "chords": [
+            "C",
+            "F",
+            "C",
+            "F",
+            "G",
+            "C"
+          ]
+        },
+        {
+          "name": "Chorus",
+          "chords": [
+            "G",
+            "C",
+            "D",
+            "G"
+          ]
+        }
+      ]
+    }
+  ]
+}
