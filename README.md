@@ -121,7 +121,7 @@ columna a la izquierda de la cejuela alterna al aire y muda (×).
 
 Cada nota lleva su nombre escrito dentro, la fundamental va en otro color para localizarla en el
 mástil, y a la derecha de cada cuerda aparece el papel que juega esa nota en el acorde (`1`, `3`,
-`b7`, `11`…). El nombre del acorde se actualiza arriba a cada pulsación.
+`b7`, `11`…). Las lecturas posibles aparecen siempre bajo el mástil, con la activa resaltada.
 
 Las mismas notas tienen **un nombre por cada una que tomes como fundamental**, y todos son correctos:
 se ofrece una lectura por nota, ordenadas por lo probable que es que sea la que tenías en mente

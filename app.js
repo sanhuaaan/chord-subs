@@ -248,7 +248,6 @@ function renderReharm(progression) {
 const board = document.querySelector("#board");
 const readout = document.querySelector("#readout");
 const voicing = document.querySelector("#voicing");
-const chordName = document.querySelector("#chord-name");
 const picked = [-1, -1, -1, -1, -1, -1]; // formato chords-db: índice 0 = 6ª cuerda
 let chosenRoot = null; // la lectura que el usuario ha elegido; si no, manda el ranking
 
@@ -265,45 +264,37 @@ function renderIdent() {
   board.innerHTML = fretboardSvg(picked, { labels, root: best?.root ?? null });
 
   voicing.textContent = picked.map(f => (f < 0 ? "×" : f)).join(" ");
-  chordName.replaceChildren();
   readout.replaceChildren();
 
   if (!notes.length) {
     readout.append(p("why", "Marca al menos tres notas distintas para que haya acorde que nombrar."));
     return;
   }
-
-  // Los diagramas de la BD son posiciones fundamentales, así que el nombre solo
-  // lleva tooltip cuando no hay inversión: si no, enseñaría otro bajo del marcado.
-  // Sin enlace: aquí cargar el acorde borraría justo lo que se está marcando.
-  if (best) chordName.append(best.inversion ? document.createTextNode(best.symbol) : chordSpan(best.symbol, best.symbol, false));
-
-  readout.append(p("why", `Notas de grave a aguda: ${notes.map(n => `${n.note} (${n.string})`).join(", ")}`));
-
   if (!best) {
-    readout.append(p("why", `Con ${pcs.length === 1 ? "una sola nota" : "dos notas"} no hay acorde que nombrar: marca al menos tres distintas.`));
+    readout.append(
+      p("why", `Con ${pcs.length === 1 ? "una sola nota" : "dos notas"} no hay acorde que nombrar: marca al menos tres distintas.`),
+      p("why", `Notas de grave a aguda: ${notes.map(n => `${n.note} (${n.string})`).join(", ")}`),
+    );
     return;
   }
 
-  readout.append(p("why", best.degrees.map(d => `${d.note}: ${d.degree}`).join(" · ")));
-
-  // Una lectura por cada nota del acorde, según cuál se tome por fundamental.
-  // Todas describen las mismas notas; al pulsar una, el mástil se reetiqueta
-  // con sus grados y esa pasa a ser la lectura principal.
-  const others = candidates.filter(c => c !== best);
-  if (!others.length) return;
+  // Todas las lecturas siempre debajo del mástil, la activa marcada: son las
+  // mismas notas con un nombre por cada fundamental posible, y pulsar otra la
+  // vuelve la principal y reetiqueta los grados del mástil.
   const list = Object.assign(document.createElement("ul"), { id: "others" });
-  for (const c of others) {
+  for (const c of candidates) {
     const li = Object.assign(document.createElement("li"), {
       textContent: c.symbol,
+      className: c === best ? "active" : "",
       title: `Tomando ${c.root} como fundamental: ${c.degrees.map(d => `${d.note} ${d.degree}`).join(", ")}`,
     });
     li.dataset.root = c.root;
     list.append(li);
   }
   readout.append(
-    Object.assign(document.createElement("h2"), { textContent: "Otras lecturas, según qué nota tomes por fundamental" }),
     list,
+    p("why", best.degrees.map(d => `${d.note}: ${d.degree}`).join(" · ")),
+    p("why", `Notas de grave a aguda: ${notes.map(n => `${n.note} (${n.string})`).join(", ")}`),
   );
 }
 
