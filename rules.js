@@ -180,7 +180,7 @@ export const RULES = [
       const midChord = diatonicChord(key, mid);
       return {
         chords: [c.symbol, midChord],
-        why: `${midChord} es el ${ROMAN[mid]} de ${PC[key]} mayor: une ${c.symbol} y ${next.symbol} ${diff === 2 ? "subiendo" : "bajando"} grado a grado por la escala, sin salir de la tonalidad.`,
+        why: `${midChord} es el ${ROMAN[mid]} de ${KEYS[key]} mayor: une ${c.symbol} y ${next.symbol} ${diff === 2 ? "subiendo" : "bajando"} grado a grado por la escala, sin salir de la tonalidad.`,
       };
     },
   },
@@ -253,7 +253,7 @@ export const RULES = [
       return {
         chords: [sub],
         why: dom
-          ? `${sub} le añade la 7ª menor (${up(c.tonic, 10)}): como V de ${PC[key]} mayor, esa nota forma con la tercera el tritono que pide resolver a la tónica.`
+          ? `${sub} le añade la 7ª menor (${up(c.tonic, 10)}): como V de ${KEYS[key]} mayor, esa nota forma con la tercera el tritono que pide resolver a la tónica.`
           : `${sub} le añade la 7ª mayor (${up(c.tonic, 11)}): el acorde se queda flotando en vez de cerrar, que es de donde sale el color de balada.`,
       };
     },

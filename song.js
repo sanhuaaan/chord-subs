@@ -41,7 +41,7 @@ export const decodeEntities = s => (typeof s !== "string" ? s : s
   }));
 
 // Las páginas de UG llevan todos sus datos en un atributo HTML-escapado.
-export function jsStore(html) {
+function jsStore(html) {
   const m = html.match(/class="js-store" data-content="([^"]+)"/);
   if (!m) throw new Error("Ultimate Guitar no ha devuelto datos (¿bloqueo del proxy?)");
   const unescaped = m[1]

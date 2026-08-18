@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Jangle</title>
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0/lib/guitar.json" as="fetch" crossorigin>
   <script type="importmap">
     { "imports": { "tonal": "https://esm.sh/tonal@6" } }
   </script>
@@ -125,7 +126,8 @@
     #subs summary small { font-weight: normal; }
     /* Cada grupo de opciones (adornar/cambiar/añadir) en su propia tarjeta. */
     #subs .kind { border: 0.0625rem solid #3a3a45; border-radius: 0.375rem; padding: 0.6rem 1rem 0.75rem; margin: 0.75rem 0; }
-    #subs h4 {
+    /* Rótulo de sección, compartido por los grupos de opciones y el identificador. */
+    #subs h4, #readout h3 {
       font-size: 0.7rem;
       font-weight: 600;
       text-transform: uppercase;
@@ -133,7 +135,8 @@
       color: #9db0ea;
       margin: 0;
     }
-    #subs .hint { margin: 0 0 0.4rem; font-size: 0.78rem; opacity: 0.8; }
+    #subs .hint, #readout .hint { font-size: 0.78rem; opacity: 0.8; }
+    #subs .hint { margin: 0 0 0.4rem; }
     #subs .options { list-style: none; padding: 0; margin: 0; }
     #subs .options > li { padding: 0.45rem 0 0.65rem; }
     form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
@@ -199,22 +202,14 @@
     #board .muted, #board .fret-no { fill: currentColor; opacity: 0.45; }
     #board .degree { fill: #9db0ea; font-family: ui-monospace, monospace; }
     #board .placeholder { padding: 1rem 0; }
-    .board-head { display: flex; justify-content: flex-end; }
-    #tuning { font-size: 0.75rem; color: #a8a8b8; text-align: right; letter-spacing: 0.08em; }
+    #tuning { display: block; font-size: 0.75rem; color: #a8a8b8; text-align: right; letter-spacing: 0.08em; }
     #voicing { font-family: ui-monospace, monospace; letter-spacing: 0.1em; }
     .others { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0; margin: 0.5rem 0 0.75rem; }
     .others li { list-style: none; padding: 0.35rem 0.7rem; border: 0.0625rem solid #3a3a45; border-radius: 0.375rem; font-size: 1rem; cursor: pointer; }
     .others li:hover { border-color: #4a6cd4; background: #2a2a33; }
     .others li.active { border-color: #4a6cd4; background: #2a2a33; color: #e8e8ee; font-weight: 600; }
-    #readout h3 {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.09em;
-      color: #9db0ea;
-      margin: 0.75rem 0 0;
-    }
-    #readout .hint { margin: 0.2rem 0 0; font-size: 0.78rem; opacity: 0.8; }
+    #readout h3 { margin: 0.75rem 0 0; }
+    #readout .hint { margin: 0.2rem 0 0; }
     .actions { display: flex; align-items: center; gap: 0.75rem; }
     #reharm > li { padding: 0.75rem 0 1rem; border-bottom: 0.0625rem solid #333; }
     #reharm h3 { font-size: 1rem; margin: 0; }
@@ -305,9 +300,7 @@
   </aside>
   <main>
   <section id="ident">
-    <div class="board-head">
-      <span id="tuning">E A D G B E<br>afinación estándar</span>
-    </div>
+    <span id="tuning">E A D G B E<br>afinación estándar</span>
     <div id="board">
       <p class="why placeholder">El mástil no ha cargado. Si has abierto el archivo directamente
         (<code>file://</code>), el navegador bloquea los módulos: sirve la carpeta con

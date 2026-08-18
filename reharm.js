@@ -13,7 +13,7 @@ import { findShape, absoluteFrets, STRINGS, MAX_FRET, PC } from "./guitar.js";
 
 // Hacia dónde se quiere que vaya la línea. No es una imposición: es lo que sale
 // barato, así que si la progresión no da para ello se cede en vez de fallar.
-export const INTENTIONS = [
+const INTENTIONS = [
   {
     id: "descendente",
     dir: -1,
@@ -126,7 +126,7 @@ const budgetFor = progression => Math.max(1, Math.round(progression.length / 3))
 
 // Devuelve la progresión rearmonizada según `intention`, o null si la BD no da
 // digitaciones para alguno de los acordes originales.
-export function reharmonize(db, progression, intention, maxVoicings = 5) {
+function reharmonize(db, progression, intention, maxVoicings = 5) {
   const key = detectKey(progression);
   const dir = intention.dir;
   const cache = new Map();
@@ -148,7 +148,7 @@ export function reharmonize(db, progression, intention, maxVoicings = 5) {
       for (const chain of chains) {
         let internal = optionCost(option, slot);
         for (let k = 1; k < chain.length; k++) internal += linkCost(chain[k - 1], chain[k], dir);
-        nodes.push({ option, chain, internal, cost: 0, from: null });
+        nodes.push({ option, chain, internal });
       }
     }
     return nodes;
@@ -158,7 +158,6 @@ export function reharmonize(db, progression, intention, maxVoicings = 5) {
   // Viterbi con el presupuesto de sustituciones dentro del estado: para cada
   // hueco se guarda el mejor camino que llega habiendo gastado b cambios.
   const budget = budgetFor(progression) * 2; // en medios: adornar cuesta 1, cambiar 2
-  const slots = Array.from({ length: budget + 1 }, (_, i) => i);
   layers.forEach((layer, i) => {
     for (const node of layer) {
       node.costs = new Array(budget + 1).fill(Infinity);
@@ -171,7 +170,7 @@ export function reharmonize(db, progression, intention, maxVoicings = 5) {
       for (const p of layers[i - 1]) {
         const link = linkCost(p.chain.at(-1), node.chain[0], dir)
           + repeatCost(p.chain.at(-1).symbol, node.chain[0].symbol, progression[i - 1].symbol, progression[i].symbol);
-        for (const b of slots) {
+        for (let b = 0; b <= budget; b++) {
           if (p.costs[b] === Infinity || b + used > budget) continue;
           const c = p.costs[b] + link + node.internal;
           if (c < node.costs[b + used]) {
@@ -186,12 +185,11 @@ export function reharmonize(db, progression, intention, maxVoicings = 5) {
   // El mejor final entre todos los presupuestos, y vuelta atrás por los punteros.
   let best = null;
   for (const node of layers.at(-1)) {
-    for (const b of slots) {
+    for (let b = 0; b <= budget; b++) {
       if (node.costs[b] < (best?.cost ?? Infinity)) best = { node, budget: b, cost: node.costs[b] };
     }
   }
   if (!best) return null;
-  const total = best.cost;
   const path = [];
   for (let cur = best; cur; cur = cur.node.froms[cur.budget]) path.unshift(cur.node);
 
@@ -215,7 +213,7 @@ export function reharmonize(db, progression, intention, maxVoicings = 5) {
     });
   });
 
-  return { intention, key, steps, line: steps.map(s => s.topNote), cost: total, ...lineStats(steps) };
+  return { intention, key, steps, line: steps.map(s => s.topNote), cost: best.cost, ...lineStats(steps) };
 }
 
 // Qué tal ha salido la línea, para poder decirlo en pantalla en vez de que el
@@ -227,7 +225,6 @@ function lineStats(steps) {
     conjunct: moves.filter(d => Math.abs(d) > 0 && Math.abs(d) <= 2).length,
     held: moves.filter(d => d === 0).length,
     leaps: moves.filter(d => Math.abs(d) > 4).length,
-    range: steps.length ? Math.max(...steps.map(s => s.top)) - Math.min(...steps.map(s => s.top)) : 0,
   };
 }
 

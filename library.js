@@ -7,7 +7,7 @@ import { Chord } from "tonal";
 // sitio: de eso se encargan descargar y cargar, que son a la vez la copia de
 // seguridad y la manera de pasarle el cancionero a alguien.
 export const KEY = "jangle.songs";
-export const VERSION = 1;
+const VERSION = 1;
 
 export const emptyLibrary = () => ({ version: VERSION, songs: [] });
 

@@ -7,7 +7,12 @@ import {
   readLibrary, writeLibrary, libraryJson, parseLibrary, mergeLibrary,
   saveSection, removeSection, removeSong, songKey,
 } from "./library.js";
-import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, MAX_FRET, PC } from "./guitar.js";
+import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, MAX_FRET } from "./guitar.js";
+
+// Crear un nodo con sus propiedades de una vez: es el gesto más repetido del
+// fichero y en su forma larga no cabe de un vistazo.
+const el = (tag, props) => Object.assign(document.createElement(tag), props);
+const p = (className, textContent) => el("p", { className, textContent });
 
 const form = document.querySelector("form");
 const input = document.querySelector("#progression");
@@ -29,9 +34,18 @@ const dbReady = fetch("https://cdn.jsdelivr.net/npm/@tombatossals/chords-db@0/li
   .then(j => (db = j))
   .catch(() => null); // sin red: todo funciona salvo los diagramas
 
+// Buscar la forma de un símbolo sale caro por la cantidad de veces que se repite:
+// una progresión pinta cientos de nombres de acorde y entre todos no llegan a
+// medio centenar de símbolos distintos.
+const shapes = new Map();
+const shapeOf = sym => {
+  if (!shapes.has(sym)) shapes.set(sym, (db && findShape(db, sym)) || null);
+  return shapes.get(sym);
+};
+
 // Primera posición de la BD que cabe entera en el mástil del analizador.
 const loadablePosition = sym => {
-  const shape = db && findShape(db, sym);
+  const shape = shapeOf(sym);
   return shape?.positions.find(p => absoluteFrets(p).every(f => f <= MAX_FRET)) ?? null;
 };
 
@@ -47,20 +61,37 @@ function linkToIdent(span, sym) {
   return span;
 }
 
+// El tooltip se queda vacío hasta que el ratón pasa por encima: los diagramas
+// están ocultos por CSS, y dibujarlos todos por adelantado son cientos de miles
+// de nodos SVG por análisis para enseñar como mucho los de un acorde.
+function tipFor(span, shapeSym, stringIdx) {
+  if (!shapeOf(shapeSym)) return span;
+  const tip = document.createElement("span");
+  tip.className = "tip";
+  tip.dataset.shape = shapeSym;
+  if (stringIdx !== undefined) tip.dataset.open = stringIdx;
+  span.append(tip);
+  return span;
+}
+
+document.addEventListener("mouseover", e => {
+  const tip = e.target.closest?.(".chord")?.querySelector(":scope > .tip[data-shape]");
+  if (!tip) return;
+  const { positions } = shapeOf(tip.dataset.shape);
+  const { open } = tip.dataset;
+  tip.innerHTML = open === undefined
+    ? positions.slice(0, 4).map(shapeSvg).join("")
+    : shapeSvg(openString(positions[0], Number(open)));
+  delete tip.dataset.shape; // ya dibujado: no hace falta volver a pasar por aquí
+});
+
 // Nombre de acorde con tooltip de diagramas (varias posiciones/inversiones) al hacer
 // hover. Con cejilla, shapeSym es la forma transpuesta que realmente se toca.
-function chordSpan(sym, shapeSym = sym, link = true) {
+function chordSpan(sym, shapeSym = sym) {
   const span = document.createElement("span");
   span.className = "chord";
   span.textContent = sym;
-  const shape = db && findShape(db, shapeSym);
-  if (shape) {
-    const tip = document.createElement("span");
-    tip.className = "tip";
-    tip.innerHTML = shape.positions.slice(0, 4).map(shapeSvg).join("");
-    span.append(tip);
-  }
-  return link ? linkToIdent(span, sym) : span;
+  return linkToIdent(tipFor(span, shapeSym), sym);
 }
 
 // Acorde extendido de la pestaña cejilla: el diagrama es la forma del acorde BASE
@@ -70,15 +101,7 @@ function extChordSpan(ext, baseSym) {
   const span = document.createElement("span");
   span.className = "chord";
   span.textContent = ext.as;
-  const shape = db && findShape(db, baseSym);
-  const p = shape && openString(shape.positions[0], ext.stringIdx);
-  if (p) {
-    const tip = document.createElement("span");
-    tip.className = "tip";
-    tip.innerHTML = shapeSvg(p);
-    span.append(tip);
-  }
-  return linkToIdent(span, ext.as);
+  return linkToIdent(tipFor(span, baseSym, ext.stringIdx), ext.as);
 }
 
 form.addEventListener("submit", async e => {
@@ -104,15 +127,15 @@ form.addEventListener("submit", async e => {
 
   if (songContext && songContext.chords !== input.value.trim()) songContext = null;
   if (songContext) {
-    summary.append(Object.assign(document.createElement("p"), { className: "key", textContent: songContext.label }));
+    summary.append(el("p", { className: "key", textContent: songContext.label }));
   }
 
   const original = document.createElement("p");
   original.className = "original";
   progression.forEach((c, i) => original.append(i ? "  " : "", chordSpan(c.symbol)));
-  summary.append(original, Object.assign(document.createElement("p"), {
+  summary.append(original, el("p", {
     className: "key",
-    textContent: `Tonalidad estimada: ${PC[detectKey(progression)]} mayor · pulsa cualquier acorde para verlo en el mástil`,
+    textContent: `Tonalidad estimada: ${KEYS[detectKey(progression)]} mayor · pulsa cualquier acorde para verlo en el mástil`,
   }));
 
   renderTranspose(progression);
@@ -120,16 +143,16 @@ form.addEventListener("submit", async e => {
 
   for (const cp of capoSuggestions(progression).slice(0, 3)) {
     const li = document.createElement("li");
-    li.append(Object.assign(document.createElement("strong"), {
+    li.append(el("strong", {
       textContent: cp.capo ? `Cejilla en traste ${cp.capo}` : "Sin cejilla",
     }));
-    const cols = Object.assign(document.createElement("div"), { className: "cols" });
+    const cols = el("div", { className: "cols" });
     for (const pc of cp.perChord) {
       const sh = shapeSymbol(pc.chord, cp.capo);
       const head = document.createElement("p");
       head.className = "why";
       head.append(chordSpan(pc.chord, sh));
-      const exts = Object.assign(document.createElement("ul"), { className: "exts" });
+      const exts = el("ul", { className: "exts" });
       for (const ext of pc.extensions) {
         const row = document.createElement("li");
         row.append("→ ", extChordSpan(ext, sh), ` (${ext.note} en ${ext.string} al aire)`);
@@ -153,7 +176,7 @@ form.addEventListener("submit", async e => {
 // el enlace compartido lleve ya el tono elegido.
 const transposeBox = document.querySelector("#transpose");
 const keySelect = document.querySelector("#t-key");
-keySelect.append(...KEYS.map(k => Object.assign(document.createElement("option"), { value: k, textContent: k })));
+keySelect.append(...KEYS.map(k => el("option", { value: k, textContent: k })));
 let currentKey = 0; // croma de la tonalidad estimada de lo que hay escrito
 
 function renderTranspose(progression) {
@@ -192,26 +215,26 @@ function renderSubs(progression) {
     const li = document.createElement("li");
     const box = document.createElement("details");
     box.open = i === 0;
-    box.append(Object.assign(document.createElement("summary"), {
+    box.append(el("summary", {
       innerHTML: `<strong>${c.symbol}</strong> <small>· acorde ${i + 1} de ${progression.length} · ${mine.length} opciones</small>`,
     }));
 
     for (const kind of KINDS) {
       const group = mine.filter(s => s.kind === kind.id);
       if (!group.length) continue;
-      const card = Object.assign(document.createElement("div"), { className: "kind" });
+      const card = el("div", { className: "kind" });
       card.append(
-        Object.assign(document.createElement("h4"), { textContent: kind.name }),
-        Object.assign(document.createElement("p"), { className: "why hint", textContent: kind.hint }),
+        el("h4", { textContent: kind.name }),
+        el("p", { className: "why hint", textContent: kind.hint }),
       );
-      const list = Object.assign(document.createElement("ul"), { className: "options" });
+      const list = el("ul", { className: "options" });
       for (const s of group) {
         const opt = document.createElement("li");
         s.replacement.forEach((sym, k) => opt.append(k ? " " : "", chordSpan(sym)));
         opt.append(
           " ",
-          Object.assign(document.createElement("small"), { textContent: `(${s.rule})` }),
-          Object.assign(document.createElement("p"), { className: "why", textContent: s.why }),
+          el("small", { textContent: `(${s.rule})` }),
+          el("p", { className: "why", textContent: s.why }),
         );
         list.append(opt);
       }
@@ -231,7 +254,7 @@ function renderSubs(progression) {
 function renderReharm(progression) {
   reharmList.replaceChildren();
   if (!db) {
-    reharmList.append(Object.assign(document.createElement("li"), {
+    reharmList.append(el("li", {
       className: "why",
       textContent: "Sin las posiciones de guitarra no se puede elegir digitación, así que esta pestaña necesita conexión.",
     }));
@@ -240,7 +263,7 @@ function renderReharm(progression) {
 
   const versions = reharmonizations(db, progression);
   if (!versions.length) {
-    reharmList.append(Object.assign(document.createElement("li"), {
+    reharmList.append(el("li", {
       className: "why",
       textContent: "Alguno de estos acordes no tiene posiciones en la base de datos, así que no se puede armar el arreglo.",
     }));
@@ -250,8 +273,8 @@ function renderReharm(progression) {
   for (const v of versions) {
     const li = document.createElement("li");
     li.append(
-      Object.assign(document.createElement("h3"), { textContent: v.intention.name }),
-      Object.assign(document.createElement("p"), { className: "why", textContent: v.intention.why }),
+      el("h3", { textContent: v.intention.name }),
+      el("p", { className: "why", textContent: v.intention.why }),
     );
 
     const chart = document.createElement("div");
@@ -262,26 +285,26 @@ function renderReharm(progression) {
       // Sin tooltip de posiciones alternativas: aquí la digitación que importa
       // es la que hace la línea, y está dibujada justo debajo. Al pulsar se abre
       // esa misma en el analizador, no la primera que tenga la BD.
-      const name = Object.assign(document.createElement("span"), { className: "chord", textContent: s.symbol });
+      const name = el("span", { className: "chord", textContent: s.symbol });
       name.dataset.frets = s.frets.join(",");
       const svg = document.createElement("span");
       svg.innerHTML = shapeSvg(s.position);
-      step.append(name, svg, Object.assign(document.createElement("span"), { className: "top", textContent: s.topNote }));
+      step.append(name, svg, el("span", { className: "top", textContent: s.topNote }));
       chart.append(step);
     }
     li.append(chart);
 
-    li.append(Object.assign(document.createElement("p"), {
+    li.append(el("p", {
       className: "line",
       textContent: `Voz de arriba: ${v.line.join(" → ")}`,
     }));
     const conjunct = `${v.conjunct} de ${v.moves} movimientos por grado conjunto`;
-    li.append(Object.assign(document.createElement("p"), {
+    li.append(el("p", {
       className: "why",
-      textContent: `${conjunct}, ${v.held} nota${v.held === 1 ? "" : "s"} repetida${v.held === 1 ? "" : "s"} y ${v.leaps} salto${v.leaps === 1 ? "" : "s"}.`,
+      textContent: `${conjunct}, ${plural(v.held, "nota repetida", "notas repetidas")} y ${plural(v.leaps, "salto", "saltos")}.`,
     }));
     for (const s of v.steps.filter(x => x.rule && x.changed)) {
-      li.append(Object.assign(document.createElement("p"), {
+      li.append(el("p", {
         className: "why",
         textContent: `${s.from} → ${s.symbol} (${s.rule}). ${s.why}`,
       }));
@@ -298,10 +321,8 @@ const voicing = document.querySelector("#voicing");
 const picked = [-1, -1, -1, -1, -1, -1]; // formato chords-db: índice 0 = 6ª cuerda
 let chosenRoot = null; // la lectura que el usuario ha elegido; si no, manda el ranking
 
-const p = (className, textContent) => Object.assign(document.createElement("p"), { className, textContent });
-
 function renderIdent() {
-  const { notes, pcs, candidates } = identify(picked);
+  const { notes, candidates } = identify(picked);
   // Si la fundamental elegida ya no suena, se vuelve solo a la lectura mejor valorada.
   const best = candidates.find(c => c.root === chosenRoot) ?? candidates[0];
 
@@ -329,9 +350,9 @@ function renderIdent() {
   // mismas notas con un nombre por cada fundamental posible, y pulsar otra la
   // vuelve la principal y reetiqueta los grados del mástil.
   const chips = group => {
-    const list = Object.assign(document.createElement("ul"), { className: "others" });
+    const list = el("ul", { className: "others" });
     for (const c of group) {
-      const li = Object.assign(document.createElement("li"), {
+      const li = el("li", {
         textContent: c.symbol,
         className: c === best ? "active" : "",
         title: `Tomando ${c.root} como fundamental: ${c.degrees.map(d => `${d.note} ${d.degree}`).join(", ")}`,
@@ -349,7 +370,7 @@ function renderIdent() {
   const sinRaiz = candidates.filter(c => c.rootless);
   if (sinRaiz.length) {
     readout.append(
-      Object.assign(document.createElement("h3"), { textContent: "Sin la fundamental" }),
+      el("h3", { textContent: "Sin la fundamental" }),
       p("why hint", "Estas lecturas no tienen su fundamental entre las notas marcadas: la pone el bajo. Es lo corriente cuando no tocas solo, y la guitarra se queda con las notas que definen el acorde."),
       chips(sinRaiz),
     );
@@ -421,7 +442,7 @@ songQuery.addEventListener("input", () => {
     const typed = songQuery.value;
     const list = await suggestions(typed);
     if (songQuery.value !== typed) return; // respuesta tardía: ya se teclea otra cosa
-    songSuggest.replaceChildren(...list.map(s => Object.assign(document.createElement("option"), { value: s })));
+    songSuggest.replaceChildren(...list.map(s => el("option", { value: s })));
   }, 200);
 });
 
@@ -438,9 +459,9 @@ document.querySelector("#song-form").addEventListener("submit", async e => {
       const li = document.createElement("li");
       li.dataset.url = r.url;
       li.append(
-        Object.assign(document.createElement("strong"), { textContent: r.song }),
+        el("strong", { textContent: r.song }),
         ` — ${r.artist} `,
-        Object.assign(document.createElement("small"), {
+        el("small", {
           textContent: `★ ${r.rating?.toFixed(1) ?? "?"} (${r.votes} votos)`,
         }),
       );
@@ -459,22 +480,22 @@ songResults.addEventListener("click", async e => {
   try {
     const s = await fetchSong(li.dataset.url);
     songStatus.textContent = "";
-    songSections.append(Object.assign(document.createElement("h3"), {
+    songSections.append(el("h3", {
       textContent: `${s.song} — ${s.artist}${s.key ? ` · tonalidad ${s.key}` : ""}`,
     }));
     for (const sec of s.sections) {
       const box = document.createElement("div");
       box.className = "section";
-      box.append(Object.assign(document.createElement("strong"), { textContent: sec.name }));
+      box.append(el("strong", { textContent: sec.name }));
       const chords = document.createElement("div");
       chords.className = "chords";
       for (const sym of sec.chords) chords.append(chordSpan(sym));
       const meta = { song: s.song, artist: s.artist, key: s.key, url: li.dataset.url, part: sec.name };
-      const use = Object.assign(document.createElement("button"), { type: "button", textContent: "Usar" });
+      const use = el("button", { type: "button", textContent: "Usar" });
       use.addEventListener("click", () => useSection(meta, sec.chords));
       // Guardar sin pasar por "Usar": al mirar una transcripción interesa quedarse
       // con dos o tres partes de golpe, no cargarlas una a una para conservarlas.
-      const keep = Object.assign(document.createElement("button"), { type: "button", textContent: "Guardar" });
+      const keep = el("button", { type: "button", textContent: "Guardar" });
       keep.addEventListener("click", () => {
         const msg = saveToLibrary(meta, sec.chords);
         if (!msg) return;
@@ -572,27 +593,27 @@ function renderLibrary() {
   // leerla con calma ya está la cabecera tras cargarla. La × quita esa parte.
   for (const s of songs) {
     const key = songKey(s);
-    const block = Object.assign(document.createElement("div"), { className: "libsong" });
+    const block = el("div", { className: "libsong" });
     const head = document.createElement("h3");
     head.append(s.song);
     const detail = [s.artist, s.key && `tonalidad ${s.key}`].filter(Boolean).join(" · ");
-    if (detail) head.append(Object.assign(document.createElement("small"), { textContent: `— ${detail}` }));
-    const dropSong = Object.assign(document.createElement("button"), { type: "button", textContent: "Borrar" });
+    if (detail) head.append(el("small", { textContent: `— ${detail}` }));
+    const dropSong = el("button", { type: "button", textContent: "Borrar" });
     dropSong.addEventListener("click", () => commit(removeSong(lib, key), `Borrada "${s.song}".`));
     head.append(dropSong);
     block.append(head);
 
-    const parts = Object.assign(document.createElement("div"), { className: "parts" });
+    const parts = el("div", { className: "parts" });
     s.sections.forEach((sec, i) => {
-      const chip = Object.assign(document.createElement("span"), { className: "part" });
+      const chip = el("span", { className: "part" });
       const meta = { song: s.song, artist: s.artist, key: s.key, url: s.url, part: sec.name };
-      const use = Object.assign(document.createElement("button"), { type: "button", className: "use", textContent: sec.name });
+      const use = el("button", { type: "button", className: "use", textContent: sec.name });
       use.addEventListener("click", () => useSection(meta, sec.chords));
-      const drop = Object.assign(document.createElement("button"), {
+      const drop = el("button", {
         type: "button", className: "x", textContent: "×", title: `Quitar "${sec.name}"`,
       });
       drop.addEventListener("click", () => commit(removeSection(lib, key, i), `Quitada la parte "${sec.name}".`));
-      chip.append(use, drop, Object.assign(document.createElement("span"), {
+      chip.append(use, drop, el("span", {
         className: "tip", textContent: sec.chords.join(" "),
       }));
       parts.append(chip);
@@ -640,7 +661,7 @@ document.querySelector("#library-download").addEventListener("click", () => {
     return;
   }
   const url = URL.createObjectURL(new Blob([libraryJson(lib)], { type: "application/json" }));
-  const a = Object.assign(document.createElement("a"), { href: url, download: "cancionero-jangle.json" });
+  const a = el("a", { href: url, download: "cancionero-jangle.json" });
   a.click();
   URL.revokeObjectURL(url);
   libraryStatus.textContent = "Descargado cancionero-jangle.json.";
@@ -666,8 +687,6 @@ document.querySelector("#library-file").addEventListener("change", async e => {
 
 renderIdent();
 renderLibrary();
-dbReady.then(renderIdent); // repinta cuando ya hay diagramas que colgar de los nombres
-dbReady.then(renderLibrary);
 
 // Al cargar o navegar por el historial, la progresión de la URL manda.
 function applyHash() {
