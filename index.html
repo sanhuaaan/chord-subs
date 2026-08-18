@@ -306,7 +306,13 @@
         /* El mismo margen con el que arranca el body: si no coinciden, la columna
            recorre la diferencia antes de anclarse y se ve ese tirón al empezar. */
         top: 3rem;
-        max-height: calc(100vh - 4rem); overflow-y: auto;
+        /* 6rem y no 4rem: el sticky se ancla a 3rem del borde y no puede bajar
+           del fondo de su contenedor, que acaba 3rem antes que el documento por
+           el margen inferior del body. Si la columna es más alta que ese hueco,
+           los últimos 3rem de scroll la empujan hacia arriba y se ve el tirón al
+           llegar al final. Restando las dos, su fondo cae justo en el del
+           contenedor y no se mueve nunca. */
+        max-height: calc(100vh - 6rem); overflow-y: auto;
         /* La barra de scroll salía pegada al botón de Sugerir. El hueco se
            reserva siempre —aunque no haga falta barra— para que la columna no
            dé un salto lateral al aparecer, y el padding la separa del contenido. */
