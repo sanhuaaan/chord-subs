@@ -1,4 +1,4 @@
-# jangle
+# Jangle
 
 Aplicación web para trastear con la armonía de una canción, enfocada a guitarra. Dada una progresión
 de acordes sugiere sustituciones y acordes de paso con su explicación, propone dónde poner la cejilla
