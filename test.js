@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { Chord, Note } from "tonal";
-import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, RULES, KINDS } from "./rules.js";
+import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, rootOf, RULES, KINDS } from "./rules.js";
 import { reharmonizations } from "./reharm.js";
-import { capoSuggestions, shapeSymbol } from "./capo.js";
+import { capoSuggestions, capoArrangements, shapeSymbol } from "./capo.js";
 import { parseSearch, parseTab, suggestionSlug, decodeEntities } from "./song.js";
-import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, STRINGS, MAX_FRET } from "./guitar.js";
+import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, playablePositions, STRINGS, MAX_FRET } from "./guitar.js";
 import { NOTES, KEYS } from "./notes.js";
 import { identify, soundingNotes, degreeName, spell } from "./identify.js";
 import {
@@ -803,4 +803,66 @@ test("los nombres que se leen y las claves de la BD son tablas distintas", () =>
   KEYS.forEach((k, i) => assert.equal(Note.chroma(k), i, `${k} fuera de sitio`));
   const distintas = NOTES.filter((n, i) => n !== KEYS[i]);
   assert.deepEqual(distintas, ["C#"]);
+});
+
+test("el arreglo de cejilla ordena por lo que resuena y sale tocable", () => {
+  const prog = parseProgression("C Am F G");
+  const arreglos = capoArrangements(guitarDb, prog);
+  assert.ok(arreglos.length >= 5, "debería encontrar arreglo para casi toda cejilla");
+
+  // Ordenado por cuerdas al aire: es el criterio que da nombre a la pestaña.
+  const aire = arreglos.map(a => a.aire);
+  assert.deepEqual(aire, [...aire].sort((x, y) => y - x));
+
+  for (const a of arreglos) {
+    assert.equal(a.steps.length, prog.length, "un acorde del arreglo por acorde de la progresión");
+    a.steps.forEach((s, i) => {
+      // Solo adornos: cambia el color, nunca la fundamental ni el acorde.
+      assert.equal(Chord.get(s.sounding).tonic, prog[i].tonic, `${s.sounding} no adorna a ${prog[i].symbol}`);
+      // La forma se toca detrás de la cejilla, así que hay que llegar con la mano.
+      assert.ok(s.frets.every(f => a.capo + f <= MAX_FRET), `${s.shape} se sale del mástil con cejilla ${a.capo}`);
+      assert.ok(findShape(guitarDb, s.shape), `forma sin diagrama: ${s.shape}`);
+      assert.equal(s.aire, s.frets.filter(f => f === 0).length);
+    });
+    // Las cuentas que se enseñan salen de las digitaciones elegidas, no de otro sitio.
+    assert.equal(a.aire, a.steps.reduce((n, s) => n + s.aire, 0));
+  }
+});
+
+test("el arreglo de cejilla prefiere las digitaciones que dejan cuerdas al aire", () => {
+  const mejor = capoArrangements(guitarDb, parseProgression("C Am F G"))[0];
+  // La referencia: tocar la progresión tal cual, con la primera digitación de cada acorde.
+  const tal_cual = parseProgression("C Am F G")
+    .reduce((n, c) => n + playablePositions(guitarDb, c.symbol)[0].frets.filter(f => f === 0).length, 0);
+  assert.ok(mejor.aire > tal_cual, `el arreglo (${mejor.aire}) no mejora lo obvio (${tal_cual})`);
+  assert.ok(mejor.quietas > 0, "algo tendrá que quedarse quieto entre acordes");
+});
+
+test("el mástil dibuja la cejilla y lo que solo pisa ella suena al aire", () => {
+  // C6 detrás de una cejilla en el 5: la forma 3 2 0 0 0 0 cae en 8 7 5 5 5 5.
+  const conCejilla = fretboardSvg([8, 7, 5, 5, 5, 5], { capo: 5 });
+  const sinCejilla = fretboardSvg([8, 7, 5, 5, 5, 5]);
+
+  assert.match(conCejilla, /class="capo"/, "falta la barra de la cejilla");
+  assert.doesNotMatch(sinCejilla, /class="capo"/);
+
+  // Las cuatro cuerdas que solo pisa la cejilla se dibujan como cuerdas al aire,
+  // que es lo que hace que la forma se reconozca al venir de la pestaña de cejilla.
+  assert.equal([...conCejilla.matchAll(/class="note[^"]*\bopen\b/g)].length, 4);
+  assert.equal([...sinCejilla.matchAll(/class="note[^"]*\bopen\b/g)].length, 0);
+
+  // Detrás de la cejilla no se puede pisar nada, así que esas casillas no existen.
+  const trastes = s => [...s.matchAll(/class="cell" data-string="0" data-fret="(\d+)"/g)].map(m => Number(m[1]));
+  assert.deepEqual(trastes(conCejilla), [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+  assert.equal(Math.min(...trastes(sinCejilla)), 0);
+});
+
+test("rootOf saca la fundamental tal como está escrita", () => {
+  // Es lo que decide por qué lectura se abre un acorde en el mástil, así que
+  // tiene que respetar la grafía: un Db no se abre como C#.
+  assert.equal(rootOf("C6"), "C");
+  assert.equal(rootOf("Bbmaj7"), "Bb");
+  assert.equal(rootOf("F#m7/A"), "F#");
+  assert.equal(rootOf("Db"), "Db");
+  assert.equal(rootOf("xyz"), null);
 });

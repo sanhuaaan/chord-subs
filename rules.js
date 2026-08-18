@@ -11,6 +11,9 @@ export function parseProgression(text) {
 
 const ROOT = /^[A-G](#|b)?/;
 
+// La fundamental escrita en un símbolo, tal cual la escribió quien lo escribió.
+export const rootOf = symbol => symbol.match(ROOT)?.[0] ?? null;
+
 // Transponer por intervalo y no por semitonos: así lo escribe tonal contando
 // letras, que es de donde sale la grafía correcta en cada tono. El bajo se mueve
 // con la fundamental — un C/E a la segunda mayor es D/F#, no D/E.

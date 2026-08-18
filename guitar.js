@@ -63,6 +63,29 @@ export function findShape(db, symbol) {
   return { name: key + (DISPLAY[suffix] ?? suffix), positions: entry.positions };
 }
 
+// Digitaciones de la BD que caben en el mástil, cada una con lo que hace falta
+// para encadenarlas: los trastes absolutos, la voz superior (la nota que más
+// suena) y dónde cae la mano. Es de lo que parten tanto la rearmonización como
+// la búsqueda de cuerdas al aire, así que el criterio de "esto es tocable" vive
+// aquí, junto a MAX_FRET, y no en cada una por su cuenta.
+export function playablePositions(db, symbol, max = Infinity) {
+  const shape = db && findShape(db, symbol);
+  if (!shape) return [];
+  const out = [];
+  for (const position of shape.positions) {
+    const frets = absoluteFrets(position);
+    if (!frets.every(f => f <= MAX_FRET)) continue;
+    const sounding = frets
+      .map((f, i) => (f < 0 ? null : { midi: STRINGS[i][1] + f, stringIdx: i }))
+      .filter(Boolean);
+    if (sounding.length < 3) continue;
+    const top = sounding.reduce((a, b) => (b.midi > a.midi ? b : a));
+    out.push({ symbol, position, frets, top: top.midi, topString: top.stringIdx, baseFret: position.baseFret });
+    if (out.length === max) break;
+  }
+  return out;
+}
+
 // La misma posición con una cuerda al aire (para extensiones con cejilla: el 0 es
 // la cejilla, aunque la forma esté en trastes altos). Si la cuerda ya estaba al
 // aire, la forma ya suena la extensión y vale tal cual.
@@ -114,7 +137,7 @@ export function shapeSvg(p) {
 // marcan a la izquierda de la cejuela, y `labels[cuerda]` escribe a la derecha
 // el papel de esa nota (1, 3, b7…), que es quien lo llame sabrá calcularlo.
 // `root` resalta la fundamental para ver de un vistazo dónde cae en el mástil.
-export function fretboardSvg(frets, { maxFret = MAX_FRET, labels = [], root = null } = {}) {
+export function fretboardSvg(frets, { maxFret = MAX_FRET, labels = [], root = null, capo = 0 } = {}) {
   const G = 26;   // ancho de la columna de ×/○ a la izquierda de la cejuela
   const FW = 30;  // ancho de traste
   const SS = 22;  // separación entre cuerdas
@@ -158,6 +181,11 @@ export function fretboardSvg(frets, { maxFret = MAX_FRET, labels = [], root = nu
     }
   }
 
+  // La cejilla, antes que las notas para que estas queden por encima.
+  if (capo) {
+    el.push(`<rect class="capo" x="${mid(capo) - 7}" y="${y(5) - 10}" width="14" height="${y(0) - y(5) + 20}" rx="6"/>`);
+  }
+
   frets.forEach((f, s) => {
     const note = noteName(STRINGS[s][1] + f);
     if (f === -1) {
@@ -165,14 +193,16 @@ export function fretboardSvg(frets, { maxFret = MAX_FRET, labels = [], root = nu
     } else if (f === 0) {
       el.push(noteCircle(G / 2, y(s), note, true));
     } else if (f <= maxFret) {
-      el.push(noteCircle(mid(f), y(s), note, false));
+      // Con cejilla puesta, la cuerda que solo pisa ella suena como si estuviera
+      // al aire, y se dibuja igual: es lo que hace que la forma se reconozca.
+      el.push(noteCircle(mid(f), y(s), note, f === capo));
     }
   });
 
   // Zonas clicables al final, para que queden por encima y reciban el puntero.
   for (let s = 0; s < 6; s++) {
-    el.push(`<rect class="cell" data-string="${s}" data-fret="0" x="0" y="${y(s) - SS / 2}" width="${G}" height="${SS}" fill="transparent"/>`);
-    for (let f = 1; f <= maxFret; f++) {
+    el.push(`<rect class="cell" data-string="${s}" data-fret="${capo}" x="0" y="${y(s) - SS / 2}" width="${G}" height="${SS}" fill="transparent"/>`);
+    for (let f = capo + 1; f <= maxFret; f++) {
       el.push(`<rect class="cell" data-string="${s}" data-fret="${f}" x="${x(f - 1)}" y="${y(s) - SS / 2}" width="${FW}" height="${SS}" fill="transparent"/>`);
     }
   }

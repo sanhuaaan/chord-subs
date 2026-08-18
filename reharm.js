@@ -1,5 +1,5 @@
 import { optionsFor, detectKey } from "./rules.js";
-import { findShape, absoluteFrets, STRINGS, MAX_FRET } from "./guitar.js";
+import { playablePositions, STRINGS } from "./guitar.js";
 import { noteName } from "./notes.js";
 
 // Rearmonizar la progresión entera en vez de acorde a acorde. La pestaña de
@@ -34,26 +34,6 @@ const INTENTIONS = [
     why: "La misma nota aguda se mantiene mientras los acordes cambian por debajo. Da unidad y hace que los cambios suenen a color, no a movimiento.",
   },
 ];
-
-// Digitaciones de la BD que caben en el mástil, cada una con su voz superior:
-// la nota que más suena, que es la que dibuja la línea.
-function voicings(db, symbol, max) {
-  const shape = db && findShape(db, symbol);
-  if (!shape) return [];
-  const out = [];
-  for (const position of shape.positions) {
-    const frets = absoluteFrets(position);
-    if (!frets.every(f => f <= MAX_FRET)) continue;
-    const sounding = frets
-      .map((f, i) => (f < 0 ? null : { midi: STRINGS[i][1] + f, stringIdx: i }))
-      .filter(Boolean);
-    if (sounding.length < 3) continue;
-    const top = sounding.reduce((a, b) => (b.midi > a.midi ? b : a));
-    out.push({ symbol, position, frets, top: top.midi, topString: top.stringIdx, baseFret: position.baseFret });
-    if (out.length === max) break;
-  }
-  return out;
-}
 
 // Lo que cuesta encadenar dos digitaciones. Manda el salto de la voz superior:
 // el grado conjunto sale gratis porque es lo que hace línea, repetir nota cuesta
@@ -113,7 +93,7 @@ function reharmonize(db, progression, intention, maxVoicings = 5) {
   const dir = intention.dir;
   const cache = new Map();
   const voi = (sym, max) => {
-    if (!cache.has(sym)) cache.set(sym, voicings(db, sym, maxVoicings));
+    if (!cache.has(sym)) cache.set(sym, playablePositions(db, sym, maxVoicings));
     return cache.get(sym).slice(0, max);
   };
 

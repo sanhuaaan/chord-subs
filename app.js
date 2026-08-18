@@ -1,6 +1,6 @@
-import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, KINDS } from "./rules.js";
+import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, rootOf, KINDS } from "./rules.js";
 import { KEYS } from "./notes.js";
-import { capoSuggestions, shapeSymbol } from "./capo.js";
+import { capoSuggestions, capoArrangements, shapeSymbol } from "./capo.js";
 import { identify, degreeShort } from "./identify.js";
 import { reharmonizations } from "./reharm.js";
 import { searchSongs, fetchSong, suggestions } from "./song.js";
@@ -59,6 +59,9 @@ const loadablePosition = sym => {
 function linkToIdent(span, sym) {
   if (!loadablePosition(sym)) return span;
   span.dataset.load = sym;
+  // Las mismas notas admiten varias lecturas (un C6 es también un Am7): se abre
+  // por la que has pulsado, no por la que gane el ranking del identificador.
+  span.dataset.root = rootOf(sym);
   return span;
 }
 
@@ -142,30 +145,7 @@ form.addEventListener("submit", async e => {
   renderTranspose(progression);
   renderSubs(progression);
 
-  for (const cp of capoSuggestions(progression).slice(0, 3)) {
-    const li = document.createElement("li");
-    li.append(el("strong", {
-      textContent: cp.capo ? `Cejilla en traste ${cp.capo}` : "Sin cejilla",
-    }));
-    const cols = el("div", { className: "cols" });
-    for (const pc of cp.perChord) {
-      const sh = shapeSymbol(pc.chord, cp.capo);
-      const head = document.createElement("p");
-      head.className = "why";
-      head.append(chordSpan(pc.chord, sh));
-      const exts = el("ul", { className: "exts" });
-      for (const ext of pc.extensions) {
-        const row = document.createElement("li");
-        row.append("→ ", extChordSpan(ext, sh), ` (${ext.note} en ${ext.string} al aire)`);
-        exts.append(row);
-      }
-      const block = document.createElement("div");
-      block.append(head, exts);
-      cols.append(block);
-    }
-    li.append(cols);
-    capoList.append(li);
-  }
+  renderCapo(progression);
 
   renderReharm(progression);
 });
@@ -198,6 +178,89 @@ function transposeTo(target) {
 document.querySelector("#t-down").addEventListener("click", () => transposeTo(KEYS[(currentKey + 11) % 12]));
 document.querySelector("#t-up").addEventListener("click", () => transposeTo(KEYS[(currentKey + 1) % 12]));
 keySelect.addEventListener("change", () => transposeTo(keySelect.value));
+
+// ── Pestaña "Cejilla": cómo se toca detrás de cada cejilla, y qué color da ───
+
+// Dos alturas por cejilla. Arriba la respuesta: el arreglo que más resuena
+// detrás de ella, con su digitación y lo que se gana. Debajo el menú: todos los
+// colores que esa cejilla pone a tu alcance, los haya elegido el arreglo o no.
+// Una sola ordenación, la del arreglo, que es la que sabe si algo es tocable.
+function renderCapo(progression) {
+  const colores = new Map(capoSuggestions(progression).map(cp => [cp.capo, cp]));
+  // Sin la base de datos no hay digitaciones que elegir, así que queda el menú.
+  const arreglos = db ? capoArrangements(db, progression).slice(0, 3) : [];
+  const cejillas = arreglos.length ? arreglos : [...colores.values()].slice(0, 3).map(cp => ({ capo: cp.capo }));
+
+  for (const a of cejillas) {
+    const li = document.createElement("li");
+    li.append(el("strong", { textContent: a.capo ? `Cejilla en traste ${a.capo}` : "Sin cejilla" }));
+    if (a.steps) {
+      li.append(" ", el("small", {
+        textContent: `${plural(a.aire, "cuerda al aire", "cuerdas al aire")} · ${plural(a.quietas, "nota que no se mueve", "notas que no se mueven")}`,
+      }));
+      li.append(chartOf(a));
+    }
+
+    const cp = colores.get(a.capo);
+    if (!cp) continue;
+    li.append(el("p", { className: "why hint", textContent: "y además, si buscas color:" }));
+    const cols = el("div", { className: "cols" });
+    for (const pc of cp.perChord) {
+      const sh = shapeSymbol(pc.chord, a.capo);
+      const forma = shapeOf(sh)?.positions[0];
+      const head = el("p", { className: "why" });
+      head.append(conCejilla(chordSpan(pc.chord, sh), forma, a.capo));
+      const exts = el("ul", { className: "exts" });
+      for (const ext of pc.extensions) {
+        const row = document.createElement("li");
+        const conAire = forma && openString(forma, ext.stringIdx);
+        row.append("→ ", conCejilla(extChordSpan(ext, sh), conAire, a.capo),
+          ` (${ext.note} en ${ext.string} al aire)`);
+        exts.append(row);
+      }
+      const block = document.createElement("div");
+      block.append(head, exts);
+      cols.append(block);
+    }
+    li.append(cols);
+    capoList.append(li);
+  }
+}
+
+// Un acorde de la pestaña de cejilla se abre en el mástil con su cejilla puesta y
+// con la digitación que enseña su diagrama, no con la primera que tenga la BD:
+// si no, la figura del mástil no se parece a la que acabas de ver.
+function conCejilla(span, position, capo) {
+  if (!position) return span;
+  const frets = absoluteFrets(position).map(f => (f < 0 ? -1 : capo + f));
+  if (frets.some(f => f > MAX_FRET)) return span; // no cabe en el mástil del analizador
+  span.dataset.frets = frets.join(",");
+  span.dataset.capo = capo;
+  return span;
+}
+
+// La fila de diagramas del arreglo. Los trastes son relativos a la cejilla, que
+// es como se toca; al pulsar se carga en el mástil su posición real (la cejilla
+// más el traste), porque el analizador no sabe de cejillas y hay que darle lo
+// que de verdad suena.
+function chartOf(a) {
+  const chart = el("div", { className: "chart" });
+  for (const s of a.steps) {
+    const step = el("div", { className: s.changed ? "step changed" : "step" });
+    const name = el("span", { className: "chord", textContent: s.sounding });
+    name.dataset.frets = s.frets.map(f => (f < 0 ? -1 : a.capo + f)).join(",");
+    name.dataset.capo = a.capo;
+    name.dataset.root = rootOf(s.sounding);
+    const svg = document.createElement("span");
+    svg.innerHTML = shapeSvg(s.position);
+    step.append(name, svg, el("span", {
+      className: "top",
+      textContent: s.aire ? `${s.aire} al aire` : "sin cuerdas al aire",
+    }));
+    chart.append(step);
+  }
+  return chart;
+}
 
 // ── Pestaña "Sustituciones": todas las opciones, acorde por acorde ──────────
 
@@ -321,6 +384,7 @@ const readout = document.querySelector("#readout");
 const voicing = document.querySelector("#voicing");
 const picked = [-1, -1, -1, -1, -1, -1]; // formato chords-db: índice 0 = 6ª cuerda
 let chosenRoot = null; // la lectura que el usuario ha elegido; si no, manda el ranking
+let capo = 0; // cejilla puesta en el mástil: la trae el arreglo de la pestaña de cejilla
 
 function renderIdent() {
   const { notes, candidates } = identify(picked);
@@ -330,9 +394,9 @@ function renderIdent() {
   // Con la lectura principal, cada cuerda lleva escrito su papel junto al mástil.
   const labels = [];
   if (best) for (const n of notes) labels[n.stringIdx] = degreeShort(best.root, n.note);
-  board.innerHTML = fretboardSvg(picked, { labels, root: best?.root ?? null });
+  board.innerHTML = fretboardSvg(picked, { labels, root: best?.root ?? null, capo });
 
-  voicing.textContent = picked.map(f => (f < 0 ? "×" : f)).join(" ");
+  voicing.textContent = picked.map(f => (f < 0 ? "×" : f)).join(" ") + (capo ? `  ·  cejilla en ${capo}` : "");
   readout.replaceChildren();
 
   if (!notes.length) {
@@ -395,17 +459,19 @@ board.addEventListener("click", e => {
 // Cualquier acorde escrito en las otras pestañas lleva al analizador con su
 // primera posición ya marcada en el mástil.
 document.addEventListener("click", e => {
-  const el = e.target.closest("[data-load], [data-frets]");
-  if (!el) return;
-  // La pestaña de rearmonización trae su propia digitación: es la que hace la
-  // línea, así que carga esa y no la primera que tenga la BD para ese acorde.
-  const position = el.dataset.frets ? null : loadablePosition(el.dataset.load);
-  const frets = el.dataset.frets ? el.dataset.frets.split(",").map(Number)
+  const origen = e.target.closest("[data-load], [data-frets]");
+  if (!origen) return;
+  // Las pestañas de rearmonización y cejilla traen su propia digitación —la que
+  // hace la línea, la que deja cuerdas al aire—, así que se carga esa y no la
+  // primera que tenga la BD para ese acorde. La de cejilla trae además su traste.
+  const position = origen.dataset.frets ? null : loadablePosition(origen.dataset.load);
+  const frets = origen.dataset.frets ? origen.dataset.frets.split(",").map(Number)
     : position ? absoluteFrets(position)
     : [];
   if (frets.length !== 6) return;
   picked.splice(0, 6, ...frets);
-  chosenRoot = null;
+  capo = Number(origen.dataset.capo ?? 0);
+  chosenRoot = origen.dataset.root ?? null;
   renderIdent();
   document.querySelector("#ident").scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -426,6 +492,7 @@ document.querySelector("#go-ident").addEventListener("click", () => {
 
 document.querySelector("#clear").addEventListener("click", () => {
   picked.fill(-1);
+  capo = 0;
   chosenRoot = null;
   renderIdent();
 });

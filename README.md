@@ -121,6 +121,39 @@ la que usan el paso diatónico y la séptima diatónica.
 Todo cifrado que sale de una regla tiene posiciones en la base de datos de guitarra, así que cualquier
 sugerencia se puede ver dibujada y abrir en el mástil. Hay un test que lo comprueba.
 
+## Cejilla: cómo suena al aire
+
+La pestaña **Cejilla** responde a dos preguntas por cada posición de cejilla, y en ese orden.
+
+Arriba, **cómo se toca**: el arreglo que más resuena detrás de esa cejilla, con un diagrama por
+acorde y la cuenta de lo que se gana. Para `C Am F G` la mejor sale con cejilla en el traste 5, donde
+la progresión se toca con formas de G6, Em7, Cadd9 y Dsus2 — **14 cuerdas al aire y 11 notas que no
+se mueven** entre acordes, frente a las 10 y 7 de tocarla sin cejilla. Al pulsar cualquier acorde del
+arreglo se abre en el mástil **con su cejilla puesta**: se dibuja la barra en el traste que toque, las
+cuerdas que solo pisa ella se ven como cuerdas al aire y detrás de la cejilla no se puede pisar nada.
+Así la figura del mástil es la misma que la del diagrama, y el nombre sigue siendo el que suena de
+verdad (ese `C6` con cejilla en 5 son las notas 8 7 5 5 5 5, no un G6).
+
+Debajo, **qué color da**: todas las extensiones que esa cejilla pone a tu alcance gracias a las
+cuerdas al aire, las haya elegido el arreglo o no. Es el menú para trastear, y sigue siendo cálculo
+puro: qué cuerda al aire cae sobre qué extensión de cada acorde.
+
+Las dos mitades comparten una sola ordenación, la del arreglo, porque es la que sabe si algo se puede
+tocar de verdad.
+
+**Cómo se busca el arreglo.** Es el mismo camino mínimo que usa la rearmonización, con otro criterio:
+cada acorde ofrece sus adornos (add9, sus2, 6, maj7, m7… los de la columna *Adornar*, que cambian el
+color pero no la función) y cada adorno sus digitaciones de la base de datos, y se paga por lo que se
+pierde de resonancia. Vale una cuerda al aire, vale más una nota que no se mueve —misma cuerda, mismo
+traste que en el acorde anterior—, y vale el doble si esa nota quieta era una cuerda al aire: en
+guitarra eso no es que la nota se comparta, es que sigue sonando sola mientras la mano se va a otro
+sitio. Hay un peaje pequeño por adornar, para que a igualdad de resonancia gane el acorde tal como lo
+escribiste, y otro por saltar de posición con la mano.
+
+Solo se admiten adornos a propósito: sustituir el acorde por otro o meterle acordes delante ya es
+rearmonizar, y para eso está su pestaña. Y las formas se filtran por dónde caen de verdad en el
+mástil, que detrás de una cejilla en el 7 un traste 6 de la forma es el 13 real.
+
 ## Rearmonizar la progresión entera
 
 La pestaña de **Sustituciones** da opciones sueltas: para cuatro acordes ya son medio centenar de
