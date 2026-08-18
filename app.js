@@ -406,7 +406,6 @@ document.addEventListener("click", e => {
   if (frets.length !== 6) return;
   picked.splice(0, 6, ...frets);
   chosenRoot = null;
-  document.querySelector("#toggle-ident").checked = true;
   renderIdent();
   document.querySelector("#ident").scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -417,6 +416,12 @@ readout.addEventListener("click", e => {
   if (!chip) return;
   chosenRoot = chip.dataset.root;
   renderIdent();
+});
+
+// El botón de la cabecera no abre nada: el mástil siempre está al final, así que
+// solo baja hasta él.
+document.querySelector("#go-ident").addEventListener("click", () => {
+  document.querySelector("#ident").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 document.querySelector("#clear").addEventListener("click", () => {

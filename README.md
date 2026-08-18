@@ -19,8 +19,11 @@ npx serve .
 ```
 
 En pantallas anchas la app se reparte en dos columnas: a la izquierda, siempre a la vista, la
-progresión actual y sus fuentes (buscador de canciones y cancionero); a la derecha, el mástil y las
-pestañas de análisis. En pantallas estrechas todo fluye en una sola columna.
+progresión actual y sus fuentes (buscador de canciones y cancionero), con el identificador de acordes
+justo debajo; a la derecha, las pestañas de análisis. La columna de la izquierda mide lo que pide el
+mástil (30rem, su ancho de diseño) y la página crece otro tanto, así que tenerlo a mano no le quita
+sitio al análisis. En pantallas estrechas todo fluye en una sola columna y el identificador queda al
+final.
 
 Abre `http://localhost:8123`, escribe una progresión (p. ej. `C Am F G7`, separada por espacios, comas o `|`) y pulsa **Sugerir**. Cada sugerencia muestra por qué funciona, y al posar el ratón sobre cualquier nombre de acorde aparece un tooltip con hasta 4 posiciones del acorde en el mástil.
 
@@ -32,11 +35,13 @@ hacen, que es la decisión de verdad antes de mirar la regla concreta:
 - **Cambiar** — otro acorde en su lugar, que hace el mismo papel (`C → Am`, `Em`, `Cm`).
 - **Añadir** — acordes que lo preparan o lo alargan, repartiéndose su tiempo (`C → Dm7 G7 C`, `Fm C`, `Bb7 C`).
 
-El botón **Identificador de acordes** (arriba a la derecha) va al revés: abre un mástil de 15 trastes donde
-marcas pulsaciones y te dice qué acorde forman. Funciona sin escribir nada en el buscador.
+Debajo de la progresión está el **identificador de acordes**, que va al revés: marcas pulsaciones en
+un mástil de 15 trastes y te dice qué acorde forman. Funciona sin escribir nada en el buscador, y
+está siempre — no se abre ni se cierra, así que nunca empuja lo que estabas leyendo. El botón de la
+cabecera solo baja hasta él.
 
-Los nombres de acorde del resto de la app llevan a él: al pulsar cualquiera, su primera
-posición de la base de datos se carga en el mástil y el panel se abre. Se carga siempre lo que
+Los nombres de acorde del resto de la app llevan ahí: al pulsar cualquiera, su primera
+posición de la base de datos se carga en el mástil. Se carga siempre lo que
 pone escrito, no la forma del tooltip — en la pestaña de cejilla el tooltip enseña la forma
 transpuesta que se toca, pero el mástil no sabe de cejillas y nombrarla daría el acorde equivocado.
 
@@ -148,7 +153,7 @@ primera de la base de datos, que es justamente la que hace la línea.
 
 ## Identificar un acorde desde el mástil
 
-En el panel **Identificador de acordes** hay un mástil de 15 trastes donde cada cuerda suena una sola nota:
+En el **identificador de acordes** hay un mástil de 15 trastes donde cada cuerda suena una sola nota:
 al pulsar un traste la nota se mueve ahí, al volver a pulsar donde ya estaba la cuerda se apaga, y la
 columna a la izquierda de la cejuela alterna al aire y muda (×).
 

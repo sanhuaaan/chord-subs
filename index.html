@@ -39,7 +39,7 @@
       line-height: 1.5;
     }
     /* Todo lo pulsable responde suave, y al hacer clic se hunde un pelín. */
-    button, .filebtn, .tabs label, h1 label, .chord, .others li, #song-results li,
+    button, .filebtn, .tabs label, .chord, .others li, #song-results li,
     #subs summary, #song-box summary, #library-box summary {
       transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
     }
@@ -47,7 +47,7 @@
     /* "Guardar" se queda desactivado al guardar: la parte ya está, y volver a
        pulsarlo no haría nada. */
     button:disabled, button:disabled:hover { background: var(--panel-alto); color: #8a8a99; cursor: default; }
-    button:active, .filebtn:active, .others li:active, #song-results li:active, h1 label:active { transform: scale(0.96); }
+    button:active, .filebtn:active, .others li:active, #song-results li:active { transform: scale(0.96); }
     .tabs label:hover { color: var(--texto); }
     @keyframes fade-in { from { opacity: 0; transform: translateY(0.25rem); } }
     /* Plegado fluido de los <details> (acordes de Sustituciones y buscador de
@@ -83,14 +83,15 @@
     #reharm:empty::before { content: "Con una progresión arriba, aquí saldrán versiones enteras del acompañamiento guiadas por la voz aguda."; }
     /* El mástil es una herramienta aparte: se abre con el botón de la cabecera. */
     h1 { display: flex; justify-content: space-between; align-items: center; }
-    h1 label {
+    h1 button {
       font-size: 0.85rem; font-weight: normal; color: var(--apagado); cursor: pointer;
       padding: 0.3rem 0.7rem; border: var(--linea) solid var(--borde); border-radius: var(--radio);
+      background: none;
     }
-    h1 label:hover { border-color: var(--acento); }
-    #toggle-ident:checked ~ #side h1 label { background: var(--panel); color: var(--texto); border-color: var(--acento); }
-    #ident { display: none; padding: 0.5rem 0 1rem; border-bottom: var(--linea) solid var(--separador); margin-bottom: 1rem; }
-    #toggle-ident:checked ~ main #ident { display: block; animation: fade-in 0.2s ease; }
+    h1 button:hover { border-color: var(--acento); background: var(--panel); color: var(--texto); }
+    /* El mástil vive al final de la página y siempre está: así no empuja nada al
+       abrirse, porque no se abre. El botón de la cabecera solo baja hasta él. */
+    #ident { padding: 1.5rem 0 1rem; border-top: var(--linea) solid var(--separador); margin-top: 2rem; }
     /* Buscador de canciones: la otra manera de traer la progresión. */
     #song-box { margin: -1rem 0 0.4rem; }
     #library-box { margin: 0 0 1.5rem; }
@@ -246,13 +247,28 @@
        y análisis. En estrecho no entra la media query y queda la columna única. */
     @media (min-width: 64rem) {
       body {
-        max-width: 80rem;
+        max-width: 96rem;
         display: grid;
-        grid-template-columns: minmax(20rem, 24rem) 1fr;
+        /* La columna la marca el mástil: por debajo de 30rem (su ancho de diseño)
+           los trastes se estrujan, y por encima se agranda, que es lo que pide un
+           diapasón de quince trastes. La página crece lo mismo que la columna, así
+           que el análisis no paga por ello. */
+        grid-template-columns: minmax(24rem, 38rem) 1fr;
+        /* La primera fila la marca la progresión; el mástil va justo debajo y el
+           resto del alto se lo queda el contenido de la derecha. */
+        grid-template-rows: auto 1fr;
         column-gap: 3rem;
         align-items: start;
       }
-      #side { position: sticky; top: 1.5rem; }
+      /* El mástil va debajo de la columna de la progresión, no a lo ancho: es
+         una herramienta de la izquierda, no otra vista del análisis. El contenido
+         ocupa las dos filas de la derecha para que la columna no quede partida. */
+      #side { grid-column: 1; grid-row: 1; position: sticky; top: 1.5rem; }
+      main { grid-column: 2; grid-row: 1 / span 2; }
+      #ident { grid-column: 1; grid-row: 2; margin-top: 1rem; padding-top: 1rem; }
+      /* Ahí no caben las 30rem de ancho mínimo: el mástil se encoge a la columna
+         en vez de pedir scroll horizontal. */
+      #ident #board svg { min-width: 0; }
       .tabs { margin-top: 0.25rem; }
       /* Las opciones de cada acorde, a dos columnas. */
       #subs .options { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2.5rem; }
@@ -269,9 +285,8 @@
   </style>
 </head>
 <body>
-  <input type="checkbox" id="toggle-ident" hidden>
   <aside id="side">
-  <h1>Jangle <label for="toggle-ident">Identificador de acordes</label></h1>
+  <h1>Jangle <button type="button" id="go-ident">Identificador de acordes ↓</button></h1>
   <form>
     <input id="progression" placeholder="Ej.: C Am F G7" autofocus>
     <button type="submit">Sugerir</button>
@@ -319,6 +334,18 @@
   </div>
   </aside>
   <main>
+  <input type="radio" name="tab" id="tab-subs" checked hidden>
+  <input type="radio" name="tab" id="tab-capo" hidden>
+  <input type="radio" name="tab" id="tab-reharm" hidden>
+  <nav class="tabs">
+    <label for="tab-subs">Sustituciones</label>
+    <label for="tab-capo">Cejilla</label>
+    <label for="tab-reharm">Rearmonizar</label>
+  </nav>
+  <ul id="subs"></ul>
+  <ul id="capo"></ul>
+  <ul id="reharm"></ul>
+  </main>
   <section id="ident">
     <span id="tuning">E A D G B E<br>afinación estándar</span>
     <div id="board">
@@ -332,18 +359,6 @@
     </p>
     <div id="readout"></div>
   </section>
-  <input type="radio" name="tab" id="tab-subs" checked hidden>
-  <input type="radio" name="tab" id="tab-capo" hidden>
-  <input type="radio" name="tab" id="tab-reharm" hidden>
-  <nav class="tabs">
-    <label for="tab-subs">Sustituciones</label>
-    <label for="tab-capo">Cejilla</label>
-    <label for="tab-reharm">Rearmonizar</label>
-  </nav>
-  <ul id="subs"></ul>
-  <ul id="capo"></ul>
-  <ul id="reharm"></ul>
-  </main>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
