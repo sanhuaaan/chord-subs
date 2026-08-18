@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { Chord, Note } from "tonal";
-import { parseProgression, suggest, detectKey, RULES, KINDS } from "./rules.js";
+import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, KEYS, RULES, KINDS } from "./rules.js";
 import { reharmonizations } from "./reharm.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { parseSearch, parseTab, suggestionSlug, decodeEntities } from "./song.js";
@@ -713,4 +713,48 @@ test("exportar el mismo cancionero da siempre el mismo fichero", () => {
     version: 1,
     songs: [{ song: "Estable", artist: "A", url: "https://x/y", sections: [{ name: "A", chords: ["C", "G7"] }] }],
   });
+});
+
+test("transponer mueve la fundamental y también el bajo", () => {
+  assert.equal(transposeSymbol("C", "2M"), "D");
+  assert.equal(transposeSymbol("C/E", "2M"), "D/F#", "el bajo se queda atrás si no se transpone");
+  assert.equal(transposeSymbol("Am7/G", "3m"), "Cm7/Bb");
+  assert.equal(transposeSymbol("Cadd9", "2M"), "Dadd9", "el sufijo se conserva tal cual");
+});
+
+test("transponer por intervalo escribe cada tono con su grafía", () => {
+  const suena = (prog, destino) => {
+    const iv = intervalTo("C", destino);
+    return parseProgression(prog).map(c => transposeSymbol(c.symbol, iv)).join(" ");
+  };
+  // A tonos con bemoles salen bemoles, y a tonos con sostenidos, sostenidos:
+  // eso es lo que da transponer por intervalo en vez de por semitonos.
+  assert.equal(suena("C Am F G", "Ab"), "Ab Fm Db Eb");
+  assert.equal(suena("C Am F G", "B"), "B G#m E F#");
+  assert.equal(suena("C Am F G", "E"), "E C#m A B");
+  assert.equal(suena("C Am F G", "C"), "C Am F G", "al mismo tono no cambia nada");
+});
+
+test("transponer ida y vuelta deja la progresión como estaba", () => {
+  const original = "C Am F G7";
+  for (const destino of KEYS) {
+    const ida = parseProgression(original).map(c => transposeSymbol(c.symbol, intervalTo("C", destino)));
+    const vuelta = ida.map(sym => transposeSymbol(sym, intervalTo(destino, "C")));
+    assert.deepEqual(vuelta, ["C", "Am", "F", "G7"], `no vuelve pasando por ${destino}`);
+  }
+});
+
+test("todo acorde transpuesto a cualquier tono sigue teniendo diagrama", () => {
+  for (const sym of ["C", "Am7", "F#m", "Bb", "G7", "Ebmaj7", "Bdim"]) {
+    for (const destino of KEYS) {
+      const t = transposeSymbol(sym, intervalTo("C", destino));
+      assert.ok(findShape(guitarDb, t), `sin posición de guitarra: ${sym} → ${t} (a ${destino})`);
+    }
+  }
+});
+
+test("los doce tonos del selector son los que escribe un guitarrista", () => {
+  assert.equal(KEYS.length, 12);
+  assert.equal(KEYS[1], "Db", "Db mayor (5 bemoles) antes que C# mayor (7 sostenidos)");
+  KEYS.forEach((k, i) => assert.equal(Note.chroma(k), i, `${k} no está en su sitio`));
 });

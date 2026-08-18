@@ -1,4 +1,4 @@
-import { parseProgression, suggest, detectKey, KINDS } from "./rules.js";
+import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, KEYS, KINDS } from "./rules.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { identify, degreeShort } from "./identify.js";
 import { reharmonizations } from "./reharm.js";
@@ -85,6 +85,7 @@ form.addEventListener("submit", async e => {
   e.preventDefault();
   summary.innerHTML = subsList.innerHTML = capoList.innerHTML = "";
   error.textContent = "";
+  transposeBox.hidden = true;
   await dbReady;
 
   let progression;
@@ -114,6 +115,7 @@ form.addEventListener("submit", async e => {
     textContent: `Tonalidad estimada: ${PC[detectKey(progression)]} mayor · pulsa cualquier acorde para verlo en el mástil`,
   }));
 
+  renderTranspose(progression);
   renderSubs(progression);
 
   for (const cp of capoSuggestions(progression).slice(0, 3)) {
@@ -143,6 +145,35 @@ form.addEventListener("submit", async e => {
 
   renderReharm(progression);
 });
+
+// ── Transponer: la misma progresión sonando en otro tono ────────────────────
+
+// Sin estado propio: reescribe el campo y relanza, que es lo que escribe el hash.
+// De ahí salen gratis la persistencia al recargar, el atrás como deshacer y que
+// el enlace compartido lleve ya el tono elegido.
+const transposeBox = document.querySelector("#transpose");
+const keySelect = document.querySelector("#t-key");
+keySelect.append(...KEYS.map(k => Object.assign(document.createElement("option"), { value: k, textContent: k })));
+let currentKey = 0; // croma de la tonalidad estimada de lo que hay escrito
+
+function renderTranspose(progression) {
+  currentKey = detectKey(progression);
+  keySelect.value = KEYS[currentKey];
+  transposeBox.hidden = false;
+}
+
+// El tono de partida se nombra con KEYS y no con lo que haya escrito el usuario:
+// el intervalo entre dos nombres es lo que decide la grafía de toda la progresión,
+// así que fijar el origen es lo que hace predecible el resultado.
+function transposeTo(target) {
+  const interval = intervalTo(KEYS[currentKey], target);
+  input.value = parseProgression(input.value).map(c => transposeSymbol(c.symbol, interval)).join(" ");
+  form.requestSubmit();
+}
+
+document.querySelector("#t-down").addEventListener("click", () => transposeTo(KEYS[(currentKey + 11) % 12]));
+document.querySelector("#t-up").addEventListener("click", () => transposeTo(KEYS[(currentKey + 1) % 12]));
+keySelect.addEventListener("change", () => transposeTo(keySelect.value));
 
 // ── Pestaña "Sustituciones": todas las opciones, acorde por acorde ──────────
 

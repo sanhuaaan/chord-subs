@@ -1,4 +1,4 @@
-import { Chord, Note } from "tonal";
+import { Chord, Interval, Note } from "tonal";
 import { PC } from "./guitar.js";
 
 export function parseProgression(text) {
@@ -8,6 +8,29 @@ export function parseProgression(text) {
     return c;
   });
 }
+
+// Los doce tonos como los escribe un guitarrista: Db y no C#, Eb y no D#. Solo
+// difiere de PC en el primero, pero es el que manda al transponer, porque el
+// nombre del tono destino decide cómo se escriben todos los demás acordes
+// (a Db mayor salen Bbm Gb Ab; a C# mayor saldrían A#m F# G#).
+export const KEYS = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+
+const ROOT = /^[A-G](#|b)?/;
+
+// Transponer por intervalo y no por semitonos: así lo escribe tonal contando
+// letras, que es de donde sale la grafía correcta en cada tono. El bajo se mueve
+// con la fundamental — un C/E a la segunda mayor es D/F#, no D/E.
+export function transposeSymbol(symbol, interval) {
+  const move = note => Note.transpose(note, interval);
+  const [chord, bass] = symbol.split("/");
+  const root = chord.match(ROOT);
+  if (!root) return symbol;
+  const out = move(root[0]) + chord.slice(root[0].length);
+  return bass && ROOT.test(bass) ? `${out}/${move(bass)}` : symbol.includes("/") ? `${out}/${bass}` : out;
+}
+
+// Intervalo que lleva de un tono a otro, hacia arriba (Do → Lab: sexta menor).
+export const intervalTo = (from, to) => Interval.distance(from, to);
 
 // Transposición por cromas usando las grafías de la BD de guitarra (C# y no Db, Eb y no D#…).
 const up = (note, semis) => PC[(Note.chroma(note) + semis) % 12];

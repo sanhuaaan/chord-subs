@@ -1,11 +1,17 @@
 import { Chord, Note } from "tonal";
-import { qualityOf } from "./rules.js";
+import { qualityOf, transposeSymbol, intervalTo } from "./rules.js";
 import { PC, STRINGS } from "./guitar.js";
 
 // Forma que se toca (relativa a la cejilla) para que suene `symbol` con cejilla
 // en `capo`: el mismo acorde transpuesto hacia abajo tantos semitonos como trastes.
-export const shapeSymbol = (symbol, capo) =>
-  PC[(Note.chroma(Chord.get(symbol).tonic) - capo + 12) % 12] + symbol.replace(/^[A-G](#|b)?/, "");
+// El destino se nombra con la grafía de la BD de guitarra (PC) y no con la de la
+// tonalidad, porque aquí se nombra una forma que se toca, no un acorde de la
+// canción, y es esa grafía la que tiene diagrama.
+export const shapeSymbol = (symbol, capo) => {
+  const tonic = Chord.get(symbol).tonic;
+  const down = PC[(Note.chroma(tonic) - capo + 12) % 12];
+  return transposeSymbol(symbol, intervalTo(tonic, down));
+};
 
 // Lista blanca de extensiones por calidad: semitonos desde la raíz → sufijo.
 // Lo que no está aquí (b9, #11, b13…) se descarta: choca más que colorea.

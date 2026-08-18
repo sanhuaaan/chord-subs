@@ -42,6 +42,28 @@ transpuesta que se toca, pero el mástil no sabe de cejillas y nombrarla daría 
 
 Las grafías siguen el criterio de la base de datos de guitarra: `C#` y no `Db`, `Eb` y no `D#`.
 
+## Transponer
+
+Bajo la progresión hay dos botones `−1 / +1` y un selector de tono: la progresión entera pasa a
+sonar en otro tono, que es lo que se pide cuando una canción no entra en la voz. No hay estado
+nuevo: transponer reescribe el campo de progresión y relanza el análisis, así que el tono queda en
+el hash de la URL y de ahí salen gratis la persistencia al recargar, el botón atrás como deshacer y
+un enlace compartible que ya lleva el tono elegido.
+
+La transposición va **por intervalo y no por semitonos**, que es lo que hace que cada tono se
+escriba como se escribe: a Lab mayor salen `Ab Fm Db Eb` (con `Db`, no `C#`) y a Si mayor
+`B G#m E F#` (con `G#m`, no `Abm`). El bajo se mueve con la fundamental, así que `C/E` sube una
+segunda mayor a `D/F#`. Los diagramas no se enteran: `findShape` busca por sonido, así que un `Db`
+encuentra las posiciones de `C#`.
+
+Los doce tonos del selector son los que escribe un guitarrista (`Db` y no `C#`), y solo se aplica a
+la progresión: las reglas y la pestaña de cejilla siguen generando nombres con la grafía de la base
+de datos, así que en tonos con bemoles alguna sugerencia suelta puede salir con sostenido.
+
+Transponer también cambia por completo la pestaña de **Cejilla**: al cambiar de tono cambian las
+cuerdas al aire que caen sobre cada acorde, así que la misma progresión en otro tono ofrece
+extensiones distintas. Es otra palanca para buscar texturas, no solo para cantantes.
+
 ## Reglas implementadas
 
 Adornar el acorde:
