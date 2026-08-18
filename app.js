@@ -121,16 +121,23 @@ form.addEventListener("submit", async e => {
     li.append(Object.assign(document.createElement("strong"), {
       textContent: cp.capo ? `Cejilla en traste ${cp.capo}` : "Sin cejilla",
     }));
+    const cols = Object.assign(document.createElement("div"), { className: "cols" });
     for (const pc of cp.perChord) {
       const sh = shapeSymbol(pc.chord, cp.capo);
-      const line = document.createElement("p");
-      line.className = "why";
-      line.append(chordSpan(pc.chord, sh), " → ");
-      pc.extensions.forEach((ext, i) => {
-        line.append(i ? ", " : "", extChordSpan(ext, sh), ` (${ext.note} en ${ext.string} al aire)`);
-      });
-      li.append(line);
+      const head = document.createElement("p");
+      head.className = "why";
+      head.append(chordSpan(pc.chord, sh));
+      const exts = Object.assign(document.createElement("ul"), { className: "exts" });
+      for (const ext of pc.extensions) {
+        const row = document.createElement("li");
+        row.append("→ ", extChordSpan(ext, sh), ` (${ext.note} en ${ext.string} al aire)`);
+        exts.append(row);
+      }
+      const block = document.createElement("div");
+      block.append(head, exts);
+      cols.append(block);
     }
+    li.append(cols);
     capoList.append(li);
   }
 
@@ -161,7 +168,8 @@ function renderSubs(progression) {
     for (const kind of KINDS) {
       const group = mine.filter(s => s.kind === kind.id);
       if (!group.length) continue;
-      box.append(
+      const card = Object.assign(document.createElement("div"), { className: "kind" });
+      card.append(
         Object.assign(document.createElement("h4"), { textContent: kind.name }),
         Object.assign(document.createElement("p"), { className: "why hint", textContent: kind.hint }),
       );
@@ -176,7 +184,8 @@ function renderSubs(progression) {
         );
         list.append(opt);
       }
-      box.append(list);
+      card.append(list);
+      box.append(card);
     }
     li.append(box);
     subsList.append(li);
@@ -527,8 +536,12 @@ function renderLibrary() {
   // que no tienen ninguno. El orden en que se guardaron se queda en el fichero,
   // donde lo que importa es que exportar dos veces dé lo mismo.
   const songs = [...lib.songs].sort((a, b) => a.song.localeCompare(b.song) || a.artist.localeCompare(b.artist));
+  // Compacto: una línea por canción y las partes como chips con solo el nombre.
+  // Pulsar el chip carga la parte; la progresión se ve en el tooltip, y para
+  // leerla con calma ya está la cabecera tras cargarla. La × quita esa parte.
   for (const s of songs) {
     const key = songKey(s);
+    const block = Object.assign(document.createElement("div"), { className: "libsong" });
     const head = document.createElement("h3");
     head.append(s.song);
     const detail = [s.artist, s.key && `tonalidad ${s.key}`].filter(Boolean).join(" · ");
@@ -536,26 +549,25 @@ function renderLibrary() {
     const dropSong = Object.assign(document.createElement("button"), { type: "button", textContent: "Borrar" });
     dropSong.addEventListener("click", () => commit(removeSong(lib, key), `Borrada "${s.song}".`));
     head.append(dropSong);
-    libraryList.append(head);
+    block.append(head);
 
+    const parts = Object.assign(document.createElement("div"), { className: "parts" });
     s.sections.forEach((sec, i) => {
-      const box = document.createElement("div");
-      box.className = "section";
-      box.append(Object.assign(document.createElement("strong"), { textContent: sec.name }));
-      const chords = document.createElement("div");
-      chords.className = "chords";
-      for (const sym of sec.chords) chords.append(chordSpan(sym));
+      const chip = Object.assign(document.createElement("span"), { className: "part" });
       const meta = { song: s.song, artist: s.artist, key: s.key, url: s.url, part: sec.name };
-      const use = Object.assign(document.createElement("button"), { type: "button", textContent: "Usar" });
+      const use = Object.assign(document.createElement("button"), { type: "button", className: "use", textContent: sec.name });
       use.addEventListener("click", () => useSection(meta, sec.chords));
       const drop = Object.assign(document.createElement("button"), {
-        type: "button", className: "drop", textContent: "Quitar",
+        type: "button", className: "x", textContent: "×", title: `Quitar "${sec.name}"`,
       });
       drop.addEventListener("click", () => commit(removeSection(lib, key, i), `Quitada la parte "${sec.name}".`));
-      chords.append(use, drop);
-      box.append(chords);
-      libraryList.append(box);
+      chip.append(use, drop, Object.assign(document.createElement("span"), {
+        className: "tip", textContent: sec.chords.join(" "),
+      }));
+      parts.append(chip);
     });
+    block.append(parts);
+    libraryList.append(block);
   }
 }
 

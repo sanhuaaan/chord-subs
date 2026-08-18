@@ -18,6 +18,10 @@ python3 -m http.server 8123
 npx serve .
 ```
 
+En pantallas anchas la app se reparte en dos columnas: a la izquierda, siempre a la vista, la
+progresión actual y sus fuentes (buscador de canciones y cancionero); a la derecha, el mástil y las
+pestañas de análisis. En pantallas estrechas todo fluye en una sola columna.
+
 Abre `http://localhost:8123`, escribe una progresión (p. ej. `C Am F G7`, separada por espacios, comas o `|`) y pulsa **Sugerir**. Cada sugerencia muestra por qué funciona, y al posar el ratón sobre cualquier nombre de acorde aparece un tooltip con hasta 4 posiciones del acorde en el mástil.
 
 Un acorde corriente saca del orden de doce opciones, así que la pestaña de
@@ -210,7 +214,8 @@ el punto exacto de la rotura.
 Una canción es un puñado de partes, y cada parte una progresión. Se guardan desde los dos sitios
 donde aparecen: el botón **Guardar** que lleva cada parte de una transcripción de Ultimate Guitar, y
 el formulario del cancionero, que guarda con nombre lo que haya escrito arriba. Cada parte guardada
-tiene su **Usar**, que la sube al campo de progresión, y de ahí sigue el camino de siempre: la
+es un chip con su nombre: pulsarlo la sube al campo de progresión (los acordes asoman al posar el
+ratón, y la × la quita), y de ahí sigue el camino de siempre: la
 progresión se escribe en el hash de la URL y es el hash lo que pinta. El cancionero no es una segunda
 fuente de verdad, solo otra manera de rellenar ese campo.
 
