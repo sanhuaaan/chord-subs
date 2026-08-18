@@ -1,5 +1,6 @@
-import { RULES, detectKey } from "./rules.js";
-import { findShape, absoluteFrets, STRINGS, MAX_FRET, PC } from "./guitar.js";
+import { optionsFor, detectKey } from "./rules.js";
+import { findShape, absoluteFrets, STRINGS, MAX_FRET } from "./guitar.js";
+import { noteName } from "./notes.js";
 
 // Rearmonizar la progresión entera en vez de acorde a acorde. La pestaña de
 // sustituciones da opciones sueltas; aquí se eligen unas cuantas que encajen
@@ -33,25 +34,6 @@ const INTENTIONS = [
     why: "La misma nota aguda se mantiene mientras los acordes cambian por debajo. Da unidad y hace que los cambios suenen a color, no a movimiento.",
   },
 ];
-
-// Acordes que pueden ocupar cada hueco: el original y lo que propongan las
-// reglas. Una opción puede meter más de un acorde en el mismo hueco (el ii-V,
-// los acordes de paso), y entonces se reparten su tiempo.
-function slotOptions(progression, key) {
-  return progression.map((c, i) => {
-    const options = [{ chords: [c.symbol], kind: null, rule: null, why: "" }];
-    const seen = new Set([c.symbol]);
-    for (const rule of RULES) {
-      const r = rule.apply(c, progression[i + 1], key);
-      if (!r) continue;
-      const chords = r.chords.join(" ");
-      if (seen.has(chords)) continue;
-      seen.add(chords);
-      options.push({ chords: r.chords, kind: rule.kind, rule: rule.name, why: r.why });
-    }
-    return options;
-  });
-}
 
 // Digitaciones de la BD que caben en el mástil, cada una con su voz superior:
 // la nota que más suena, que es la que dibuja la línea.
@@ -137,7 +119,7 @@ function reharmonize(db, progression, intention, maxVoicings = 5) {
 
   // Cada capa son los caminos posibles dentro de un hueco: una opción de acorde
   // con una digitación elegida para cada uno de sus acordes.
-  const layers = slotOptions(progression, key).map((options, slot) => {
+  const layers = optionsFor(progression, key).map((options, slot) => {
     const nodes = [];
     for (const option of options) {
       const per = voicingsFor(option, maxVoicings);
@@ -207,7 +189,7 @@ function reharmonize(db, progression, intention, maxVoicings = 5) {
         position: v.position,
         frets: v.frets,
         top: v.top,
-        topNote: PC[v.top % 12],
+        topNote: noteName(v.top),
         topString: STRINGS[v.topString][0],
       });
     });

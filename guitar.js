@@ -1,7 +1,13 @@
 import { Chord, Note } from "tonal";
+import { noteName } from "./notes.js";
 
-// Grafías tal y como indexa chords-db (y como las busca un guitarrista).
-export const PC = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+// Con qué grafía indexa chords-db sus acordes. No es una decisión nuestra sino
+// suya, así que no sale de este módulo: para nombrar notas está notes.js, que
+// hoy coincide pero responde a otra pregunta.
+const DB_SPELLING = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+
+// El nombre con el que hay que buscar una nota en la base de datos de diagramas.
+export const dbSpelling = note => DB_SPELLING[Note.chroma(note)];
 
 // Afinación estándar de 6ª a 1ª: nombre de la cuerda y su nota MIDI al aire. El
 // orden es el de las posiciones de chords-db (índice 0 = 6ª), y `midi % 12` da
@@ -51,7 +57,7 @@ export function findShape(db, symbol) {
   if (!c.tonic) return null;
   // Tipo de tonal si lo conoce; si no, el sufijo textual tal cual (add9, madd9, 7sus4, 13…).
   const suffix = SUFFIX_BY_TYPE[c.type] ?? symbol.replace(/^[A-G](#|b)?/, "");
-  const key = PC[Note.chroma(c.tonic)];
+  const key = dbSpelling(c.tonic);
   const entry = (db.chords[key.replace("#", "sharp")] || []).find(e => e.suffix === suffix);
   if (!entry) return null;
   return { name: key + (DISPLAY[suffix] ?? suffix), positions: entry.positions };
@@ -153,7 +159,7 @@ export function fretboardSvg(frets, { maxFret = MAX_FRET, labels = [], root = nu
   }
 
   frets.forEach((f, s) => {
-    const note = PC[(STRINGS[s][1] + f) % 12];
+    const note = noteName(STRINGS[s][1] + f);
     if (f === -1) {
       el.push(`<text class="muted" x="${G / 2}" y="${y(s) + 3.5}" text-anchor="middle" font-size="11">×</text>`);
     } else if (f === 0) {

@@ -1,5 +1,6 @@
 import { Note } from "tonal";
-import { PC, STRINGS } from "./guitar.js";
+import { STRINGS } from "./guitar.js";
+import { NOTES, noteName } from "./notes.js";
 
 // Cómo llama un guitarrista a cada distancia en semitonos desde la fundamental.
 // Va por cromas y no por grafía, así que da igual que la nota esté escrita Eb o
@@ -124,7 +125,7 @@ export function soundingNotes(frets) {
   return frets
     .map((f, i) => (f < 0 ? null : { string: STRINGS[i][0], stringIdx: i, fret: f, midi: STRINGS[i][1] + f }))
     .filter(Boolean)
-    .map(n => ({ ...n, note: PC[n.midi % 12] }))
+    .map(n => ({ ...n, note: noteName(n.midi) }))
     .sort((a, b) => a.midi - b.midi);
 }
 
@@ -178,7 +179,7 @@ export function identify(frets) {
   // las notas que no suenan, y solo pasan las que dejan un cifrado corriente con
   // notas guía; sin ese filtro cada acorde arrastraría una docena de lecturas
   // rebuscadas, que es lo que hace inútil una lista de lecturas.
-  const rootless = (enough ? PC : [])
+  const rootless = (enough ? NOTES : [])
     .filter(root => !pcs.includes(root))
     .map(root => read(root, true))
     .filter(c => COMMON.has(c.suffix) && guide(c.root));

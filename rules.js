@@ -1,5 +1,5 @@
 import { Chord, Interval, Note } from "tonal";
-import { PC } from "./guitar.js";
+import { KEYS, noteName } from "./notes.js";
 
 export function parseProgression(text) {
   return text.split(/[\s|,]+/).filter(Boolean).map(sym => {
@@ -8,12 +8,6 @@ export function parseProgression(text) {
     return c;
   });
 }
-
-// Los doce tonos como los escribe un guitarrista: Db y no C#, Eb y no D#. Solo
-// difiere de PC en el primero, pero es el que manda al transponer, porque el
-// nombre del tono destino decide cómo se escriben todos los demás acordes
-// (a Db mayor salen Bbm Gb Ab; a C# mayor saldrían A#m F# G#).
-export const KEYS = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
 const ROOT = /^[A-G](#|b)?/;
 
@@ -32,8 +26,10 @@ export function transposeSymbol(symbol, interval) {
 // Intervalo que lleva de un tono a otro, hacia arriba (Do → Lab: sexta menor).
 export const intervalTo = (from, to) => Interval.distance(from, to);
 
-// Transposición por cromas usando las grafías de la BD de guitarra (C# y no Db, Eb y no D#…).
-const up = (note, semis) => PC[(Note.chroma(note) + semis) % 12];
+// Transposición por cromas para los cifrados que generan las reglas. Va por
+// croma y no por intervalo a propósito: aquí no hay tonalidad destino que dicte
+// la grafía, solo un acorde suelto que hay que saber nombrar.
+const up = (note, semis) => noteName(Note.chroma(note) + semis);
 
 const isDominant = c => c.intervals.includes("3M") && c.intervals.includes("7m");
 const isMajorish = c => c.intervals.includes("3M") && !c.intervals.includes("7m");
@@ -52,7 +48,7 @@ const ROMAN = ["I", "ii", "iii", "IV", "V", "vi", "vii°"];
 
 export const qualityOf = c => (isDominant(c) ? "dom" : isDim(c) ? "dim" : c.intervals.includes("3m") ? "min" : "maj");
 const degreeIn = (key, tonic) => MAJOR_STEPS.indexOf((Note.chroma(tonic) - key + 12) % 12);
-const diatonicChord = (key, deg) => PC[(key + MAJOR_STEPS[deg]) % 12] + DEGREE_SUFFIX[DEGREE_QUALITY[deg]];
+const diatonicChord = (key, deg) => noteName(key + MAJOR_STEPS[deg]) + DEGREE_SUFFIX[DEGREE_QUALITY[deg]];
 
 // Tonalidad mayor que mejor encaja con la progresión (croma de la tónica).
 // ponytail: solo tonalidades mayores; el modo menor cuando haga falta
@@ -437,22 +433,37 @@ export const RULES = [
 ];
 
 // Devuelve [{index, chord, kind, rule, replacement, why}] para toda la progresión.
-// Dos reglas distintas pueden acabar proponiendo lo mismo para el mismo acorde
-// (el V de la tonalidad ya es dominante, etc.): se queda la primera, que va antes
-// en RULES y es la explicación más directa.
-export function suggest(progression) {
-  const key = detectKey(progression);
-  const out = [];
-  const seen = new Set();
-  progression.forEach((c, i) => {
+// Todo lo que las reglas ofrecen para cada hueco de la progresión: una lista por
+// acorde, empezando por la opción de no tocar nada. Dos reglas distintas pueden
+// acabar proponiendo lo mismo para el mismo acorde (el V de la tonalidad ya es
+// dominante, etc.): se queda la primera, que va antes en RULES y es la explicación
+// más directa. Dejar el acorde original siembra el deduplicado, así que una regla
+// que no lo cambie tampoco aparece.
+export function optionsFor(progression, key = detectKey(progression)) {
+  return progression.map((c, i) => {
+    const options = [{ chords: [c.symbol], kind: null, rule: null, why: "" }];
+    const seen = new Set([c.symbol]);
     for (const rule of RULES) {
       const r = rule.apply(c, progression[i + 1], key);
       if (!r) continue;
-      const replacement = r.chords.join(" ");
-      if (replacement === c.symbol || seen.has(`${i}|${replacement}`)) continue;
-      seen.add(`${i}|${replacement}`);
-      out.push({ index: i, chord: c.symbol, kind: rule.kind, rule: rule.name, replacement: r.chords, why: r.why });
+      const chords = r.chords.join(" ");
+      if (seen.has(chords)) continue;
+      seen.add(chords);
+      options.push({ chords: r.chords, kind: rule.kind, rule: rule.name, why: r.why });
     }
+    return options;
   });
-  return out;
 }
+
+// La vista plana que quiere la pestaña de sustituciones: sin la opción de dejarlo
+// como está, que ahí no es una sugerencia sino la ausencia de una.
+export const suggest = progression =>
+  optionsFor(progression).flatMap((options, index) =>
+    options.filter(o => o.rule).map(o => ({
+      index,
+      chord: progression[index].symbol,
+      kind: o.kind,
+      rule: o.rule,
+      replacement: o.chords,
+      why: o.why,
+    })));

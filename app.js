@@ -1,4 +1,5 @@
-import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, KEYS, KINDS } from "./rules.js";
+import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, KINDS } from "./rules.js";
+import { KEYS } from "./notes.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { identify, degreeShort } from "./identify.js";
 import { reharmonizations } from "./reharm.js";

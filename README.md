@@ -40,7 +40,13 @@ posición de la base de datos se carga en el mástil y el panel se abre. Se carg
 pone escrito, no la forma del tooltip — en la pestaña de cejilla el tooltip enseña la forma
 transpuesta que se toca, pero el mástil no sabe de cejillas y nombrarla daría el acorde equivocado.
 
-Las grafías siguen el criterio de la base de datos de guitarra: `C#` y no `Db`, `Eb` y no `D#`.
+Las grafías van con sostenidos, como se leen en guitarra: `C#` y no `Db`, `Eb` y no `D#`. Hay tres
+respuestas posibles a "cómo se escribe este sonido" y la app las tiene separadas a propósito, porque
+son preguntas distintas: `NOTES` en `notes.js` nombra notas sueltas y fundamentales de acorde, `KEYS`
+nombra tonalidades (`Db` mayor y no `C#` mayor, que tendría siete sostenidos), y la grafía con la que
+indexa la base de datos de diagramas es cosa suya y no sale de `guitar.js`. Que hoy dos de ellas
+coincidan es casualidad, no motivo para fundirlas: cuando compartían tabla, una progresión escrita en
+`Db` se anunciaba como "C# mayor".
 
 ## Transponer
 

@@ -1,12 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
 import { Chord, Note } from "tonal";
-import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, KEYS, RULES, KINDS } from "./rules.js";
+import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, RULES, KINDS } from "./rules.js";
 import { reharmonizations } from "./reharm.js";
 import { capoSuggestions, shapeSymbol } from "./capo.js";
 import { parseSearch, parseTab, suggestionSlug, decodeEntities } from "./song.js";
-import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, STRINGS, MAX_FRET, PC } from "./guitar.js";
+import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, STRINGS, MAX_FRET } from "./guitar.js";
+import { NOTES, KEYS } from "./notes.js";
 import { identify, soundingNotes, degreeName, spell } from "./identify.js";
 import {
   KEY, emptyLibrary, readLibrary, writeLibrary, libraryJson, parseLibrary,
@@ -131,9 +133,9 @@ test("toda sugerencia lleva explicación con sus acordes", () => {
 });
 
 test("detectKey estima la tonalidad mayor de la progresión", () => {
-  assert.equal(PC[detectKey(parseProgression("C Am F G7"))], "C");
-  assert.equal(PC[detectKey(parseProgression("D Bm G A7"))], "D");
-  assert.equal(PC[detectKey(parseProgression("Bb Gm Eb F7"))], "Bb");
+  assert.equal(NOTES[detectKey(parseProgression("C Am F G7"))], "C");
+  assert.equal(NOTES[detectKey(parseProgression("D Bm G A7"))], "D");
+  assert.equal(NOTES[detectKey(parseProgression("Bb Gm Eb F7"))], "Bb");
 });
 
 test("paso diatónico: inserta el grado intermedio subiendo y bajando", () => {
@@ -178,14 +180,40 @@ test("cejilla: Am sin cejilla gana m11, m7 y madd9", () => {
   assert.deepEqual(zero.perChord[0].extensions.map(e => e.as), ["Am11", "Am7", "Amadd9"]);
 });
 
-test("las extensiones de cejilla tienen diagrama en la BD de guitarra", () => {
-  for (const cp of capoSuggestions(parseProgression("C Am F G7 Em"))) {
-    for (const pc of cp.perChord) {
-      for (const e of pc.extensions) {
-        assert.ok(findShape(guitarDb, e.as), `sin posición de guitarra: ${e.as}`);
+test("las extensiones de cejilla se llaman como acordes que existen", () => {
+  // Barrido de las doce fundamentales por calidad, no una progresión suelta: el
+  // nombre de la extensión depende de la calidad del acorde y de si ya lleva
+  // séptima, así que una sola progresión deja casi todas las tablas sin probar.
+  // m13 es el único cifrado correcto que chords-db no indexa: se propone igual
+  // (el tooltip dibuja la forma base con la cuerda al aire, no ese acorde), pero
+  // no se puede abrir en el mástil. Si aparece otro, que se entere alguien.
+  const sinDiagrama = new Set();
+  for (const raiz of NOTES) {
+    for (const calidad of ["", "m", "7", "m7", "maj7", "6", "m6", "sus4"]) {
+      for (const cp of capoSuggestions(parseProgression(raiz + calidad))) {
+        for (const pc of cp.perChord) {
+          for (const e of pc.extensions) {
+            assert.ok(Chord.get(e.as).tonic, `cifrado que no se puede leer: ${e.as}`);
+            if (!findShape(guitarDb, e.as)) sinDiagrama.add(e.as.replace(/^[A-G][b#]?/, ""));
+          }
+        }
       }
     }
   }
+  assert.deepEqual([...sinDiagrama], ["m13"]);
+});
+
+test("cejilla: con séptima el nombre la conserva, sin ella no la inventa", () => {
+  const ext = sym => capoSuggestions(parseProgression(sym))
+    .flatMap(cp => cp.perChord.flatMap(pc => pc.extensions.map(e => e.as)));
+  // La novena al aire sobre una tríada es un add9, pero sobre el maj7 es un maj9:
+  // la séptima sigue sonando y el nombre tiene que contarlo.
+  assert.ok(ext("C").includes("Cadd9"));
+  assert.ok(ext("Cmaj7").includes("Cmaj9"), "el maj7 con la 9ª al aire no es un add9");
+  assert.ok(!ext("Cmaj7").includes("Cadd9"));
+  assert.ok(ext("Am").includes("Amadd9"));
+  assert.ok(ext("Am7").includes("Am9"), "el m7 con la 9ª al aire no es un madd9");
+  assert.ok(ext("Cmaj7").includes("Cmaj13"), "la 6ª sobre un maj7 es la 13ª");
 });
 
 test("cejilla: respeta la lista blanca por calidad y no repite acordes", () => {
@@ -757,4 +785,22 @@ test("los doce tonos del selector son los que escribe un guitarrista", () => {
   assert.equal(KEYS.length, 12);
   assert.equal(KEYS[1], "Db", "Db mayor (5 bemoles) antes que C# mayor (7 sostenidos)");
   KEYS.forEach((k, i) => assert.equal(Note.chroma(k), i, `${k} no está en su sitio`));
+});
+
+test("los nombres que se leen y las claves de la BD son tablas distintas", () => {
+  // La grafía de la base de datos de diagramas vive dentro de guitar.js y no se
+  // exporta: si vuelve a salir de ahí, cualquier sitio que solo quiera nombrar
+  // una nota puede volver a coger la tabla equivocada, que es lo que hacía que
+  // una progresión en Db se anunciara como "C# mayor".
+  const fuente = readFileSync(new URL("./guitar.js", import.meta.url), "utf8");
+  assert.ok(!/export\s+const\s+DB_SPELLING/.test(fuente), "la grafía de la BD no debe exportarse");
+
+  // Las dos tablas de notes.js responden a preguntas distintas y solo coinciden
+  // en once de doce: el sonido 1 se lee C# suelto pero Db como tonalidad.
+  assert.equal(NOTES.length, 12);
+  assert.equal(KEYS.length, 12);
+  NOTES.forEach((n, i) => assert.equal(Note.chroma(n), i, `${n} fuera de sitio`));
+  KEYS.forEach((k, i) => assert.equal(Note.chroma(k), i, `${k} fuera de sitio`));
+  const distintas = NOTES.filter((n, i) => n !== KEYS[i]);
+  assert.deepEqual(distintas, ["C#"]);
 });

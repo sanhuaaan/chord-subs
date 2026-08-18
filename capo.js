@@ -1,24 +1,38 @@
 import { Chord, Note } from "tonal";
 import { qualityOf, transposeSymbol, intervalTo } from "./rules.js";
-import { PC, STRINGS } from "./guitar.js";
+import { dbSpelling, STRINGS } from "./guitar.js";
+import { noteName } from "./notes.js";
 
 // Forma que se toca (relativa a la cejilla) para que suene `symbol` con cejilla
 // en `capo`: el mismo acorde transpuesto hacia abajo tantos semitonos como trastes.
-// El destino se nombra con la grafía de la BD de guitarra (PC) y no con la de la
-// tonalidad, porque aquí se nombra una forma que se toca, no un acorde de la
-// canción, y es esa grafía la que tiene diagrama.
+// El destino se nombra con la grafía de la base de datos de diagramas y no con la
+// de la tonalidad, porque aquí se nombra una forma que se toca, no un acorde de
+// la canción, y es esa grafía la que tiene dibujo.
 export const shapeSymbol = (symbol, capo) => {
   const tonic = Chord.get(symbol).tonic;
-  const down = PC[(Note.chroma(tonic) - capo + 12) % 12];
+  const down = dbSpelling(noteName(Note.chroma(tonic) - capo));
   return transposeSymbol(symbol, intervalTo(tonic, down));
 };
 
 // Lista blanca de extensiones por calidad: semitonos desde la raíz → sufijo.
 // Lo que no está aquí (b9, #11, b13…) se descarta: choca más que colorea.
+// Hay tabla aparte para cuando el acorde ya lleva séptima, porque la séptima
+// sigue sonando y el nombre tiene que contarlo: la novena al aire sobre un maj7
+// da un maj9, no un add9, y sobre un m7 un m9, no un madd9.
 const EXT = {
   maj: { 2: "add9", 5: "sus4", 9: "6", 11: "maj7" },
+  maj7: { 2: "maj9", 5: "sus4", 9: "maj13" },
   min: { 2: "madd9", 5: "m11", 9: "m6", 10: "m7" },
+  min7: { 2: "m9", 5: "m11", 9: "m13" },
   dom: { 2: "9", 5: "7sus4", 9: "13" },
+};
+
+// Qué tabla toca: la calidad, y si ya hay séptima, su versión con séptima.
+const extTable = c => {
+  const kind = qualityOf(c);
+  if (kind === "maj" && c.intervals.includes("7M")) return EXT.maj7;
+  if (kind === "min" && c.intervals.includes("7m")) return EXT.min7;
+  return EXT[kind];
 };
 
 // Para cada cejilla 0..maxFret, qué cuerdas al aire extienden cada acorde de la
@@ -31,7 +45,7 @@ export function capoSuggestions(progression, maxFret = 7) {
   for (let capo = 0; capo <= maxFret; capo++) {
     const perChord = [];
     for (const c of chords) {
-      const ext = EXT[qualityOf(c)];
+      const ext = extTable(c);
       if (!ext) continue; // dim: sin extensiones de cuerda al aire
       const root = Note.chroma(c.tonic);
       const tones = new Set(c.notes.map(Note.chroma));
@@ -42,7 +56,7 @@ export function capoSuggestions(progression, maxFret = 7) {
         const suffix = ext[(sounding - root + 12) % 12];
         if (!suffix || tones.has(sounding) || seen.has(suffix)) continue;
         seen.add(suffix);
-        extensions.push({ string, stringIdx: i, note: PC[sounding], as: c.tonic + suffix });
+        extensions.push({ string, stringIdx: i, note: noteName(sounding), as: c.tonic + suffix });
       }
       if (extensions.length) perChord.push({ chord: c.symbol, extensions });
     }
