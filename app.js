@@ -131,7 +131,14 @@ form.addEventListener("submit", async e => {
 
   if (songContext && songContext.chords !== input.value.trim()) songContext = null;
   if (songContext) {
-    summary.append(el("p", { className: "key", textContent: songContext.label }));
+    // La parte en negrita y la canción detrás: al volver a la pestaña, lo que
+    // dice de un vistazo qué progresión hay cargada es el nombre de la parte.
+    const origen = el("p", { className: "origen" });
+    origen.append(
+      el("strong", { textContent: songContext.part ?? songContext.label }),
+      songContext.part ? ` · ${songContext.song}${songContext.artist ? ` — ${songContext.artist}` : ""}` : "",
+    );
+    summary.append(origen);
   }
 
   const original = document.createElement("p");

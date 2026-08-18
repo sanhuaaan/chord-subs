@@ -209,9 +209,23 @@
     }
     .original { font-weight: bold; }
     .key { margin: 0.35rem 0 1rem; font-size: 0.85rem; color: var(--apagado); }
+    /* De dónde sale la progresión que estás viendo. Iba pintado igual que la
+       tonalidad estimada, y no son lo mismo: esto es un dato cierto y dice qué
+       estás mirando, así que se marca con la barra del acento y la parte en negrita. */
+    .origen {
+      margin: 0.5rem 0 0.9rem;
+      padding: 0.1rem 0 0.1rem 0.6rem;
+      border-left: 0.1875rem solid var(--acento);
+      font-size: 0.9rem;
+      color: var(--apagado);
+    }
+    .origen strong { color: var(--texto); font-weight: 600; }
     small { color: var(--tenue); }
     /* Los párrafos no se ensanchan con la página: 65ch es donde se lee bien. */
     .why { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--apagado); max-width: 65ch; }
+    /* Salvo en la columna, que ya es más estrecha que esas 65ch: ahí el tope no
+       protege la lectura, solo deja un canal muerto a la derecha del texto. */
+    #side .why { max-width: none; }
     .chord { position: relative; text-decoration: underline dotted; text-underline-offset: 0.2rem; }
     .chord[data-load], .chord[data-frets] { cursor: pointer; }
     .chord[data-load]:hover, .chord[data-frets]:hover { color: var(--acento-suave); text-decoration-style: solid; }
@@ -269,7 +283,10 @@
        y análisis. En estrecho no entra la media query y queda la columna única. */
     @media (min-width: 64rem) {
       body {
-        max-width: 96rem;
+        /* En un monitor ancho, 96rem dejaban dos palmos muertos a los lados
+           mientras la columna estrujaba el texto. El tope sigue existiendo para
+           que en una pantalla enorme no se despatarre, pero más arriba. */
+        max-width: 112rem;
         display: grid;
         /* La columna la marca el mástil: por debajo de 30rem (su ancho de diseño)
            los trastes se estrujan, y por encima se agranda, que es lo que pide un
@@ -290,6 +307,11 @@
            recorre la diferencia antes de anclarse y se ve ese tirón al empezar. */
         top: 3rem;
         max-height: calc(100vh - 4rem); overflow-y: auto;
+        /* La barra de scroll salía pegada al botón de Sugerir. El hueco se
+           reserva siempre —aunque no haga falta barra— para que la columna no
+           dé un salto lateral al aparecer, y el padding la separa del contenido. */
+        scrollbar-gutter: stable;
+        padding-right: 0.9rem;
       }
       main { grid-column: 2; grid-row: 1; }
       /* Ahí no caben las 30rem de ancho mínimo: el mástil se encoge a la columna
@@ -307,6 +329,13 @@
       #library-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0 1.5rem; align-items: start; }
       #song-results { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
       #song-results li { margin: 0; }
+    }
+    /* A partir de aquí la ventana da para las dos cosas, así que la columna se
+       ensancha —más mástil y párrafos que llegan al borde— y el margen lateral
+       pasa a ser una decisión en vez de lo que sobre al centrar. Por debajo no:
+       ahí el ensanche saldría del análisis de la derecha, que es lo que se lee. */
+    @media (min-width: 100rem) {
+      body { padding: 0 2.5rem; grid-template-columns: minmax(24rem, 43rem) 1fr; }
     }
   </style>
 </head>
