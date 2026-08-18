@@ -19,11 +19,12 @@ npx serve .
 ```
 
 En pantallas anchas la app se reparte en dos columnas: a la izquierda, siempre a la vista, la
-progresión actual y sus fuentes (buscador de canciones y cancionero), con el identificador de acordes
-justo debajo; a la derecha, las pestañas de análisis. La columna de la izquierda mide lo que pide el
-mástil (30rem, su ancho de diseño) y la página crece otro tanto, así que tenerlo a mano no le quita
-sitio al análisis. En pantallas estrechas todo fluye en una sola columna y el identificador queda al
-final.
+progresión actual, los controles de transposición y el identificador de acordes; a la derecha, las
+pestañas de análisis. **La columna izquierda va fija**: se queda a la vista por mucho que bajes por
+las sugerencias, y si no cabe en la ventana se desplaza por dentro. Su ancho lo marca el mástil
+(38rem) y la página crece otro tanto, así que tenerlo a mano no le quita sitio al análisis. El
+buscador de canciones y el cancionero se abren en un diálogo, para consultarlos sin mover la columna.
+En pantallas estrechas todo fluye en una sola columna.
 
 Abre `http://localhost:8123`, escribe una progresión (p. ej. `C Am F G7`, separada por espacios, comas o `|`) y pulsa **Sugerir**. Cada sugerencia muestra por qué funciona, y al posar el ratón sobre cualquier nombre de acorde aparece un tooltip con hasta 4 posiciones del acorde en el mástil.
 
@@ -35,10 +36,9 @@ hacen, que es la decisión de verdad antes de mirar la regla concreta:
 - **Cambiar** — otro acorde en su lugar, que hace el mismo papel (`C → Am`, `Em`, `Cm`).
 - **Añadir** — acordes que lo preparan o lo alargan, repartiéndose su tiempo (`C → Dm7 G7 C`, `Fm C`, `Bb7 C`).
 
-Debajo de la progresión está el **identificador de acordes**, que va al revés: marcas pulsaciones en
-un mástil de 15 trastes y te dice qué acorde forman. Funciona sin escribir nada en el buscador, y
-está siempre — no se abre ni se cierra, así que nunca empuja lo que estabas leyendo. El botón de la
-cabecera solo baja hasta él.
+Al pie de esa columna está el **identificador de acordes**, que va al revés: marcas pulsaciones en un
+mástil de 15 trastes y te dice qué acorde forman. Funciona sin escribir nada en el buscador, y está
+siempre a la vista — no se abre ni se cierra, así que nunca empuja lo que estabas leyendo.
 
 Los nombres de acorde del resto de la app llevan ahí: al pulsar cualquiera, su primera
 posición de la base de datos se carga en el mástil. Se carga siempre lo que
@@ -236,7 +236,7 @@ según haya séptima o no — el mismo Ab sobre C es `b6` en una tríada y `b13`
 | `× × × 4 3 1` | `Bdim`, y `G7/B` sin la fundamental |
 | `3 3 2 4 0 0` | `Cmaj7/G`, y también `G6/11`, `Emb6/G` y `Bsus4b6b9/G` |
 
-## Buscar canciones («…o búscala por canción», bajo el campo de progresión)
+## Buscar canciones («…o tráela de una canción»)
 
 Escribe título e intérprete y la app saca las progresiones de la transcripción de acordes
 mejor votada de Ultimate Guitar, separadas por partes (`[Intro]`, `[Verse]`, `[Chorus]`…).
@@ -275,7 +275,7 @@ Los datos salen del JSON incrustado en `div.js-store[data-content]` de las pági
 tiene API oficial: si rediseñan la web, `song.js` dejará de parsear. Los tests con fixture marcan
 el punto exacto de la rotura.
 
-## Guardar canciones («…o tu cancionero», bajo el buscador)
+## Guardar canciones («…o tráela de tu cancionero»)
 
 Una canción es un puñado de partes, y cada parte una progresión. Se guardan desde los dos sitios
 donde aparecen: el botón **Guardar** que lleva cada parte de una transcripción de Ultimate Guitar, y

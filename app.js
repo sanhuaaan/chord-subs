@@ -473,7 +473,6 @@ document.addEventListener("click", e => {
   capo = Number(origen.dataset.capo ?? 0);
   chosenRoot = origen.dataset.root ?? null;
   renderIdent();
-  document.querySelector("#ident").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 // Elegir otra lectura reetiqueta el mástil con los grados desde esa fundamental.
@@ -482,12 +481,6 @@ readout.addEventListener("click", e => {
   if (!chip) return;
   chosenRoot = chip.dataset.root;
   renderIdent();
-});
-
-// El botón de la cabecera no abre nada: el mástil siempre está al final, así que
-// solo baja hasta él.
-document.querySelector("#go-ident").addEventListener("click", () => {
-  document.querySelector("#ident").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 document.querySelector("#clear").addEventListener("click", () => {
@@ -586,7 +579,13 @@ songResults.addEventListener("click", async e => {
 
 // ── Cancionero: las progresiones que se guardan en este navegador ───────────
 
+const songBox = document.querySelector("#song-box");
 const libraryBox = document.querySelector("#library-box");
+document.querySelector("#open-song").addEventListener("click", () => songBox.showModal());
+document.querySelector("#open-library").addEventListener("click", () => libraryBox.showModal());
+for (const b of document.querySelectorAll("dialog .cerrar")) {
+  b.addEventListener("click", () => b.closest("dialog").close());
+}
 const libraryList = document.querySelector("#library-list");
 const libraryCount = document.querySelector("#library-count");
 const libraryStatus = document.querySelector("#library-status");
@@ -626,8 +625,8 @@ function useSection(meta, chords) {
   // y volver a guardarla actualiza la que ya está, sin teclear los nombres otra vez.
   librarySong.value = meta.song;
   libraryPart.value = meta.part;
-  document.querySelector("#song-box").open = false; // el buscador se pliega: la progresión ya está arriba
-  libraryBox.open = false;
+  songBox.close(); // los diálogos se cierran: la progresión ya está en la columna
+  libraryBox.close();
   form.requestSubmit();
 }
 
@@ -639,11 +638,11 @@ function saveToLibrary(meta, chords) {
     ({ lib: next, added } = saveSection(lib, meta, { name: meta.part, chords }));
   } catch (err) {
     libraryStatus.textContent = err.message;
-    libraryBox.open = true;
+    if (!libraryBox.open) libraryBox.showModal();
     return null;
   }
   if (!commit(next)) {
-    libraryBox.open = true;
+    if (!libraryBox.open) libraryBox.showModal();
     return null;
   }
   return added ? "Guardada" : "Ya la tenías";

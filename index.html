@@ -53,7 +53,7 @@
     /* Plegado fluido de los <details> (acordes de Sustituciones y buscador de
        canción). Solo Chrome/Edge por ahora; el resto abre a saco, como antes. */
     :root { interpolate-size: allow-keywords; }
-    #subs details::details-content, #song-box::details-content, #library-box::details-content {
+    #subs details::details-content {
       block-size: 0;
       overflow-y: clip;
       transition: block-size 0.25s ease, content-visibility 0.25s allow-discrete;
@@ -82,21 +82,34 @@
     #capo:empty::before { content: "Con una progresión arriba, aquí saldrán posiciones de cejilla cuyas cuerdas al aire añaden color."; }
     #reharm:empty::before { content: "Con una progresión arriba, aquí saldrán versiones enteras del acompañamiento guiadas por la voz aguda."; }
     /* El mástil es una herramienta aparte: se abre con el botón de la cabecera. */
-    h1 { display: flex; justify-content: space-between; align-items: center; }
-    h1 button {
-      font-size: 0.85rem; font-weight: normal; color: var(--apagado); cursor: pointer;
-      padding: 0.3rem 0.7rem; border: var(--linea) solid var(--borde); border-radius: var(--radio);
-      background: none;
-    }
-    h1 button:hover { border-color: var(--acento); background: var(--panel); color: var(--texto); }
     /* El mástil vive al final de la página y siempre está: así no empuja nada al
        abrirse, porque no se abre. El botón de la cabecera solo baja hasta él. */
-    #ident { padding: 1.5rem 0 1rem; border-top: var(--linea) solid var(--separador); margin-top: 2rem; }
+    #ident { padding-top: 1rem; border-top: var(--linea) solid var(--separador); margin-top: 1.25rem; }
+    /* Rótulos de sección de la columna, del mismo tamaño que los de las opciones. */
+    #ident h2, #song-box h2, #library-box h2 {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.09em; color: var(--acento-suave); margin: 0 0 0.5rem;
+    }
+    #song-box h2, #library-box h2 { font-size: 1.05rem; text-transform: none; letter-spacing: 0; color: var(--texto); }
+    /* Las otras fuentes de progresión: botones discretos, no cajones que empujen. */
+    .fuentes { margin: -0.75rem 0 1.25rem; font-size: 0.85rem; color: var(--apagado); }
+    .fuentes button {
+      background: none; color: var(--acento-suave); font-size: 0.85rem;
+      padding: 0.15rem 0.4rem; border: var(--linea) solid transparent; border-radius: var(--radio);
+    }
+    .fuentes button:hover { background: var(--panel); border-color: var(--borde); }
+    /* Buscador y cancionero en diálogo: se abren encima y no mueven la columna. */
+    dialog {
+      max-width: min(56rem, 92vw); width: 46rem; max-height: 85vh; overflow-y: auto;
+      background: var(--fondo); color: var(--texto); border: var(--linea) solid var(--borde);
+      border-radius: var(--radio); padding: 1.25rem 1.5rem;
+    }
+    dialog::backdrop { background: #000; opacity: 0.6; }
+    /* El texto de arriba explica el diálogo; que no se pegue al formulario. */
+    dialog h2 + .why { margin: 0 0 1.25rem; }
+    dialog .cerrar { background: none; border: var(--linea) solid var(--borde); color: var(--apagado); }
+    dialog .cerrar:hover { background: var(--panel); color: var(--texto); }
     /* Buscador de canciones: la otra manera de traer la progresión. */
-    #song-box { margin: -1rem 0 0.4rem; }
-    #library-box { margin: 0 0 1.5rem; }
-    #song-box summary, #library-box summary { cursor: pointer; font-size: 0.85rem; color: var(--acento-suave); }
-    #song-box[open], #library-box[open] { padding-bottom: 0.5rem; border-bottom: var(--linea) solid var(--separador); }
     /* Cancionero: el formulario de guardar lleva dos campos, así que se le deja
        envolver en pantalla estrecha en vez de estrujar los tres controles. */
     #library-form { flex-wrap: wrap; margin-bottom: 0.5rem; }
@@ -186,6 +199,14 @@
       background: var(--panel); color: var(--texto); border: var(--linea) solid var(--borde);
     }
     #transpose button:hover, #transpose select:hover { background: var(--panel-alto); border-color: var(--acento); }
+    /* El foco se dibuja hacia dentro. La columna izquierda es desplazable, así que
+       recorta lo que sobresalga: un anillo por fuera aparece cortado justo en el
+       borde, y el campo de la progresión lo toca. */
+    input:focus-visible, select:focus-visible, button:focus-visible,
+    .filebtn:focus-visible, summary:focus-visible {
+      outline: 0.125rem solid var(--acento);
+      outline-offset: -0.125rem;
+    }
     .original { font-weight: bold; }
     .key { margin: 0.35rem 0 1rem; font-size: 0.85rem; color: var(--apagado); }
     small { color: var(--tenue); }
@@ -257,16 +278,20 @@
         grid-template-columns: minmax(24rem, 38rem) 1fr;
         /* La primera fila la marca la progresión; el mástil va justo debajo y el
            resto del alto se lo queda el contenido de la derecha. */
-        grid-template-rows: auto 1fr;
         column-gap: 3rem;
         align-items: start;
       }
       /* El mástil va debajo de la columna de la progresión, no a lo ancho: es
          una herramienta de la izquierda, no otra vista del análisis. El contenido
          ocupa las dos filas de la derecha para que la columna no quede partida. */
-      #side { grid-column: 1; grid-row: 1; position: sticky; top: 1.5rem; }
-      main { grid-column: 2; grid-row: 1 / span 2; }
-      #ident { grid-column: 1; grid-row: 2; margin-top: 1rem; padding-top: 1rem; }
+      #side {
+        grid-column: 1; grid-row: 1; position: sticky;
+        /* El mismo margen con el que arranca el body: si no coinciden, la columna
+           recorre la diferencia antes de anclarse y se ve ese tirón al empezar. */
+        top: 3rem;
+        max-height: calc(100vh - 4rem); overflow-y: auto;
+      }
+      main { grid-column: 2; grid-row: 1; }
       /* Ahí no caben las 30rem de ancho mínimo: el mástil se encoge a la columna
          en vez de pedir scroll horizontal. */
       #ident #board svg { min-width: 0; }
@@ -287,13 +312,17 @@
 </head>
 <body>
   <aside id="side">
-  <h1>Jangle <button type="button" id="go-ident">Identificador de acordes ↓</button></h1>
+  <h1>Jangle</h1>
   <form>
     <input id="progression" placeholder="Ej.: C Am F G7" autofocus>
     <button type="submit">Sugerir</button>
   </form>
-  <details id="song-box">
-    <summary>…o búscala por canción</summary>
+  <p class="fuentes">
+    …o tráela de <button type="button" id="open-song">una canción</button>
+    <button type="button" id="open-library">tu cancionero <span id="library-count"></span></button>
+  </p>
+  <dialog id="song-box">
+    <h2>Buscar una canción</h2>
     <p class="why">Título e intérprete: los acordes salen de las transcripciones mejor votadas de
       Ultimate Guitar, separados por partes. Cada parte se puede usar como progresión o guardar
       en el cancionero.</p>
@@ -305,9 +334,10 @@
     <p id="song-status" class="why"></p>
     <ul id="song-results"></ul>
     <div id="song-sections"></div>
-  </details>
-  <details id="library-box">
-    <summary>…o tu cancionero <span id="library-count"></span></summary>
+    <p class="actions"><button type="button" class="cerrar">Cerrar</button></p>
+  </dialog>
+  <dialog id="library-box">
+    <h2>Tu cancionero</h2>
     <p class="why">Las canciones se guardan en este navegador y en ningún otro sitio: no viajan a otro
       dispositivo ni sobreviven a un borrado de datos del sitio. Descarga el cancionero para tenerlo a
       salvo o para llevártelo; al cargar uno se funde con lo que ya tengas, sin borrar nada.</p>
@@ -322,8 +352,9 @@
       <button type="button" id="library-download">Descargar cancionero</button>
       <label class="filebtn" for="library-file">Cargar cancionero</label>
       <input type="file" id="library-file" accept=".json,application/json" hidden>
+      <button type="button" class="cerrar">Cerrar</button>
     </p>
-  </details>
+  </dialog>
   <p id="error"></p>
   <div id="summary"></div>
   <div id="transpose" hidden>
@@ -333,6 +364,20 @@
     <label for="t-key">a</label>
     <select id="t-key"></select>
   </div>
+  <section id="ident">
+    <h2>Identificador de acordes</h2>
+    <span id="tuning">E A D G B E<br>afinación estándar</span>
+    <div id="board">
+      <p class="why placeholder">El mástil no ha cargado. Si has abierto el archivo directamente
+        (<code>file://</code>), el navegador bloquea los módulos: sirve la carpeta con
+        <code>python3 -m http.server 8123</code> y entra por <code>http://localhost:8123</code>.</p>
+    </div>
+    <p class="actions">
+      <button type="button" id="clear">Limpiar</button>
+      <span id="voicing" class="key"></span>
+    </p>
+    <div id="readout"></div>
+  </section>
   </aside>
   <main>
   <input type="radio" name="tab" id="tab-subs" checked hidden>
@@ -347,19 +392,6 @@
   <ul id="capo"></ul>
   <ul id="reharm"></ul>
   </main>
-  <section id="ident">
-    <span id="tuning">E A D G B E<br>afinación estándar</span>
-    <div id="board">
-      <p class="why placeholder">El mástil no ha cargado. Si has abierto el archivo directamente
-        (<code>file://</code>), el navegador bloquea los módulos: sirve la carpeta con
-        <code>python3 -m http.server 8123</code> y entra por <code>http://localhost:8123</code>.</p>
-    </div>
-    <p class="actions">
-      <button type="button" id="clear">Limpiar</button>
-      <span id="voicing" class="key"></span>
-    </p>
-    <div id="readout"></div>
-  </section>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
