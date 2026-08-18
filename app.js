@@ -131,12 +131,15 @@ form.addEventListener("submit", async e => {
 
   if (songContext && songContext.chords !== input.value.trim()) songContext = null;
   if (songContext) {
-    // La parte en negrita y la canción detrás: al volver a la pestaña, lo que
-    // dice de un vistazo qué progresión hay cargada es el nombre de la parte.
+    // La canción en negrita y la parte detrás: lo que identifica la progresión
+    // es de qué canción sale; la parte matiza cuál de ellas. El intérprete va
+    // pegado al título, que es con quien forma el nombre de la canción.
     const origen = el("p", { className: "origen" });
     origen.append(
-      el("strong", { textContent: songContext.part ?? songContext.label }),
-      songContext.part ? ` · ${songContext.song}${songContext.artist ? ` — ${songContext.artist}` : ""}` : "",
+      el("strong", { textContent: songContext.song ?? songContext.label }),
+      songContext.song
+        ? `${songContext.artist ? ` — ${songContext.artist}` : ""} · ${songContext.part}`
+        : "",
     );
     summary.append(origen);
   }
@@ -625,7 +628,7 @@ function useSection(meta, chords) {
   input.value = chords.join(" ");
   songContext = {
     ...meta,
-    label: `${meta.part} · ${meta.song}${meta.artist ? ` — ${meta.artist}` : ""}`,
+    label: `${meta.song}${meta.artist ? ` — ${meta.artist}` : ""} · ${meta.part}`,
     chords: input.value,
   };
   // El formulario de guardar queda apuntando a esta parte: retocar la progresión
