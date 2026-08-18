@@ -1,10 +1,20 @@
 # Jangle
 
-Aplicación web para trastear con la armonía de una canción, enfocada a guitarra. Dada una progresión
-de acordes sugiere sustituciones y acordes de paso con su explicación, propone dónde poner la cejilla
-para ganar cuerdas al aire, y en el otro sentido nombra el acorde que formen las notas que marques en
-un mástil. Las progresiones se pueden buscar por canción y guardar en un cancionero propio. Todo con
-sus diagramas.
+## La idea
+
+**Jangle no busca respuestas; busca posibilidades.**
+
+Jangle es una herramienta para explorar qué posibilidades armónicas y guitarrísticas contiene una canción.
+
+Una progresión de acordes puede admitir muchas interpretaciones: cambiar el color de un acorde, sustituir su función, añadir movimiento entre dos acordes, mantener una nota como pedal, buscar una línea melódica en la voz superior o simplemente encontrar una posición de guitarra que haga que toda la progresión resuene de otra manera.
+
+Jangle intenta hacer visibles esas posibilidades. No pretende encontrar *la forma correcta* de tocar una progresión, sino facilitar la experimentación, la comparación y el descubrimiento.
+
+La teoría sirve para **explicar lo que ocurre**, no para decirte qué debes tocar.
+
+Todo parte de la guitarra: las posibilidades armónicas se relacionan con las digitaciones, las cuerdas al aire, la conducción de voces y la cejilla. Las distintas opciones se presentan como caminos posibles para explorar una misma progresión, no como respuestas definitivas.
+
+En definitiva, Jangle es una herramienta para **trastear con la armonía, descubrir colores y encontrar nuevas formas de tocar lo que ya conoces**.
 
 ## Uso
 
