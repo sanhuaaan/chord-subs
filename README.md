@@ -345,3 +345,10 @@ npm test
 ```
 
 Los tests (`test.js`) cubren el parser y cada regla con `node --test`.
+
+## Hilos abiertos
+
+Dos ideas que salieron trabajando y quedaron apuntadas en [MEJORAS.md](MEJORAS.md): afinar los
+nombres de la pestaña de cejilla (el caso `m13`, que es correcto pero la base de datos de diagramas no
+indexa) y llevar el buscador de arreglos a afinaciones abiertas, que pide generar las digitaciones en
+vez de buscarlas.
