@@ -320,6 +320,16 @@
         padding-right: 0.9rem;
       }
       main { grid-column: 2; grid-row: 1; }
+      /* El nombre se queda arriba mientras la columna corre por debajo: es lo
+         único de ahí que no cambia nunca, así que no tiene por qué irse. Va con
+         fondo opaco porque el contenido le pasa por detrás, y el margen se
+         convierte en padding: la banda del margen no se pinta y el texto
+         asomaría justo por encima. */
+      #side h1 {
+        position: sticky; top: 0; z-index: 2;
+        margin: 0; padding: 0.1rem 0 0.7rem;
+        background: var(--fondo);
+      }
       /* Ahí no caben las 30rem de ancho mínimo: el mástil se encoge a la columna
          en vez de pedir scroll horizontal. */
       #ident #board svg { min-width: 0; }
