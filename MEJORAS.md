@@ -70,3 +70,180 @@ digitaciones es un proyecto en sí mismo, con sus propias reglas de tocabilidad
 (apertura de la mano, cuerdas mudas por el medio, cejillas parciales). Merece la
 pena solo si de verdad quieres explorar afinaciones abiertas; para pulir la
 estándar hay caminos más baratos.
+
+## 3 Mejora: rearmonización mediante sistema de costes
+
+La sección **Rearmonizar** podría evolucionar para que no busque una única
+"mejor" rearmonización, sino que permita explorar distintas soluciones
+según el aspecto musical que se quiera priorizar.
+
+La idea parte de separar dos fases:
+
+1. **Generación de posibilidades armónicas**
+   - adornos
+   - sustituciones
+   - acordes de paso
+   - intercambio modal
+   - etc.
+
+2. **Evaluación de cómo se comporta esa progresión en la guitarra**
+   - conducción de voces
+   - movimiento entre notas
+   - notas comunes
+   - voz superior
+   - cuerdas al aire
+   - registro
+   - etc.
+
+### Voice leading del voicing completo
+
+Actualmente la rearmonización presta especial atención a la voz superior.
+Esto permite encontrar líneas melódicas interesantes, pero un voicing de
+guitarra contiene varias voces y el movimiento de todas ellas también tiene
+valor musical.
+
+La nueva versión podría calcular el coste de transformar un voicing en el
+siguiente teniendo en cuenta el movimiento de sus distintas voces.
+
+Por ejemplo:
+
+    C
+    G - C - E
+
+    Am
+    A - C - E
+
+podría interpretarse como:
+
+    G → A   (+2)
+    C → C    (0)
+    E → E    (0)
+
+Por tanto, dos de las tres voces permanecen inmóviles.
+
+El objetivo no debería ser simplemente minimizar el movimiento total. Una
+conducción de voces con el mínimo movimiento posible no es necesariamente la
+más musical o interesante. El sistema debería utilizar diferentes criterios
+ponderables.
+
+### Sistema de costes
+
+Una posible función de coste podría tener en cuenta:
+
+- movimiento total de las voces;
+- movimiento de la voz superior;
+- movimiento del bajo;
+- notas comunes entre acordes;
+- número de voces que permanecen inmóviles;
+- aparición/desaparición de voces;
+- cuerdas al aire;
+- registro del voicing;
+- saltos excesivamente grandes.
+
+Conceptualmente:
+
+    coste =
+        movimiento de voces
+      + movimiento de la voz superior
+      + movimiento del bajo
+      + coste de cambios estructurales
+      - notas comunes
+      - cuerdas al aire
+
+Los pesos de estos factores deberían poder modificarse para obtener
+resultados diferentes.
+
+### No buscar una única solución óptima
+
+La finalidad no sería que Jangle determine cuál es "la forma correcta" de
+tocar una progresión.
+
+Al contrario: una de las ideas fundamentales de Jangle es facilitar la
+creatividad ofreciendo posibilidades, del mismo modo que la música no tiene
+necesariamente una única respuesta correcta.
+
+Una misma progresión podría generar, por ejemplo:
+
+- una solución que priorice una línea descendente en la voz superior;
+- una que minimice el movimiento de todas las voces;
+- una que maximice las notas comunes;
+- una que maximice la resonancia mediante cuerdas al aire;
+- una combinación equilibrada de estos criterios.
+
+Por ejemplo, para:
+
+    C – Am – F – G
+
+Jangle podría ofrecer:
+
+    Línea superior descendente
+    C → B → A → G
+
+    Máxima continuidad
+    máximo número de notas comunes
+
+    Máxima resonancia
+    máximo número de cuerdas al aire
+
+    Movimiento mínimo
+    mínimo desplazamiento entre voces
+
+Ninguna de ellas tendría que presentarse como "la correcta". Serían
+diferentes interpretaciones posibles de la misma progresión.
+
+### Prioridad musical
+
+Una posible interfaz sería permitir al usuario elegir qué aspecto quiere
+priorizar:
+
+    Melódico  ←────────────→  Resonante
+
+o, de forma más explícita:
+
+    [ Voz superior ]
+    [ Continuidad ]
+    [ Resonancia ]
+    [ Movimiento ]
+
+El sistema podría recalcular o reordenar las soluciones según esa
+preferencia.
+
+Esto permitiría que Jangle funcionase menos como un generador de respuestas
+y más como una herramienta de exploración: no decirle al músico cómo debe
+tocar una progresión, sino mostrarle qué posibilidades contiene.
+
+### Relación con la función de cejilla
+
+Este sistema estaría relacionado con la lógica que ya utiliza la búsqueda de
+cejilla.
+
+La función de cejilla busca:
+
+- maximizar las cuerdas al aire;
+- minimizar las notas que se mueven entre los acordes de la progresión.
+
+Esto puede entenderse como una forma de optimizar la **continuidad de la
+textura** de la progresión.
+
+La rearmonización, en cambio, busca principalmente generar posibilidades
+armónicas y de conducción melódica.
+
+Una evolución futura podría conectar ambos sistemas para poder encontrar
+rearmonizaciones que, además de ser musicalmente interesantes, mantengan una
+textura coherente y guitarrística.
+
+### Objetivo final
+
+El objetivo no es construir un algoritmo que sepa cuál es la mejor manera de
+tocar una progresión.
+
+El objetivo es construir una herramienta que permita descubrir diferentes
+formas de escuchar y tocar esa progresión.
+
+En lugar de:
+
+    "Esta es la solución."
+
+Jangle debería tender hacia:
+
+    "Estas son algunas de las posibilidades que contiene."
