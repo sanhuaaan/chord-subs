@@ -753,7 +753,6 @@ async function pintaDonde() {
   const tira = el("div", { className: "ventanas" });
   const aviso = p("why", "");
   const lista = el("ul", { className: "resultados" });
-  const pie = el("p", { className: "paginas" });
   for (const h of conAlgo) {
     const b = el("button", { type: "button" });
     b.append(
@@ -762,48 +761,28 @@ async function pintaDonde() {
     );
     b.addEventListener("click", () => {
       for (const otro of tira.children) otro.classList.toggle("elegida", otro === b);
-      pintaCanciones(aviso, lista, pie, h);
+      pintaCanciones(aviso, lista, h);
     });
     tira.append(b);
   }
-  dondeBox.append(tira, aviso, lista, pie);
+  dondeBox.append(tira, aviso, lista);
   tira.firstElementChild.click();
 }
 
-// Cuarenta canciones de una tirada son una pared: se enseñan de doce en doce,
-// que es lo que cabe leer sin bajar. La página vuelve a la primera al cambiar de
-// trozo, porque es otra pregunta.
-const POR_PAGINA = 12;
-
-function pintaCanciones(aviso, lista, pie, hallazgo, pagina = 0) {
-  const { ventana, res } = hallazgo;
+// Las que trae el índice y ya: cuarenta es lo que cabe leer de una progresión
+// sin que la lista deje de ser una lista, y el aviso dice cuántas hay de verdad.
+function pintaCanciones(aviso, lista, { ventana, res }) {
+  lista.replaceChildren();
   const cuantas = res.canciones.length;
   aviso.textContent = res.total > cuantas
     ? `${ventana.acordes.join(" ")} suena en ${res.total.toLocaleString("es")} canciones; aquí van ${cuantas}, como mucho dos por intérprete.`
     : `${ventana.acordes.join(" ")} suena en ${res.total === 1 ? "esta canción" : `estas ${res.total}`}.`;
-
-  const desde = pagina * POR_PAGINA;
-  lista.replaceChildren();
-  for (const c of res.canciones.slice(desde, desde + POR_PAGINA)) {
+  for (const c of res.canciones) {
     const li = document.createElement("li");
     Object.assign(li.dataset, { id: c.id, song: c.song, artist: c.artist });
     li.append(el("strong", { textContent: c.song }), c.artist ? ` — ${c.artist}` : "");
     lista.append(li);
   }
-
-  pie.replaceChildren();
-  if (cuantas <= POR_PAGINA) return;
-  const paso = (delta, texto) => {
-    const b = el("button", { type: "button", textContent: texto });
-    b.disabled = pagina + delta < 0 || (pagina + delta) * POR_PAGINA >= cuantas;
-    b.addEventListener("click", () => pintaCanciones(aviso, lista, pie, hallazgo, pagina + delta));
-    return b;
-  };
-  pie.append(
-    paso(-1, "‹ Anteriores"),
-    el("span", { textContent: `${desde + 1}-${Math.min(desde + POR_PAGINA, cuantas)} de ${cuantas}` }),
-    paso(1, "Siguientes ›"),
-  );
 }
 
 // Pulsar una canción abre el diálogo de siempre con sus partes: desde ahí se
