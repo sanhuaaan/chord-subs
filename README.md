@@ -264,8 +264,11 @@ según haya séptima o no — el mismo Ab sobre C es `b6` en una tríada y `b13`
 
 ## Buscar canciones («…o tráela de una canción»)
 
-Escribe título e intérprete y la app saca las progresiones de la transcripción de acordes
-mejor votada de Ultimate Guitar, separadas por partes (`[Intro]`, `[Verse]`, `[Chorus]`…).
+Escribe título e intérprete y la app busca en dos sitios a la vez: el
+[catálogo propio](#el-catálogo-385664-canciones-que-no-dependen-de-nadie), que responde al momento,
+y Ultimate Guitar, de donde saca las progresiones de la transcripción de acordes mejor votada,
+separadas por partes (`[Intro]`, `[Verse]`, `[Chorus]`…). Lo que sigue es la parte de UG, que es la
+que tiene tela que contar.
 Cada parte tiene un botón «Usar» que la convierte en la progresión actual y un «Guardar» que la
 manda al cancionero.
 
@@ -357,11 +360,63 @@ par de clics.
 En el repo hay uno guardado, `cancionero.json`, como copia de seguridad. La app no lo carga sola: se
 importa con «Cargar cancionero», como cualquier otro.
 
+## El catálogo: 385.664 canciones que no dependen de nadie
+
+Junto a Ultimate Guitar hay una segunda fuente de canciones, y esta es nuestra: **385.664
+canciones con sus progresiones separadas por partes**, publicadas como ficheros estáticos en un
+repo aparte, [jangle-data](https://github.com/sanhuaaan/jangle-data). No hay servidor, ni proxy,
+ni API: el navegador se baja el trozo que necesita y lo cachea. Buscar por título responde al
+momento y funciona aunque UG cambie el HTML mañana.
+
+Salen de [Chordonomicon](https://huggingface.co/datasets/ailsntua/Chordonomicon) (CC BY-NC 4.0),
+un dataset académico de 679.807 progresiones con las partes marcadas —el mismo modelo que usa
+jangle—, con los títulos resueltos contra un volcado público de pistas de Spotify. Cómo se fabrica
+está en [`datos/LEEME.md`](datos/LEEME.md), junto con la tubería entera; se ejecuta a mano y solo
+cuando haya que rehacer los datos.
+
+El buscador de canciones enseña las dos fuentes a la vez, cada una con su rótulo: el catálogo
+responde al instante y UG llega cuando llega. Ninguna manda sobre la otra, y que una falle no deja
+sin resultados a la otra.
+
+### Dónde suena: la progresión, del revés
+
+El catálogo permite además la pregunta que UG no puede responder, y que es la más jangle de todas:
+**¿en qué canciones aparece esto que estoy tocando?** Está en la pestaña **Dónde suena**, y va con
+la progresión que haya escrita arriba.
+
+La búsqueda no mira el tono ni el color: `Am F C G` y `Bm G D A` son la misma progresión, y
+`Am7 F C Gsus4` también. Lo que se compara es la **firma**: cuántos semitonos separan cada
+fundamental de la primera, y a qué familia pertenece cada acorde (mayor, menor, disminuido,
+aumentado, suspendido, sin tercera). El bajo no cuenta, que `C/E` es un `C` tocado de otra manera.
+
+El índice guarda ventanas de cuatro acordes y de tres, no progresiones enteras, así que una
+progresión larga se pregunta a trozos: cada ventana es una pregunta distinta y la pestaña las
+enseña todas con su recuento, empezando por la que menos canciones tiene, que es la que más dice
+de lo que estás tocando. De cada progresión se listan hasta 40 canciones —dos por intérprete como
+mucho— y se dice el total, que para `C Am F G` son 24.190.
+
+Nada de esto se descarga hasta que se abre la pestaña: quien esté en Sustituciones no paga el
+viaje.
+
+### Lo que el catálogo no es
+
+Es una foto de 2024, así que lo nuevo no está. Las transcripciones vienen del mismo crowdsourcing
+que UG pero sin el filtro de «la mejor votada», y hay huecos raros: Radiohead tiene 115 canciones y
+ninguna es *Creep*. El 41% de las filas no trae las partes marcadas y se publica como una sola
+progresión larga.
+
+Y **no hay señal de popularidad**: de Spotify se toman el título y el intérprete, que son hechos, y
+ninguno de sus campos propios. Para ordenar se usa cuántas canciones tiene cada intérprete en el
+propio dataset, que es una aproximación pobre —Johnny Cash tiene 571 y los Beatles 136—, así que
+buscar «hotel california» puede sacar antes una versión oscura que la de los Eagles. La lista
+enseña siempre el intérprete, que es lo que deja elegir de un vistazo.
+
 ## Stack
 
 - Vanilla JS (módulos ES), sin build ni framework.
 - [tonal.js](https://github.com/tonaljs/tonal) para parsing y teoría musical, cargada vía import map desde esm.sh.
 - [@tombatossals/chords-db](https://github.com/tombatossals/chords-db) (JSON desde jsdelivr) para posiciones de guitarra; diagramas dibujados como SVG propio.
+- Un Cloudflare Worker de 20 líneas como proxy de Ultimate Guitar, y ficheros estáticos en GitHub Pages para el catálogo. No hay nada más detrás.
 
 ## Tests
 
@@ -374,7 +429,7 @@ Los tests (`test.js`) cubren el parser y cada regla con `node --test`.
 
 ## Hilos abiertos
 
-Dos ideas que salieron trabajando y quedaron apuntadas en [MEJORAS.md](MEJORAS.md): afinar los
+Las ideas que salieron trabajando y quedaron apuntadas en [MEJORAS.md](MEJORAS.md): afinar los
 nombres de la pestaña de cejilla (el caso `m13`, que es correcto pero la base de datos de diagramas no
-indexa) y llevar el buscador de arreglos a afinaciones abiertas, que pide generar las digitaciones en
-vez de buscarlas.
+indexa), llevar el buscador de arreglos a afinaciones abiertas —que pide generar las digitaciones en
+vez de buscarlas— y rellenar los títulos que le faltan al catálogo.

@@ -39,7 +39,7 @@
       line-height: 1.5;
     }
     /* Todo lo pulsable responde suave, y al hacer clic se hunde un pelín. */
-    button, .filebtn, .tabs label, .chord, .others li, #song-results li,
+    button, .filebtn, .tabs label, .chord, .others li, .resultados li,
     #subs summary, #song-box summary, #library-box summary {
       transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
     }
@@ -47,7 +47,7 @@
     /* "Guardar" se queda desactivado al guardar: la parte ya está, y volver a
        pulsarlo no haría nada. */
     button:disabled, button:disabled:hover { background: var(--panel-alto); color: #8a8a99; cursor: default; }
-    button:active, .filebtn:active, .others li:active, #song-results li:active { transform: scale(0.96); }
+    button:active, .filebtn:active, .others li:active, .resultados li:active { transform: scale(0.96); }
     .tabs label:hover { color: var(--texto); }
     @keyframes fade-in { from { opacity: 0; transform: translateY(0.25rem); } }
     /* Plegado fluido de los <details> (acordes de Sustituciones y buscador de
@@ -70,17 +70,19 @@
     }
     #tab-subs:checked ~ .tabs label[for="tab-subs"],
     #tab-capo:checked ~ .tabs label[for="tab-capo"],
-    #tab-reharm:checked ~ .tabs label[for="tab-reharm"] { background: var(--panel); color: var(--texto); }
-    #subs, #capo, #reharm { display: none; list-style: none; padding: 0; }
+    #tab-reharm:checked ~ .tabs label[for="tab-reharm"],
+    #tab-donde:checked ~ .tabs label[for="tab-donde"] { background: var(--panel); color: var(--texto); }
+    #subs, #capo, #reharm, #donde { display: none; list-style: none; padding: 0; }
     #tab-subs:checked ~ #subs, #tab-capo:checked ~ #capo,
-    #tab-reharm:checked ~ #reharm { display: block; animation: fade-in 0.2s ease; }
+    #tab-reharm:checked ~ #reharm, #tab-donde:checked ~ #donde { display: block; animation: fade-in 0.2s ease; }
     /* Estados vacíos: qué hace cada pestaña mientras no hay progresión. */
-    #subs:empty::before, #capo:empty::before, #reharm:empty::before {
+    #subs:empty::before, #capo:empty::before, #reharm:empty::before, #donde:empty::before {
       display: block; padding: 1rem 0; font-size: 0.85rem; color: var(--apagado);
     }
     #subs:empty::before { content: "Escribe una progresión arriba (o búscala por canción) y aquí saldrán sustituciones acorde a acorde."; }
     #capo:empty::before { content: "Con una progresión arriba, aquí saldrán posiciones de cejilla cuyas cuerdas al aire añaden color."; }
     #reharm:empty::before { content: "Con una progresión arriba, aquí saldrán versiones enteras del acompañamiento guiadas por la voz aguda."; }
+    #donde:empty::before { content: "Con una progresión de tres acordes o más, aquí saldrán canciones del catálogo donde suena, en cualquier tono."; }
     /* El mástil es una herramienta aparte: se abre con el botón de la cabecera. */
     /* El mástil vive al final de la página y siempre está: así no empuja nada al
        abrirse, porque no se abre. El botón de la cabecera solo baja hasta él. */
@@ -144,9 +146,25 @@
       background: var(--acento); color: white; cursor: pointer;
     }
     .filebtn:hover { background: var(--acento-claro); }
-    #song-results { list-style: none; padding: 0; }
-    #song-results li { padding: 0.45rem 0.6rem; border: var(--linea) solid var(--borde); border-radius: var(--radio); margin: 0.35rem 0; cursor: pointer; }
-    #song-results li:hover { border-color: var(--acento); background: var(--panel); }
+    .resultados { list-style: none; padding: 0; }
+    .resultados li { padding: 0.45rem 0.6rem; border: var(--linea) solid var(--borde); border-radius: var(--radio); margin: 0.35rem 0; cursor: pointer; }
+    .resultados li:hover { border-color: var(--acento); background: var(--panel); }
+    /* "Dónde suena": los trozos de la progresión por los que se puede preguntar,
+       y debajo las canciones del que esté elegido. */
+    .ventanas { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.9rem 0 0.6rem; }
+    /* Los trozos son opciones, no acciones: van apagados hasta que se eligen. */
+    .ventanas button {
+      display: flex; flex-direction: column; gap: 0.15rem; align-items: flex-start; text-align: left;
+      background: transparent; color: var(--texto); border: var(--linea) solid var(--borde);
+    }
+    .ventanas button:hover { background: var(--panel); }
+    .ventanas .trozo { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .ventanas button small { color: var(--apagado); font-size: 0.72rem; }
+    .ventanas .elegida, .ventanas .elegida:hover { background: var(--acento); border-color: var(--acento); color: #fff; }
+    .ventanas .elegida small { color: #fff; opacity: 0.85; }
+    /* Rótulo de cada fuente de resultados, para no confundir de dónde sale qué. */
+    .fuente { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--apagado); margin: 0.9rem 0 0.2rem; }
     #song-sections h3 { font-size: 1rem; margin: 1rem 0 0; }
     .section { padding: 0.7rem 0; border-bottom: var(--linea) solid var(--separador); }
     .section strong { display: block; margin-bottom: 0.25rem; }
@@ -348,8 +366,8 @@
       #capo .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0 2rem; align-items: start; }
       /* Cancionero y resultados de búsqueda, en rejilla. */
       #library-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0 1.5rem; align-items: start; }
-      #song-results { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
-      #song-results li { margin: 0; }
+      .resultados { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
+      .resultados li { margin: 0; }
     }
     /* A partir de aquí la ventana da para las dos cosas, así que la columna se
        ensancha —más mástil y párrafos que llegan al borde— y el margen lateral
@@ -373,16 +391,21 @@
   </p>
   <dialog id="song-box">
     <h2>Buscar una canción</h2>
-    <p class="why">Título e intérprete: los acordes salen de las transcripciones mejor votadas de
-      Ultimate Guitar, separados por partes. Cada parte se puede usar como progresión o guardar
-      en el cancionero.</p>
+    <p class="why">Título e intérprete, de dos sitios a la vez: el catálogo, que son 385.000
+      canciones ya indexadas y responde al momento, y Ultimate Guitar, que va a buscar la
+      transcripción mejor votada. Los acordes salen separados por partes, y cada parte se puede
+      usar como progresión o guardar en el cancionero.</p>
     <form id="song-form">
       <input id="song-query" list="song-suggest" placeholder="Ej.: let it be beatles" autocomplete="off">
       <datalist id="song-suggest"></datalist>
       <button type="submit">Buscar</button>
     </form>
+    <h3 class="fuente" id="cat-title" hidden>Del catálogo</h3>
+    <p id="cat-status" class="why"></p>
+    <ul id="cat-results" class="resultados"></ul>
+    <h3 class="fuente" id="ug-title" hidden>De Ultimate Guitar</h3>
     <p id="song-status" class="why"></p>
-    <ul id="song-results"></ul>
+    <ul id="song-results" class="resultados"></ul>
     <div id="song-sections"></div>
     <p class="actions"><button type="button" class="cerrar">Cerrar</button></p>
   </dialog>
@@ -433,14 +456,17 @@
   <input type="radio" name="tab" id="tab-subs" checked hidden>
   <input type="radio" name="tab" id="tab-capo" hidden>
   <input type="radio" name="tab" id="tab-reharm" hidden>
+  <input type="radio" name="tab" id="tab-donde" hidden>
   <nav class="tabs">
     <label for="tab-subs">Sustituciones</label>
     <label for="tab-capo">Cejilla</label>
     <label for="tab-reharm">Rearmonizar</label>
+    <label for="tab-donde">Dónde suena</label>
   </nav>
   <ul id="subs"></ul>
   <ul id="capo"></ul>
   <ul id="reharm"></ul>
+  <div id="donde"></div>
   </main>
   <script type="module" src="./app.js"></script>
 </body>

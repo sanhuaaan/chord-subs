@@ -106,63 +106,42 @@ siguiente: buscar rearmonización y cejilla a la vez.
   centro. Si algún día se quiere, la maquinaria está: es exponer el vector de
   pesos en la interfaz.
 
-## 4. Fuente de canciones propia a partir de Chordonomicon
+## 4. Fuente de canciones propia a partir de Chordonomicon — hecho (2026-08-19)
 
-**La idea.** [Chordonomicon](https://huggingface.co/datasets/ailsntua/Chordonomicon)
-es un dataset académico (CC BY-NC 4.0) con las progresiones de **679.807
-canciones, con las secciones marcadas** (`<verse_1>`, `<chorus_1>`…) — el mismo
-modelo de partes que usa Jangle. Descargarlo (un parquet de 92 MB), resolver los
-títulos que le faltan y publicarlo troceado en estático daría dos cosas a la
-vez: **búsqueda por título sin depender de Ultimate Guitar en vivo** y la
-**consulta inversa** —¿en qué canciones aparece esta progresión?—, que es la
-dirección más jangle posible: de tu progresión hacia afuera, descubrimiento en
-vez de consulta.
+Está publicado: **385.664 canciones con sus progresiones por partes** en un repo estático aparte
+(`jangle-data`), y en la app una segunda fuente de búsqueda junto a Ultimate Guitar más la
+pestaña **Dónde suena**, que es la consulta inversa. La tubería entera está en `datos/`, con su
+`LEEME.md`; el README cuenta lo que hace y lo que no.
 
-**Lo verificado (2026-08-20):**
+Lo que se confirmó al hacerlo:
 
-- El dataset no trae título ni artista: solo `spotify_song_id` (el **64,8%** de
-  las filas — 440.284, con 430.323 IDs únicos) y un `artist_id` anonimizado.
-- **La API de Spotify no hace falta para el grueso.** Spotify tiene las
-  integraciones nuevas en pausa desde enero de 2026 (no se pueden crear apps
-  con Web API), pero un join medido con duckdb contra el volcado público
-  `GildasLeDrogoff/spotify-huge-track-analysis-dataset` (56M de pistas, un
-  parquet de 4 GB en HF, con `track_id`, `track_name` y `artist_name`) cubre
-  **376.400 de los 430.323 IDs únicos (87,5%)** — título y artista sin una
-  llamada. La cola de ~54.000 con ID pero sin match puede resolverse a goteo
-  con el oEmbed público de Spotify (CORS `*`, sin claves: título de la pista, y
-  el nombre del artista vía el oEmbed del `spotify_artist_id`), o esperar a que
-  la API reabra. El 35% sin ID se queda sin título y sirve solo para la
-  consulta inversa.
-- La grafía es propia pero trivial de traducir: `Amin` → `Am`, `Fs7` → `F#7`,
-  `A/Cs` → `A/C#`.
-- El datasets-server de HF permite consultar desde el navegador (CORS abierto,
-  `/search` y `/filter` con DuckDB), pero **su índice se corrompió en directo
-  durante las pruebas**: vale para prototipar la consulta inversa, no como
-  única vía en producción.
-- En local hace falta `duckdb==1.0.0` (el Python 3.8 de la máquina no traga
-  las wheels modernas; la última se pone a compilar de fuente y no acaba).
+- El join contra el volcado de 56M de pistas cubre **376.400 de los 430.323 ids** (87,5%),
+  medido, y tarda **37 segundos** leyendo solo tres columnas por HTTP: no hay que bajarse los 4
+  GB. Propagando el nombre del intérprete por su id de Spotify se recuperan 80.000 filas más, que
+  al final no se publican porque sin título no se pueden ni buscar ni enseñar.
+- La grafía traduce **exacta en el 99,93%** de los 52 millones de acordes. El resto baja por una
+  escalera de simplificaciones hasta algo que tonal sepa leer; un solo token de 4.314 no da ni
+  para eso.
+- La firma transpositiva sale barata: con familias en vez de cifrados completos, las ventanas de
+  cuatro acordes de todo el catálogo son **112.071 firmas distintas**, y las de tres, 13.046. Eso
+  es lo que hace que el índice inverso quepa en 47 MB en vez de en varios cientos.
+- El total publicado son **211 MB** en 12.500 ficheros. Una búsqueda se lleva un trozo del índice
+  (20-100 KB comprimidos), abrir una canción otro de 40 KB.
 
-**La tubería (offline, una vez):** descargar el parquet (92 MB) → join con el
-volcado de 56M para los títulos → normalizar grafía → publicar en un repo
-estático aparte (`jangle-data`): un índice de títulos partido por prefijo (la
-misma lógica del `suggestionSlug` del autocompletado), las progresiones en
-shards por id, y un índice progresión→canciones precalculado para que la
-consulta inversa también sea una petición estática. Sin servidor, cacheable,
-funciona offline.
+**Lo que queda abierto de aquí:**
 
-**Papeles.** El dataset permite derivados con atribución (BY) y uso no
-comercial (NC), que es el caso. De Spotify solo se guarda el resultado factual
-—título y artista, que existen con independencia de Spotify— y como mucho el ID
-para enlazar; ninguno de sus campos propios (popularidad, audio features), que
-es lo que su política de desarrollador protege.
+- **Los títulos que faltan.** 294.000 filas se quedan fuera por no tener título: unas porque no
+  traen id de Spotify (el 35%) y otras porque su id no está en el volcado (~54.000). Estas
+  segundas se pueden resolver a goteo con el oEmbed público de Spotify, sin claves. Cada una que
+  se resuelva es una canción más que se puede buscar y una más en los recuentos.
+- **Cómo se ordena lo que sale.** No hay señal de popularidad y de Spotify no se coge: se usa
+  cuántas canciones tiene cada intérprete en el propio dataset, que confunde "muy transcrito" con
+  "conocido" —Johnny Cash tiene 571 y los Beatles 136—. Se nota buscando cualquier clásico:
+  versiones oscuras que se llaman exactamente igual le ganan al original. Se mitigó quitando las
+  coletillas de edición ("- Remastered 2009") antes de comparar, pero el fondo sigue ahí. Una
+  fuente libre de popularidad (MusicBrainz, ListenBrainz) lo arreglaría de verdad.
+- **Buscar la progresión entera, no por ventanas.** Hoy una progresión de seis acordes se
+  pregunta como tres ventanas de cuatro. Encontrar canciones que llevan las seis seguidas pediría
+  cruzar las listas, y las listas están recortadas a 40 por firma, así que haría falta guardar más
+  o verificar canción a canción.
 
-**Los límites, sabidos de antemano:** es una foto de 2024 (canciones nuevas,
-no), las transcripciones vienen del mismo crowdsourcing que UG pero sin el
-filtro de "la mejor votada", y el 35% sin ID de Spotify se queda sin título
-(sigue sirviendo para la consulta inversa). La búsqueda por título nacería con
-~376.000 canciones; UG quedaría para lo que la foto no cubre.
-
-**Tamaño.** La tubería es un día de trabajo más las horas de API; el cambio en
-Jangle después es moderado (una fuente de búsqueda junto a la de UG, y la
-pestaña o sección de consulta inversa). Es el hilo más grande de este archivo
-después del generador de digitaciones.

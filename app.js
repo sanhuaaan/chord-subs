@@ -4,6 +4,7 @@ import { capoSuggestions, capoArrangements, shapeSymbol } from "./capo.js";
 import { identify, degreeShort } from "./identify.js";
 import { reharmonizations } from "./reharm.js";
 import { searchSongs, fetchSong, suggestions } from "./song.js";
+import { buscar, cancion, ventanas, dondeSuena, meta as catalogoMeta } from "./catalogo.js";
 import {
   readLibrary, writeLibrary, libraryJson, parseLibrary, mergeLibrary,
   saveSection, removeSection, removeSong, songKey,
@@ -158,6 +159,8 @@ form.addEventListener("submit", async e => {
   renderCapo(progression);
 
   renderReharm(progression);
+
+  renderDonde(progression);
 });
 
 // ── Transponer: la misma progresión sonando en otro tono ────────────────────
@@ -561,14 +564,55 @@ songQuery.addEventListener("input", () => {
   }, 200);
 });
 
-document.querySelector("#song-form").addEventListener("submit", async e => {
+// Dos fuentes para lo mismo, y ninguna manda sobre la otra: el catálogo
+// responde al momento y siempre está, Ultimate Guitar tarda y depende del proxy
+// pero llega a lo que el catálogo no tiene (una foto de 2024). Se lanzan a la
+// vez y cada una pinta su lista cuando vuelve, así que un fallo de una no deja
+// sin resultados a la otra.
+const catResults = document.querySelector("#cat-results");
+const catStatus = document.querySelector("#cat-status");
+const catTitle = document.querySelector("#cat-title");
+const ugTitle = document.querySelector("#ug-title");
+
+// Qué búsqueda es la de ahora: una respuesta que llega tarde, cuando ya se
+// teclea otra cosa, no debe pintar nada.
+let buscando = 0;
+
+document.querySelector("#song-form").addEventListener("submit", e => {
   e.preventDefault();
+  catResults.replaceChildren();
   songResults.replaceChildren();
   songSections.replaceChildren();
-  if (!songQuery.value.trim()) return;
-  songStatus.textContent = "Buscando…";
+  catStatus.textContent = songStatus.textContent = "";
+  const texto = songQuery.value.trim();
+  catTitle.hidden = ugTitle.hidden = !texto;
+  if (!texto) return;
+  const mia = ++buscando;
+  catStatus.textContent = songStatus.textContent = "Buscando…";
+  enCatalogo(texto, mia);
+  enUltimateGuitar(texto, mia);
+});
+
+async function enCatalogo(texto, mia) {
   try {
-    const results = await searchSongs(songQuery.value);
+    const results = await buscar(texto);
+    if (mia !== buscando) return;
+    catStatus.textContent = results.length ? "" : "Ninguna canción del catálogo se llama así.";
+    for (const r of results.slice(0, 12)) {
+      const li = document.createElement("li");
+      Object.assign(li.dataset, { id: r.id, song: r.song, artist: r.artist ?? "" });
+      li.append(el("strong", { textContent: r.song }), r.artist ? ` — ${r.artist}` : "");
+      catResults.append(li);
+    }
+  } catch (err) {
+    if (mia === buscando) catStatus.textContent = err.message;
+  }
+}
+
+async function enUltimateGuitar(texto, mia) {
+  try {
+    const results = await searchSongs(texto);
+    if (mia !== buscando) return;
     songStatus.textContent = results.length ? "" : "Sin transcripciones de acordes para esa búsqueda.";
     for (const r of results.slice(0, 10)) {
       const li = document.createElement("li");
@@ -583,9 +627,35 @@ document.querySelector("#song-form").addEventListener("submit", async e => {
       songResults.append(li);
     }
   } catch (err) {
-    songStatus.textContent = err.message;
+    if (mia === buscando) songStatus.textContent = err.message;
   }
-});
+}
+
+// Las partes de una canción, venga de donde venga. Cada una se puede usar como
+// progresión o guardar en el cancionero sin pasar por usarla, que al mirar una
+// canción interesa quedarse con dos o tres de golpe.
+function renderSections(meta, sections, titulo) {
+  songSections.replaceChildren(el("h3", { textContent: titulo }));
+  for (const sec of sections) {
+    const box = el("div", { className: "section" });
+    box.append(el("strong", { textContent: sec.name }));
+    const chords = el("div", { className: "chords" });
+    for (const sym of sec.chords) chords.append(chordSpan(sym));
+    const suya = { ...meta, part: sec.name };
+    const use = el("button", { type: "button", textContent: "Usar" });
+    use.addEventListener("click", () => useSection(suya, sec.chords));
+    const keep = el("button", { type: "button", textContent: "Guardar" });
+    keep.addEventListener("click", () => {
+      const msg = saveToLibrary(suya, sec.chords);
+      if (!msg) return;
+      keep.textContent = msg;
+      keep.disabled = true;
+    });
+    chords.append(use, keep);
+    box.append(chords);
+    songSections.append(box);
+  }
+}
 
 songResults.addEventListener("click", async e => {
   const li = e.target.closest("[data-url]");
@@ -595,35 +665,131 @@ songResults.addEventListener("click", async e => {
   try {
     const s = await fetchSong(li.dataset.url);
     songStatus.textContent = "";
-    songSections.append(el("h3", {
-      textContent: `${s.song} — ${s.artist}${s.key ? ` · tonalidad ${s.key}` : ""}`,
-    }));
-    for (const sec of s.sections) {
-      const box = document.createElement("div");
-      box.className = "section";
-      box.append(el("strong", { textContent: sec.name }));
-      const chords = document.createElement("div");
-      chords.className = "chords";
-      for (const sym of sec.chords) chords.append(chordSpan(sym));
-      const meta = { song: s.song, artist: s.artist, key: s.key, url: li.dataset.url, part: sec.name };
-      const use = el("button", { type: "button", textContent: "Usar" });
-      use.addEventListener("click", () => useSection(meta, sec.chords));
-      // Guardar sin pasar por "Usar": al mirar una transcripción interesa quedarse
-      // con dos o tres partes de golpe, no cargarlas una a una para conservarlas.
-      const keep = el("button", { type: "button", textContent: "Guardar" });
-      keep.addEventListener("click", () => {
-        const msg = saveToLibrary(meta, sec.chords);
-        if (!msg) return;
-        keep.textContent = msg;
-        keep.disabled = true;
-      });
-      chords.append(use, keep);
-      box.append(chords);
-      songSections.append(box);
-    }
+    renderSections(
+      { song: s.song, artist: s.artist, key: s.key, url: li.dataset.url },
+      s.sections,
+      `${s.song} — ${s.artist}${s.key ? ` · tonalidad ${s.key}` : ""}`,
+    );
   } catch (err) {
     songStatus.textContent = err.message;
   }
+});
+
+// Abrir una canción del catálogo: sus partes ya vienen hechas en los datos, así
+// que no hay nada que interpretar, solo pintarlas.
+async function abrirDelCatalogo(id, song, artist) {
+  songSections.replaceChildren();
+  catStatus.textContent = "Cargando acordes…";
+  try {
+    const sections = await cancion(Number(id));
+    catStatus.textContent = sections ? "" : "Esa canción no está en el catálogo.";
+    if (!sections) return;
+    renderSections({ song, artist }, sections, `${song}${artist ? ` — ${artist}` : ""}`);
+  } catch (err) {
+    catStatus.textContent = err.message;
+  }
+}
+
+catResults.addEventListener("click", e => {
+  const li = e.target.closest("[data-id]");
+  if (li) abrirDelCatalogo(li.dataset.id, li.dataset.song, li.dataset.artist);
+});
+
+// ── Dónde suena: la progresión, del revés ──────────────────────────────────
+// Las demás pestañas van de la progresión hacia dentro; esta va hacia afuera:
+// en qué canciones del catálogo aparece lo que hay escrito. El índice guarda
+// ventanas de cuatro acordes y de tres, no progresiones enteras, así que una
+// progresión larga se pregunta a trozos: cada ventana es una pregunta, y las
+// que menos canciones tienen son las que más dicen de lo que estás tocando.
+const dondeBox = document.querySelector("#donde");
+const dondeTab = document.querySelector("#tab-donde");
+let dondeAcordes = null;   // de qué progresión se pregunta
+let dondePintada = null;   // cuál está pintada ya
+let preguntando = 0;
+
+// Nada se baja hasta que se mira la pestaña: el catálogo son ficheros de verdad
+// y no hay por qué pedirlos a quien está en Sustituciones.
+dondeTab.addEventListener("change", () => pintaDonde());
+
+function renderDonde(progression) {
+  dondeAcordes = progression.map(c => c.symbol);
+  dondePintada = null;
+  dondeBox.replaceChildren();
+  pintaDonde();
+}
+
+async function pintaDonde() {
+  if (!dondeTab.checked || !dondeAcordes) return;
+  const clave = dondeAcordes.join(" ");
+  if (dondePintada === clave) return;
+  dondePintada = clave;
+  const mia = ++preguntando;
+  if (dondeAcordes.length < 3) {
+    dondeBox.replaceChildren(p("why", "Hacen falta al menos tres acordes: con dos, la respuesta serían medio catálogo y ninguna pista."));
+    return;
+  }
+  dondeBox.replaceChildren(p("why", "Buscando en el catálogo…"));
+  const vs = ventanas(dondeAcordes).slice(0, 8);
+  let hallazgos;
+  try {
+    hallazgos = await Promise.all(vs.map(async v => ({ ventana: v, res: await dondeSuena(v) })));
+  } catch (err) {
+    if (mia === preguntando) dondeBox.replaceChildren(p("why", err.message));
+    return;
+  }
+  if (mia !== preguntando) return;
+  const conAlgo = hallazgos.filter(h => h.res);
+  if (!conAlgo.length) {
+    dondeBox.replaceChildren(p("why", "Ninguna canción del catálogo lleva esta progresión, ni en este tono ni en otro. Que no es poco: significa que vas por tu cuenta."));
+    return;
+  }
+  // Manda la ventana más rara: la que menos canciones tiene es la que mejor
+  // distingue esta progresión de todas las demás.
+  conAlgo.sort((a, b) => a.res.total - b.res.total || b.ventana.largo - a.ventana.largo);
+  const cuantas = (await catalogoMeta().catch(() => null))?.canciones;
+  if (mia !== preguntando) return;
+  dondeBox.replaceChildren();
+  dondeBox.append(p("why", `${cuantas ? `El catálogo son ${cuantas.toLocaleString("es")} canciones con las partes marcadas, y la` : "La"} búsqueda no mira el tono ni el color: Am F C G y Bm G D A son la misma progresión. Cada trozo de la tuya es una pregunta distinta.`));
+  const tira = el("div", { className: "ventanas" });
+  const aviso = p("why", "");
+  const lista = el("ul", { className: "resultados" });
+  for (const h of conAlgo) {
+    const b = el("button", { type: "button" });
+    b.append(
+      el("span", { className: "trozo", textContent: h.ventana.acordes.join(" ") }),
+      el("small", { textContent: `${h.res.total.toLocaleString("es")} ${h.res.total === 1 ? "canción" : "canciones"}` }),
+    );
+    b.addEventListener("click", () => {
+      for (const otro of tira.children) otro.classList.toggle("elegida", otro === b);
+      pintaCanciones(aviso, lista, h);
+    });
+    tira.append(b);
+  }
+  dondeBox.append(tira, aviso, lista);
+  tira.firstElementChild.click();
+}
+
+function pintaCanciones(aviso, lista, { ventana, res }) {
+  lista.replaceChildren();
+  const cuantas = res.canciones.length;
+  aviso.textContent = res.total > cuantas
+    ? `${ventana.acordes.join(" ")} suena en ${res.total.toLocaleString("es")} canciones; aquí van ${cuantas}, como mucho dos por intérprete.`
+    : `${ventana.acordes.join(" ")} suena en ${res.total === 1 ? "esta canción" : `estas ${res.total}`}.`;
+  for (const c of res.canciones) {
+    const li = document.createElement("li");
+    Object.assign(li.dataset, { id: c.id, song: c.song, artist: c.artist });
+    li.append(el("strong", { textContent: c.song }), c.artist ? ` — ${c.artist}` : "");
+    lista.append(li);
+  }
+}
+
+// Pulsar una canción abre el diálogo de siempre con sus partes: desde ahí se
+// usan o se guardan igual que las que llegan buscando por título.
+dondeBox.addEventListener("click", e => {
+  const li = e.target.closest("li[data-id]");
+  if (!li) return;
+  songBox.showModal();
+  abrirDelCatalogo(li.dataset.id, li.dataset.song, li.dataset.artist);
 });
 
 // ── Cancionero: las progresiones que se guardan en este navegador ───────────
