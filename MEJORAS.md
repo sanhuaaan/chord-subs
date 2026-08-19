@@ -105,3 +105,53 @@ siguiente: buscar rearmonización y cejilla a la vez.
   Melódico↔Resonante porque los seis presets ya cubren los extremos y el
   centro. Si algún día se quiere, la maquinaria está: es exponer el vector de
   pesos en la interfaz.
+
+## 4. Fuente de canciones propia a partir de Chordonomicon
+
+**La idea.** [Chordonomicon](https://huggingface.co/datasets/ailsntua/Chordonomicon)
+es un dataset académico (CC BY-NC 4.0) con las progresiones de **679.807
+canciones, con las secciones marcadas** (`<verse_1>`, `<chorus_1>`…) — el mismo
+modelo de partes que usa Jangle. Descargarlo (un parquet de 92 MB), resolver los
+títulos que le faltan y publicarlo troceado en estático daría dos cosas a la
+vez: **búsqueda por título sin depender de Ultimate Guitar en vivo** y la
+**consulta inversa** —¿en qué canciones aparece esta progresión?—, que es la
+dirección más jangle posible: de tu progresión hacia afuera, descubrimiento en
+vez de consulta.
+
+**Lo verificado (2026-08-20):**
+
+- El dataset no trae título ni artista: solo `spotify_song_id` (~88% de las
+  filas) y un `artist_id` anonimizado. La identidad se recupera con la API
+  oficial de Spotify (`/v1/tracks`, 50 IDs por petición → ~12.000 peticiones,
+  horas de script reanudable) o, para casos sueltos, con su oEmbed público
+  (CORS `*`, sin claves, devuelve título y carátula).
+- La grafía es propia pero trivial de traducir: `Amin` → `Am`, `Fs7` → `F#7`,
+  `A/Cs` → `A/C#`.
+- El datasets-server de HF permite consultar desde el navegador (CORS abierto,
+  `/search` y `/filter` con DuckDB), pero **su índice se corrompió en directo
+  durante las pruebas**: vale para prototipar la consulta inversa, no como
+  única vía en producción.
+
+**La tubería (offline, una vez):** descargar el parquet → resolver títulos →
+normalizar grafía → publicar en un repo estático aparte (`jangle-data`): un
+índice de títulos partido por prefijo (la misma lógica del `suggestionSlug` del
+autocompletado), las progresiones en shards por id, y un índice
+progresión→canciones precalculado para que la consulta inversa también sea una
+petición estática. Sin servidor, cacheable, funciona offline.
+
+**Papeles.** El dataset permite derivados con atribución (BY) y uso no
+comercial (NC), que es el caso. De Spotify solo se guarda el resultado factual
+—título y artista, que existen con independencia de Spotify— y como mucho el ID
+para enlazar; ninguno de sus campos propios (popularidad, audio features), que
+es lo que su política de desarrollador protege.
+
+**Los límites, sabidos de antemano:** es una foto de 2024 (canciones nuevas,
+no), las transcripciones vienen del mismo crowdsourcing que UG pero sin el
+filtro de "la mejor votada", y el ~12% sin ID de Spotify se queda sin título
+(sigue sirviendo para la consulta inversa). UG quedaría para lo que la foto no
+cubre.
+
+**Tamaño.** La tubería es un día de trabajo más las horas de API; el cambio en
+Jangle después es moderado (una fuente de búsqueda junto a la de UG, y la
+pestaña o sección de consulta inversa). Es el hilo más grande de este archivo
+después del generador de digitaciones.
