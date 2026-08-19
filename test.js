@@ -952,6 +952,13 @@ test("una progresión larga se pregunta por trozos, los de cuatro primero", () =
   // Con tres acordes justos no hay ventana de cuatro, y la de tres es la entera.
   assert.deepEqual(ventanas(["C", "Am", "F"]).map(v => v.largo), [3]);
   assert.deepEqual(ventanas(["C", "Am"]), []);
+
+  // Una progresión que da la vuelta pasa dos veces por las mismas ventanas, y
+  // preguntar dos veces lo mismo daría dos veces la misma respuesta.
+  const vuelta = ventanas(["C", "G", "Am", "F", "C", "G", "Am", "F"]);
+  assert.equal(new Set(vuelta.map(v => v.firma)).size, vuelta.length);
+  assert.deepEqual(vuelta.filter(v => v.largo === 4).map(v => v.acordes.join(" ")),
+    ["C G Am F", "G Am F C", "Am F C G", "F C G Am"]);
 });
 
 test("de qué palabra tirar: el prefijo más largo que esté publicado", () => {

@@ -243,15 +243,22 @@ export const LARGOS = [4, 3];
 
 // Todas las ventanas por las que se puede preguntar, de la más larga a la más
 // corta. Las de cuatro dicen más que las de tres, así que van primero.
+//
+// Sin repetir: una progresión que da la vuelta —C G Am F C G Am F— vuelve a
+// pasar por las mismas ventanas, y preguntar dos veces lo mismo daría dos veces
+// la misma respuesta. Manda la primera vez que aparece cada firma.
 export function ventanas(acordes) {
   const leidas = acordes.map(lectura);
+  const vistas = new Set();
   const out = [];
   for (const n of LARGOS) {
     if (acordes.length < n) continue;
     if (acordes.length === n && n !== LARGOS[0] && out.length) break;
     for (let i = 0; i + n <= leidas.length; i++) {
       const f = firmaVentana(leidas, i, n);
-      if (f) out.push({ firma: f, desde: i, largo: n, acordes: acordes.slice(i, i + n) });
+      if (!f || vistas.has(f)) continue;
+      vistas.add(f);
+      out.push({ firma: f, desde: i, largo: n, acordes: acordes.slice(i, i + n) });
     }
   }
   return out;

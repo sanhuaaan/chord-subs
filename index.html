@@ -162,6 +162,10 @@
     .ventanas button small { color: var(--apagado); font-size: 0.72rem; }
     .ventanas .elegida, .ventanas .elegida:hover { background: var(--acento); border-color: var(--acento); color: #fff; }
     .ventanas .elegida small { color: #fff; opacity: 0.85; }
+    .paginas { display: flex; align-items: center; gap: 0.6rem; margin: 0.8rem 0 0; font-size: 0.85rem; color: var(--apagado); }
+    .paginas button { background: transparent; color: var(--texto); border: var(--linea) solid var(--borde); font-size: 0.85rem; }
+    .paginas button:hover:not(:disabled) { background: var(--panel); }
+    .paginas button:disabled, .paginas button:disabled:hover { background: transparent; color: var(--tenue); border-color: var(--separador); }
     /* Rótulo de cada fuente de resultados, para no confundir de dónde sale qué. */
     .fuente { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
       color: var(--apagado); margin: 0.9rem 0 0.2rem; }
