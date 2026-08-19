@@ -91,12 +91,16 @@ programación dinámica donde una voz sin pareja (aparece o desaparece) paga un
 peaje fijo. El movimiento del bajo no se mide aparte: el emparejamiento
 ordenado ya casa bajo con bajo.
 
+**Conectar con la cejilla — hecho también (2026-08-19).** El motor de
+`capo.js` ya no tiene tabla de valores propia: su arreglo paga los enlaces con
+el mismo `linkCost` y el preset resonante, y solo añade la cejilla como
+dimensión de búsqueda y el filtro de solo-adornos. El factor que solo conocía
+la cejilla —la nota quieta que además es al aire cuenta doble— entró al
+vocabulario común como `quietasAlAire`. Queda para más adelante el paso
+siguiente: buscar rearmonización y cejilla a la vez.
+
 **Lo que queda abierto de aquí:**
 
-- **Conectar con la cejilla.** El motor de `capo.js` premia lo mismo que el
-  preset resonante (cuerdas al aire, dedos quietos) con su propia tabla de
-  valores. El paso natural es que consuma la misma tabla de factores, y de ahí
-  a buscar rearmonización y cejilla a la vez.
 - **Pesos ajustables por el usuario.** Se descartó el slider
   Melódico↔Resonante porque los seis presets ya cubren los extremos y el
   centro. Si algún día se quiere, la maquinaria está: es exponer el vector de

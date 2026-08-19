@@ -133,7 +133,10 @@ sugerencia se puede ver dibujada y abrir en el mástil. Hay un test que lo compr
 
 ## Cejilla: cómo suena al aire
 
-La pestaña **Cejilla** responde a dos preguntas por cada posición de cejilla, y en ese orden.
+La pestaña **Cejilla** responde a dos preguntas por cada posición de cejilla, y en ese orden. Se
+enseñan las tres cejillas que más resuenan; el resto de trastes queda en la fila **«Otras
+cejillas»**, cada uno a un clic — el ranking propone, pero a lo mejor la canción pide justo la
+cejilla que no ganó.
 
 Arriba, **cómo se toca**: el arreglo que más resuena detrás de esa cejilla, con un diagrama por
 acorde y la cuenta de lo que se gana. Para `C Am F G` la mejor sale con cejilla en el traste 5, donde
@@ -151,7 +154,8 @@ puro: qué cuerda al aire cae sobre qué extensión de cada acorde.
 Las dos mitades comparten una sola ordenación, la del arreglo, porque es la que sabe si algo se puede
 tocar de verdad.
 
-**Cómo se busca el arreglo.** Es el mismo camino mínimo que usa la rearmonización, con otro criterio:
+**Cómo se busca el arreglo.** Es el mismo camino mínimo **y el mismo sistema de costes** que usa la
+rearmonización, con su preset de máxima resonancia:
 cada acorde ofrece sus adornos (add9, sus2, 6, maj7, m7… los de la columna *Adornar*, que cambian el
 color pero no la función) y cada adorno sus digitaciones de la base de datos, y se paga por lo que se
 pierde de resonancia. Vale una cuerda al aire, vale más una nota que no se mueve —misma cuerda, mismo
@@ -170,19 +174,31 @@ La pestaña de **Sustituciones** da opciones sueltas: para cuatro acordes ya son
 sugerencias independientes, y montar el arreglo queda de tu parte. **Rearmonizar** hace ese trabajo:
 elige unas cuantas que encajen entre sí y devuelve la progresión completa, tocable de principio a fin.
 
-El criterio para que encajen es la **voz de arriba**: la nota más aguda de cada acorde tiene que
-dibujar una línea en vez de dar saltos. Cada versión la empuja hacia un lado —descendente, ascendente
-o nota pedal— y debajo de los diagramas se ve la línea conseguida y cuántos de sus movimientos son
-por grado conjunto.
+El criterio para que encajen lo pone un **sistema de costes con pesos**: una sola función mide lo
+que pasa entre dos digitaciones —movimiento de cada voz, la voz de arriba, notas quietas, notas
+comunes, voces que aparecen o desaparecen, saltos grandes, cuerdas al aire, desplazamiento de la
+mano— y cada **versión es un vector de pesos** sobre ella. Tres persiguen la voz de arriba
+(descendente, ascendente, nota pedal) y otras tres priorizan otra cosa: **movimiento mínimo** (cada
+voz va a lo que tiene más cerca), **máxima continuidad** (lo compartido se queda sonando donde está)
+y **máxima resonancia** (mandan las cuerdas al aire, el mismo criterio que la pestaña de cejilla).
+Ninguna se presenta como la correcta: cada tarjeta enseña los mismos números —cuerdas al aire, notas
+comunes, semitonos de movimiento entre voces— para poder compararlas, y si dos versiones acaban en
+el mismo arreglo se enseña una sola vez.
 
-Que la línea mande cambia qué acordes salen y con qué digitación. Para `C Am F G7` la versión
+El movimiento entre dos digitaciones se mide **emparejando las voces de forma óptima**: con las
+notas ordenadas de grave a agudo, el emparejamiento de movimiento mínimo nunca cruza voces, así que
+se encuentra con un alineamiento donde una voz que aparece o desaparece cuenta como cambio
+estructural, no como salto.
+
+Cada criterio cambia qué acordes salen y con qué digitación. Para `C Am F G7` la versión
 descendente propone `C Amadd9 F G7`, con la voz de arriba en `C → B → A → G`: la novena entra
-precisamente porque su `B` completa la bajada. Para `D A Bm G` propone `D A7 Bm G6`, con
-`A → G → F# → E`, y la ascendente `D A7 Bm7 G` con `F# → G → A → B`.
+precisamente porque su `B` completa la bajada. La de movimiento mínimo propone `C Am Fmaj7 G13`,
+que cruza la progresión entera moviendo 7 semitonos en total, y la de máxima continuidad descubre
+sola el cliché de línea `C · Am AmMaj7 Am7 Am6 · F · G7`, con 14 notas comunes.
 
 Es un camino mínimo (Viterbi) sobre un grafo por capas: cada hueco de la progresión ofrece varios
 acordes, cada acorde varias digitaciones de la base de datos, y el coste de encadenar dos lo pone el
-salto de la voz superior. Sobre eso mandan tres reglas de sentido común:
+vector de pesos de cada versión. Sobre eso mandan tres reglas de sentido común:
 
 - El **primer acorde no se toca**, que es el que planta la tonalidad.
 - No se admiten dos acordes iguales seguidos si el original tenía movimiento ahí: eso no es
