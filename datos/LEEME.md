@@ -34,6 +34,20 @@ node --max-old-space-size=8000 datos/construir.mjs canciones.jsonl ../jangle-dat
 `preparar.py` deja una línea de JSON por canción con los títulos ya resueltos. `construir.mjs`
 hace el resto: traducir la grafía, partir en partes, y escribir los tres índices.
 
+Publicar es hacer commit en `jangle-data` y empujar: GitHub Pages sirve la carpeta tal cual, con
+`Access-Control-Allow-Origin: *`, que es lo que deja que la app se lo baje desde otro dominio.
+
+```bash
+cd ../jangle-data && git add -A && git commit -m "data: …" && git push
+```
+
+Para trabajar contra una copia local no hace falta tocar el código: `localStorage.catalogo` manda
+sobre la constante de `catalogo.js`, igual que `localStorage.proxy` con el worker.
+
+```js
+localStorage.catalogo = "http://127.0.0.1:8124"
+```
+
 ## La grafía
 
 Chordonomicon escribe los acordes a su manera: `Amin`, `Fs7`, `A/Cs`, `Dno3d`. `grafia.mjs` la
@@ -73,11 +87,18 @@ como mucho.
 No hay señal de popularidad y no se va a coger de Spotify. Lo que se usa en su lugar es **cuántas
 canciones tiene cada intérprete en el propio dataset**: quien está muy transcrito suele ser quien
 alguien reconoce. Con eso se ordenan los resultados de una búsqueda y se elige qué 40 canciones
-enseñar de las 24.000 que llevan `C Am F G`.
+enseñar de las 43.000 que llevan `Am F C G`.
 
-Es una aproximación pobre y se nota: buscar «hotel california» saca antes versiones de bandas
-oscuras que la de los Eagles si esas versiones tienen el título exacto. La lista enseña el
-intérprete de cada una, así que se ve de un vistazo, pero es lo que hay.
+Para la muestra el peso va en logaritmo y lleva un dado sacado del propio id de la canción
+—determinista, así que dos generaciones dan lo mismo—. Sin las dos cosas, los seis intérpretes con
+quinientas transcripciones saldrían en todas las progresiones y la respuesta sería siempre la misma.
+
+Es una aproximación pobre y se nota. Confunde «muy transcrito» con «conocido»: Johnny Cash tiene
+571 canciones en el dataset y los Beatles 136, así que en las listas hay más country del que le
+toca. Y en las búsquedas, una versión de instituto que se llame exactamente igual que el original
+le ganaba; se arregló a medias quitando la coletilla de la edición («- Remastered 2009», «- Live»)
+antes de comparar, que es lo que hace que los Eagles salgan los segundos en «hotel california» en
+vez de los últimos. La lista enseña siempre el intérprete, que es lo que deja elegir de un vistazo.
 
 Los otros límites, sabidos de antemano: el dataset es una foto de 2024 (canciones nuevas, no), las
 transcripciones vienen del mismo crowdsourcing que Ultimate Guitar pero sin el filtro de «la mejor
