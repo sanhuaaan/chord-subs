@@ -291,7 +291,25 @@
     .actions { display: flex; align-items: center; gap: 0.75rem; }
     #reharm > li { padding: 0.75rem 0 1rem; border-bottom: var(--linea) solid var(--separador); }
     #reharm h3 { font-size: 1rem; margin: 0; }
-    .chart { display: flex; gap: 0.4rem; overflow-x: auto; padding: 0.6rem 0 0.2rem; }
+    /* La fila de una rearmonización larga no cabe en la columna: se desplaza por
+       dentro en vez de ensancharla, y no arrastra el gesto a la página, que en un
+       trackpad significa "atrás". La barra va fina y del color del borde donde el
+       navegador la pinta de verdad; donde son flotantes, aparece al pasar por
+       encima, que es lo que hace ahí cualquier otra página. */
+    .chart {
+      display: flex; gap: 0.4rem; padding: 0.6rem 0 0.2rem;
+      overflow-x: auto; overscroll-behavior-x: contain;
+    }
+    .chart::-webkit-scrollbar { height: 0.5rem; }
+    .chart::-webkit-scrollbar-thumb { background: var(--borde); border-radius: 0.25rem; }
+    .chart::-webkit-scrollbar-thumb:hover { background: var(--borde-campo); }
+    .chart::-webkit-scrollbar-track { background: transparent; }
+    /* scrollbar-width es lo estándar, pero ponerlo apaga las reglas de arriba en
+       los navegadores que sí las entienden. Así que va solo donde no hay otra
+       cosa: Firefox. */
+    @supports not selector(::-webkit-scrollbar) {
+      .chart { scrollbar-width: thin; scrollbar-color: var(--borde) transparent; }
+    }
     .chart .step { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; flex: 0 0 auto;
       padding: 0.4rem 0.3rem; border: var(--linea) solid transparent; border-radius: var(--radio); }
     .chart .step.changed { border-color: var(--verde); background: #22302a; }
@@ -340,7 +358,13 @@
         scrollbar-gutter: stable;
         padding-right: 0.9rem;
       }
-      main { grid-column: 2; grid-row: 1; }
+      /* Un elemento de rejilla no se encoge por debajo de lo que mide su
+         contenido salvo que se le diga, y una rearmonización de doce acordes es
+         una fila muy ancha: sin esto, la columna de la derecha crece y se lleva
+         por delante el ancho de la izquierda. Con min-width en cero, cada
+         progresión que no quepa se desplaza por dentro (.chart ya lleva su
+         overflow) y las dos columnas se quedan donde estaban. */
+      main { grid-column: 2; grid-row: 1; min-width: 0; }
       /* El nombre se queda arriba mientras la columna corre por debajo: es lo
          único de ahí que no cambia nunca, así que no tiene por qué irse. Va con
          fondo opaco porque el contenido le pasa por detrás, y el margen se
