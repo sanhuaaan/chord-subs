@@ -120,24 +120,35 @@ vez de consulta.
 
 **Lo verificado (2026-08-20):**
 
-- El dataset no trae título ni artista: solo `spotify_song_id` (~88% de las
-  filas) y un `artist_id` anonimizado. La identidad se recupera con la API
-  oficial de Spotify (`/v1/tracks`, 50 IDs por petición → ~12.000 peticiones,
-  horas de script reanudable) o, para casos sueltos, con su oEmbed público
-  (CORS `*`, sin claves, devuelve título y carátula).
+- El dataset no trae título ni artista: solo `spotify_song_id` (el **64,8%** de
+  las filas — 440.284, con 430.323 IDs únicos) y un `artist_id` anonimizado.
+- **La API de Spotify no hace falta para el grueso.** Spotify tiene las
+  integraciones nuevas en pausa desde enero de 2026 (no se pueden crear apps
+  con Web API), pero un join medido con duckdb contra el volcado público
+  `GildasLeDrogoff/spotify-huge-track-analysis-dataset` (56M de pistas, un
+  parquet de 4 GB en HF, con `track_id`, `track_name` y `artist_name`) cubre
+  **376.400 de los 430.323 IDs únicos (87,5%)** — título y artista sin una
+  llamada. La cola de ~54.000 con ID pero sin match puede resolverse a goteo
+  con el oEmbed público de Spotify (CORS `*`, sin claves: título de la pista, y
+  el nombre del artista vía el oEmbed del `spotify_artist_id`), o esperar a que
+  la API reabra. El 35% sin ID se queda sin título y sirve solo para la
+  consulta inversa.
 - La grafía es propia pero trivial de traducir: `Amin` → `Am`, `Fs7` → `F#7`,
   `A/Cs` → `A/C#`.
 - El datasets-server de HF permite consultar desde el navegador (CORS abierto,
   `/search` y `/filter` con DuckDB), pero **su índice se corrompió en directo
   durante las pruebas**: vale para prototipar la consulta inversa, no como
   única vía en producción.
+- En local hace falta `duckdb==1.0.0` (el Python 3.8 de la máquina no traga
+  las wheels modernas; la última se pone a compilar de fuente y no acaba).
 
-**La tubería (offline, una vez):** descargar el parquet → resolver títulos →
-normalizar grafía → publicar en un repo estático aparte (`jangle-data`): un
-índice de títulos partido por prefijo (la misma lógica del `suggestionSlug` del
-autocompletado), las progresiones en shards por id, y un índice
-progresión→canciones precalculado para que la consulta inversa también sea una
-petición estática. Sin servidor, cacheable, funciona offline.
+**La tubería (offline, una vez):** descargar el parquet (92 MB) → join con el
+volcado de 56M para los títulos → normalizar grafía → publicar en un repo
+estático aparte (`jangle-data`): un índice de títulos partido por prefijo (la
+misma lógica del `suggestionSlug` del autocompletado), las progresiones en
+shards por id, y un índice progresión→canciones precalculado para que la
+consulta inversa también sea una petición estática. Sin servidor, cacheable,
+funciona offline.
 
 **Papeles.** El dataset permite derivados con atribución (BY) y uso no
 comercial (NC), que es el caso. De Spotify solo se guarda el resultado factual
@@ -147,9 +158,9 @@ es lo que su política de desarrollador protege.
 
 **Los límites, sabidos de antemano:** es una foto de 2024 (canciones nuevas,
 no), las transcripciones vienen del mismo crowdsourcing que UG pero sin el
-filtro de "la mejor votada", y el ~12% sin ID de Spotify se queda sin título
-(sigue sirviendo para la consulta inversa). UG quedaría para lo que la foto no
-cubre.
+filtro de "la mejor votada", y el 35% sin ID de Spotify se queda sin título
+(sigue sirviendo para la consulta inversa). La búsqueda por título nacería con
+~376.000 canciones; UG quedaría para lo que la foto no cubre.
 
 **Tamaño.** La tubería es un día de trabajo más las horas de API; el cambio en
 Jangle después es moderado (una fuente de búsqueda junto a la de UG, y la
