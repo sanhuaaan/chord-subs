@@ -109,7 +109,7 @@ siguiente: buscar rearmonización y cejilla a la vez.
 ## 4. Fuente de canciones propia a partir de Chordonomicon — hecho (2026-08-19)
 
 Está publicado: **385.664 canciones con sus progresiones por partes** en un repo estático aparte
-(`jangle-data`), y en la app una segunda fuente de búsqueda junto a Ultimate Guitar más la
+(**De Chordis Mysteriis**), y en la app una segunda fuente de búsqueda junto a Ultimate Guitar más la
 pestaña **Dónde suena**, que es la consulta inversa. La tubería entera está en `datos/`, con su
 `LEEME.md`; el README cuenta lo que hace y lo que no.
 

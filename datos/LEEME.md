@@ -1,6 +1,6 @@
 # De dónde sale el catálogo
 
-Aquí está la tubería que fabrica **jangle-data**, el repo de ficheros estáticos que la app
+Aquí está la tubería que fabrica **De Chordis Mysteriis**, el repo de ficheros estáticos que la app
 consulta para buscar canciones por título y para preguntar dónde suena una progresión. Se ejecuta
 una vez, a mano, en una máquina con red y unos gigas libres. La app no depende de nada de esto:
 solo lee lo publicado.
@@ -28,17 +28,17 @@ que tampoco cuentan en los totales.
 ```bash
 python3 -m venv venv && venv/bin/pip install duckdb
 venv/bin/python datos/preparar.py canciones.jsonl        # ~5 min, 92 MB de descarga
-node --max-old-space-size=8000 datos/construir.mjs canciones.jsonl ../jangle-data
+node --max-old-space-size=8000 datos/construir.mjs canciones.jsonl ../de-chordis-mysteriis
 ```
 
 `preparar.py` deja una línea de JSON por canción con los títulos ya resueltos. `construir.mjs`
 hace el resto: traducir la grafía, partir en partes, y escribir los tres índices.
 
-Publicar es hacer commit en `jangle-data` y empujar: GitHub Pages sirve la carpeta tal cual, con
+Publicar es hacer commit en el tomo y empujar: GitHub Pages sirve la carpeta tal cual, con
 `Access-Control-Allow-Origin: *`, que es lo que deja que la app se lo baje desde otro dominio.
 
 ```bash
-cd ../jangle-data && git add -A && git commit -m "data: …" && git push
+cd ../de-chordis-mysteriis && git add -A && git commit -m "data: …" && git push
 ```
 
 Para trabajar contra una copia local no hace falta tocar el código: `localStorage.catalogo` manda

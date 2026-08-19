@@ -1,7 +1,7 @@
 import { Chord, Note } from "tonal";
 
 // El catálogo: 466.000 canciones con sus progresiones por partes, publicadas
-// como ficheros estáticos en un repo aparte (jangle-data). Salen de
+// como ficheros estáticos en un repo aparte, De Chordis Mysteriis. Salen de
 // Chordonomicon, un dataset académico de progresiones, con los títulos
 // resueltos contra un volcado público de pistas de Spotify. Aquí no hay
 // servidor ni proxy: son JSON troceados que el navegador se baja y cachea, así
@@ -13,7 +13,7 @@ import { Chord, Note } from "tonal";
 //
 // localStorage.catalogo lo sobrescribe, que es la vía para desarrollar contra
 // una copia local de los datos.
-const BASE = globalThis.localStorage?.catalogo || "https://sanhuaaan.github.io/jangle-data";
+const BASE = globalThis.localStorage?.catalogo || "https://sanhuaaan.github.io/de-chordis-mysteriis";
 
 // ── Firma de una progresión ────────────────────────────────────────────────
 // Para buscar una progresión hace falta una forma de ella que no dependa del
@@ -23,7 +23,7 @@ const BASE = globalThis.localStorage?.catalogo || "https://sanhuaaan.github.io/j
 // m menor, d disminuido, a aumentado, s suspendido, 5 sin tercera). El bajo no
 // cuenta: C/E es C tocado de otra manera, no otro acorde.
 //
-// La misma función construye el índice: el generador de jangle-data importa
+// La misma función construye el índice: el generador del tomo importa
 // este fichero, así que si la firma cambia, los datos hay que rehacerlos.
 const leidas = new Map();
 

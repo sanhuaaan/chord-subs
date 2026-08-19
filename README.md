@@ -364,9 +364,10 @@ importa con «Cargar cancionero», como cualquier otro.
 
 Junto a Ultimate Guitar hay una segunda fuente de canciones, y esta es nuestra: **385.664
 canciones con sus progresiones separadas por partes**, publicadas como ficheros estáticos en un
-repo aparte, [jangle-data](https://github.com/sanhuaaan/jangle-data). No hay servidor, ni proxy,
-ni API: el navegador se baja el trozo que necesita y lo cachea. Buscar por título responde al
-momento y funciona aunque UG cambie el HTML mañana.
+repo aparte: [**De Chordis Mysteriis**](https://github.com/sanhuaaan/de-chordis-mysteriis), que es
+el tomo, a la manera del *De Vermis Mysteriis* de Ludvig Prinn. No hay servidor, ni proxy, ni API:
+el navegador se baja el trozo que necesita y lo cachea. Buscar por título responde al momento y
+funciona aunque UG cambie el HTML mañana.
 
 Salen de [Chordonomicon](https://huggingface.co/datasets/ailsntua/Chordonomicon) (CC BY-NC 4.0),
 un dataset académico de 679.807 progresiones con las partes marcadas —el mismo modelo que usa
