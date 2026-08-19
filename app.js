@@ -377,6 +377,12 @@ function renderReharm(progression) {
       className: "why",
       textContent: `${conjunct}, ${plural(v.held, "nota repetida", "notas repetidas")} y ${plural(v.leaps, "salto", "saltos")}.`,
     }));
+    // Los mismos números en todas las tarjetas, gane quien gane: comparar la
+    // resonante con la melódica es justo para lo que están.
+    li.append(el("p", {
+      className: "why",
+      textContent: `${plural(v.aire, "cuerda al aire", "cuerdas al aire")}, ${plural(v.comunes, "nota común", "notas comunes")} y ${plural(v.movimiento, "semitono", "semitonos")} de movimiento entre voces.`,
+    }));
     for (const s of v.steps.filter(x => x.rule && x.changed)) {
       li.append(el("p", {
         className: "why",

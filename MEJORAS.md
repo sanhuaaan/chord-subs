@@ -1,8 +1,9 @@
 # Hilos abiertos
 
-Dos ideas que salieron trabajando y que no se hicieron en su momento. No son
-deuda técnica: la app funciona sin ellas. Son sitios donde ya se ve por dónde
-seguiría creciendo.
+Ideas que salieron trabajando y no se hicieron en su momento. No son deuda
+técnica: la app funciona sin ellas. Son sitios donde ya se ve por dónde
+seguiría creciendo. Las hechas se quedan, con su fecha, como registro de por
+qué se hicieron así.
 
 ## 1. Los nombres de la pestaña de cejilla
 
@@ -71,179 +72,32 @@ digitaciones es un proyecto en sí mismo, con sus propias reglas de tocabilidad
 pena solo si de verdad quieres explorar afinaciones abiertas; para pulir la
 estándar hay caminos más baratos.
 
-## 3 Mejora: rearmonización mediante sistema de costes
+## 3. Rearmonización mediante sistema de costes — hecho (2026-08-19)
 
-La sección **Rearmonizar** podría evolucionar para que no busque una única
-"mejor" rearmonización, sino que permita explorar distintas soluciones
-según el aspecto musical que se quiera priorizar.
+Implementado tal como se describía: `reharm.js` tiene una única función de
+coste con factores con nombre (movimiento de voces, voz superior, notas
+quietas, notas comunes, voces que aparecen o desaparecen, saltos grandes,
+cuerdas al aire, desplazamiento de la mano) y cada **preset** es un vector de
+pesos sobre ella. A los tres de línea de siempre (descendente, ascendente,
+pedal) se suman **Movimiento mínimo**, **Máxima continuidad** y **Máxima
+resonancia**; cada tarjeta enseña los mismos números —cuerdas al aire, notas
+comunes, semitonos de movimiento— para poder compararlas, que es la gracia:
+ninguna se presenta como la correcta.
 
-La idea parte de separar dos fases:
+El movimiento entre dos voicings se mide con **emparejamiento óptimo de
+voces**: con las notas ordenadas de grave a agudo, el emparejamiento de
+movimiento mínimo nunca cruza voces, así que basta un alineamiento por
+programación dinámica donde una voz sin pareja (aparece o desaparece) paga un
+peaje fijo. El movimiento del bajo no se mide aparte: el emparejamiento
+ordenado ya casa bajo con bajo.
 
-1. **Generación de posibilidades armónicas**
-   - adornos
-   - sustituciones
-   - acordes de paso
-   - intercambio modal
-   - etc.
+**Lo que queda abierto de aquí:**
 
-2. **Evaluación de cómo se comporta esa progresión en la guitarra**
-   - conducción de voces
-   - movimiento entre notas
-   - notas comunes
-   - voz superior
-   - cuerdas al aire
-   - registro
-   - etc.
-
-### Voice leading del voicing completo
-
-Actualmente la rearmonización presta especial atención a la voz superior.
-Esto permite encontrar líneas melódicas interesantes, pero un voicing de
-guitarra contiene varias voces y el movimiento de todas ellas también tiene
-valor musical.
-
-La nueva versión podría calcular el coste de transformar un voicing en el
-siguiente teniendo en cuenta el movimiento de sus distintas voces.
-
-Por ejemplo:
-
-    C
-    G - C - E
-
-    Am
-    A - C - E
-
-podría interpretarse como:
-
-    G → A   (+2)
-    C → C    (0)
-    E → E    (0)
-
-Por tanto, dos de las tres voces permanecen inmóviles.
-
-El objetivo no debería ser simplemente minimizar el movimiento total. Una
-conducción de voces con el mínimo movimiento posible no es necesariamente la
-más musical o interesante. El sistema debería utilizar diferentes criterios
-ponderables.
-
-### Sistema de costes
-
-Una posible función de coste podría tener en cuenta:
-
-- movimiento total de las voces;
-- movimiento de la voz superior;
-- movimiento del bajo;
-- notas comunes entre acordes;
-- número de voces que permanecen inmóviles;
-- aparición/desaparición de voces;
-- cuerdas al aire;
-- registro del voicing;
-- saltos excesivamente grandes.
-
-Conceptualmente:
-
-    coste =
-        movimiento de voces
-      + movimiento de la voz superior
-      + movimiento del bajo
-      + coste de cambios estructurales
-      - notas comunes
-      - cuerdas al aire
-
-Los pesos de estos factores deberían poder modificarse para obtener
-resultados diferentes.
-
-### No buscar una única solución óptima
-
-La finalidad no sería que Jangle determine cuál es "la forma correcta" de
-tocar una progresión.
-
-Al contrario: una de las ideas fundamentales de Jangle es facilitar la
-creatividad ofreciendo posibilidades, del mismo modo que la música no tiene
-necesariamente una única respuesta correcta.
-
-Una misma progresión podría generar, por ejemplo:
-
-- una solución que priorice una línea descendente en la voz superior;
-- una que minimice el movimiento de todas las voces;
-- una que maximice las notas comunes;
-- una que maximice la resonancia mediante cuerdas al aire;
-- una combinación equilibrada de estos criterios.
-
-Por ejemplo, para:
-
-    C – Am – F – G
-
-Jangle podría ofrecer:
-
-    Línea superior descendente
-    C → B → A → G
-
-    Máxima continuidad
-    máximo número de notas comunes
-
-    Máxima resonancia
-    máximo número de cuerdas al aire
-
-    Movimiento mínimo
-    mínimo desplazamiento entre voces
-
-Ninguna de ellas tendría que presentarse como "la correcta". Serían
-diferentes interpretaciones posibles de la misma progresión.
-
-### Prioridad musical
-
-Una posible interfaz sería permitir al usuario elegir qué aspecto quiere
-priorizar:
-
-    Melódico  ←────────────→  Resonante
-
-o, de forma más explícita:
-
-    [ Voz superior ]
-    [ Continuidad ]
-    [ Resonancia ]
-    [ Movimiento ]
-
-El sistema podría recalcular o reordenar las soluciones según esa
-preferencia.
-
-Esto permitiría que Jangle funcionase menos como un generador de respuestas
-y más como una herramienta de exploración: no decirle al músico cómo debe
-tocar una progresión, sino mostrarle qué posibilidades contiene.
-
-### Relación con la función de cejilla
-
-Este sistema estaría relacionado con la lógica que ya utiliza la búsqueda de
-cejilla.
-
-La función de cejilla busca:
-
-- maximizar las cuerdas al aire;
-- minimizar las notas que se mueven entre los acordes de la progresión.
-
-Esto puede entenderse como una forma de optimizar la **continuidad de la
-textura** de la progresión.
-
-La rearmonización, en cambio, busca principalmente generar posibilidades
-armónicas y de conducción melódica.
-
-Una evolución futura podría conectar ambos sistemas para poder encontrar
-rearmonizaciones que, además de ser musicalmente interesantes, mantengan una
-textura coherente y guitarrística.
-
-### Objetivo final
-
-El objetivo no es construir un algoritmo que sepa cuál es la mejor manera de
-tocar una progresión.
-
-El objetivo es construir una herramienta que permita descubrir diferentes
-formas de escuchar y tocar esa progresión.
-
-En lugar de:
-
-    "Esta es la solución."
-
-Jangle debería tender hacia:
-
-    "Estas son algunas de las posibilidades que contiene."
+- **Conectar con la cejilla.** El motor de `capo.js` premia lo mismo que el
+  preset resonante (cuerdas al aire, dedos quietos) con su propia tabla de
+  valores. El paso natural es que consuma la misma tabla de factores, y de ahí
+  a buscar rearmonización y cejilla a la vez.
+- **Pesos ajustables por el usuario.** Se descartó el slider
+  Melódico↔Resonante porque los seis presets ya cubren los extremos y el
+  centro. Si algún día se quiere, la maquinaria está: es exponer el vector de
+  pesos en la interfaz.

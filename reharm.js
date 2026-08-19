@@ -4,51 +4,132 @@ import { noteName } from "./notes.js";
 
 // Rearmonizar la progresión entera en vez de acorde a acorde. La pestaña de
 // sustituciones da opciones sueltas; aquí se eligen unas cuantas que encajen
-// entre sí, y el criterio para encajar es qué hace la voz de arriba: la nota más
-// aguda de cada acorde tiene que dibujar una línea, no dar saltos.
+// entre sí, y el criterio para encajar lo pone un sistema de costes con pesos:
+// cada preset premia un aspecto —la línea de arriba, el movimiento mínimo, las
+// notas comunes, las cuerdas al aire— y el mismo motor encuentra el arreglo que
+// mejor lo sirve. No hay una versión correcta: hay varias lecturas de la misma
+// progresión.
 //
 // Es un camino mínimo sobre un grafo por capas: cada hueco de la progresión
-// ofrece varios acordes, cada acorde varias digitaciones, y el coste de encadenar
-// dos digitaciones lo pone el salto de esa voz superior. Viterbi encuentra la
-// cadena entera de una pasada.
+// ofrece varios acordes, cada acorde varias digitaciones, y el coste de
+// encadenar dos digitaciones lo pone el preset. Viterbi encuentra la cadena
+// entera de una pasada.
 
-// Hacia dónde se quiere que vaya la línea. No es una imposición: es lo que sale
-// barato, así que si la progresión no da para ello se cede en vez de fallar.
-const INTENTIONS = [
+// Cada preset es un vector de pesos sobre la misma función de coste. `dir` solo
+// pinta cuando se paga `movTop`: -1 quiere la línea bajando, +1 subiendo, 0
+// quieta. No es una imposición: es lo que sale barato, así que si la progresión
+// no da para ello se cede en vez de fallar.
+const PRESETS = [
   {
-    id: "descendente",
-    dir: -1,
+    id: "descendente", dir: -1,
     name: "Línea descendente",
     why: "La voz de arriba cae por grados conjuntos. Es el recurso más socorrido para que una progresión estática tire hacia delante.",
+    w: { movTop: 1, mano: 0.4 },
   },
   {
-    id: "ascendente",
-    dir: 1,
+    id: "ascendente", dir: 1,
     name: "Línea ascendente",
     why: "La voz de arriba sube paso a paso, que empuja y abre. Funciona bien en un puente o subiendo a un estribillo.",
+    w: { movTop: 1, mano: 0.4 },
   },
   {
-    id: "pedal",
-    dir: 0,
+    id: "pedal", dir: 0,
     name: "Nota pedal arriba",
     why: "La misma nota aguda se mantiene mientras los acordes cambian por debajo. Da unidad y hace que los cambios suenen a color, no a movimiento.",
+    w: { movTop: 1, mano: 0.4 },
+  },
+  {
+    id: "minimo",
+    name: "Movimiento mínimo",
+    why: "Cada voz va a lo que tiene más cerca: los acordes se funden uno en otro casi sin mover ni la mano ni el oído.",
+    w: { movVoces: 1, salto: 3, estructura: 2, mano: 0.4 },
+  },
+  {
+    id: "continuidad",
+    name: "Máxima continuidad",
+    why: "Las notas que dos acordes comparten se quedan sonando donde están; cambia lo justo para que el cambio se note.",
+    w: { comunes: 1.5, quietas: 2, estructura: 2, movVoces: 0.3, mano: 0.4 },
+  },
+  {
+    id: "resonancia",
+    name: "Máxima resonancia",
+    why: "Manda la caja: cuantas más cuerdas al aire y más dedos quietos, más suena la guitarra sola.",
+    w: { aire: 3, quietas: 2, comunes: 0.5, mano: 0.4 },
   },
 ];
 
-// Lo que cuesta encadenar dos digitaciones. Manda el salto de la voz superior:
-// el grado conjunto sale gratis porque es lo que hace línea, repetir nota cuesta
-// poco, y el salto se paga caro. `dir` inclina la línea: -1 baja, +1 sube, 0 la
-// quiere quieta. Lo demás son penalizaciones de tocabilidad.
-function linkCost(prev, next, dir) {
-  const delta = next.top - prev.top;
-  const step = Math.abs(delta);
-  let cost = step === 0 ? (dir === 0 ? 0 : 3)
-    : step <= 2 ? (dir === 0 ? 5 : 0)
-    : step <= 4 ? 6
-    : 12 + step;
-  if (dir !== 0 && Math.sign(delta) === -dir) cost += 7; // se va en contra de la línea
-  cost += Math.abs(next.baseFret - prev.baseFret) * 0.4; // saltos de mano por el mástil
-  if (next.topString !== 5) cost += 1.5; // mejor que la línea caiga en la 1ª cuerda
+// ── Emparejamiento de voces ─────────────────────────────────────────────────
+//
+// Qué voz de un voicing se convierte en qué voz del siguiente. Con las notas
+// ordenadas de grave a agudo, el emparejamiento de movimiento total mínimo
+// nunca cruza dos voces, así que basta un alineamiento por programación
+// dinámica: emparejar las dos siguientes o dejar una sin pareja (una voz que
+// aparece o desaparece), con un peaje fijo que decide cuándo compensa lo uno o
+// lo otro.
+const SUELTA = 4; // semitonos que "cuesta" una voz sin pareja al alinear
+
+export function pairVoices(a, b) {
+  const D = Array.from({ length: a.length + 1 }, (_, i) => {
+    const row = new Array(b.length + 1).fill(0);
+    row[0] = i * SUELTA;
+    return row;
+  });
+  for (let j = 1; j <= b.length; j++) D[0][j] = j * SUELTA;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      D[i][j] = Math.min(
+        D[i - 1][j - 1] + Math.abs(a[i - 1] - b[j - 1]),
+        D[i - 1][j] + SUELTA,
+        D[i][j - 1] + SUELTA,
+      );
+    }
+  }
+  // Vuelta atrás para contar qué pasó: semitonos movidos, voces que no se
+  // mueven, saltos grandes y voces que se quedaron sin pareja.
+  let i = a.length, j = b.length, moved = 0, held = 0, leaps = 0, structural = 0;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && D[i][j] === D[i - 1][j - 1] + Math.abs(a[i - 1] - b[j - 1])) {
+      const d = Math.abs(a[i - 1] - b[j - 1]);
+      moved += d;
+      if (d === 0) held++;
+      if (d > 4) leaps++;
+      i--; j--;
+    } else if (i > 0 && D[i][j] === D[i - 1][j] + SUELTA) { structural++; i--; }
+    else { structural++; j--; }
+  }
+  return { moved, held, leaps, structural };
+}
+
+const alAire = frets => frets.filter(f => f === 0).length;
+const quietasEntre = (a, b) => a.frets.reduce((n, f, i) => n + (f >= 0 && f === b.frets[i] ? 1 : 0), 0);
+const comunesEntre = (a, b) => [...a.pcs].filter(x => b.pcs.has(x)).length;
+
+// Lo que cuesta encadenar dos digitaciones según el preset. Cada factor mide
+// una cosa y el peso dice cuánto importa; lo que pesa cero ni se calcula.
+function linkCost(prev, next, preset) {
+  const w = preset.w;
+  let cost = (w.mano ?? 0) * Math.abs(next.baseFret - prev.baseFret); // saltos de mano por el mástil
+  if (w.movTop) {
+    // Manda el salto de la voz superior: el grado conjunto sale gratis porque
+    // es lo que hace línea, repetir nota cuesta poco, y el salto se paga caro.
+    const delta = next.top - prev.top;
+    const step = Math.abs(delta);
+    let top = step === 0 ? (preset.dir === 0 ? 0 : 3)
+      : step <= 2 ? (preset.dir === 0 ? 5 : 0)
+      : step <= 4 ? 6
+      : 12 + step;
+    if (preset.dir !== 0 && Math.sign(delta) === -preset.dir) top += 7; // se va en contra de la línea
+    if (next.topString !== 5) top += 1.5; // mejor que la línea caiga en la 1ª cuerda
+    cost += w.movTop * top;
+  }
+  if (w.movVoces || w.estructura || w.salto) {
+    const p = pairVoices(prev.midis, next.midis);
+    cost += (w.movVoces ?? 0) * p.moved
+      + (w.estructura ?? 0) * p.structural
+      + (w.salto ?? 0) * p.leaps;
+  }
+  if (w.quietas) cost -= w.quietas * quietasEntre(prev, next);
+  if (w.comunes) cost -= w.comunes * comunesEntre(prev, next);
   return cost;
 }
 
@@ -86,11 +167,10 @@ const repeatCost = (prevSym, nextSym, prevOrig, nextOrig) =>
 // es un hallazgo, y en cada compás es otra canción. Un tercio de la progresión.
 const budgetFor = progression => Math.max(1, Math.round(progression.length / 3));
 
-// Devuelve la progresión rearmonizada según `intention`, o null si la BD no da
+// Devuelve la progresión rearmonizada según `preset`, o null si la BD no da
 // digitaciones para alguno de los acordes originales.
-function reharmonize(db, progression, intention, maxVoicings = 5) {
+function reharmonize(db, progression, preset, maxVoicings = 5) {
   const key = detectKey(progression);
-  const dir = intention.dir;
   const cache = new Map();
   const voi = (sym, max) => {
     if (!cache.has(sym)) cache.set(sym, playablePositions(db, sym, maxVoicings));
@@ -109,7 +189,8 @@ function reharmonize(db, progression, intention, maxVoicings = 5) {
       );
       for (const chain of chains) {
         let internal = optionCost(option, slot);
-        for (let k = 1; k < chain.length; k++) internal += linkCost(chain[k - 1], chain[k], dir);
+        for (const v of chain) internal -= (preset.w.aire ?? 0) * alAire(v.frets);
+        for (let k = 1; k < chain.length; k++) internal += linkCost(chain[k - 1], chain[k], preset);
         nodes.push({ option, chain, internal });
       }
     }
@@ -130,7 +211,7 @@ function reharmonize(db, progression, intention, maxVoicings = 5) {
         continue;
       }
       for (const p of layers[i - 1]) {
-        const link = linkCost(p.chain.at(-1), node.chain[0], dir)
+        const link = linkCost(p.chain.at(-1), node.chain[0], preset)
           + repeatCost(p.chain.at(-1).symbol, node.chain[0].symbol, progression[i - 1].symbol, progression[i].symbol);
         for (let b = 0; b <= budget; b++) {
           if (p.costs[b] === Infinity || b + used > budget) continue;
@@ -168,6 +249,8 @@ function reharmonize(db, progression, intention, maxVoicings = 5) {
         why: k === 0 ? n.option.why : "",
         position: v.position,
         frets: v.frets,
+        midis: v.midis,
+        pcs: v.pcs,
         top: v.top,
         topNote: noteName(v.top),
         topString: STRINGS[v.topString][0],
@@ -175,7 +258,13 @@ function reharmonize(db, progression, intention, maxVoicings = 5) {
     });
   });
 
-  return { intention, key, steps, line: steps.map(s => s.topNote), cost: best.cost, ...lineStats(steps) };
+  return {
+    intention: preset, key, steps,
+    line: steps.map(s => s.topNote),
+    cost: best.cost,
+    ...lineStats(steps),
+    ...arrangementStats(steps),
+  };
 }
 
 // Qué tal ha salido la línea, para poder decirlo en pantalla en vez de que el
@@ -190,17 +279,35 @@ function lineStats(steps) {
   };
 }
 
-// Las versiones, de mejor a peor línea conseguida. Dos intenciones distintas
-// pueden acabar en el mismo arreglo (una progresión no siempre da para subir y
-// bajar); en ese caso se enseña una sola vez, con la etiqueta que mejor salió.
+// Y qué tal el arreglo entero. Se mide todo en todas las versiones, pese al
+// preset: comparar los números entre tarjetas es parte de la gracia.
+function arrangementStats(steps) {
+  let aire = 0, comunes = 0, quietas = 0, movimiento = 0, sueltas = 0;
+  steps.forEach((s, i) => {
+    aire += alAire(s.frets);
+    if (!i) return;
+    const p = steps[i - 1];
+    comunes += comunesEntre(p, s);
+    quietas += quietasEntre(p, s);
+    const pares = pairVoices(p.midis, s.midis);
+    movimiento += pares.moved;
+    sueltas += pares.structural;
+  });
+  return { aire, comunes, quietas, movimiento, sueltas };
+}
+
+// Una versión por preset, cada una con su etiqueta y su porqué. Dos presets
+// pueden acabar en el mismo arreglo (una progresión no siempre da para todo);
+// en ese caso se enseña una sola vez, con la primera etiqueta que lo consiguió.
+// Sin ordenar por coste: los costes de presets distintos no son comparables
+// —cada uno mide con su propia regla—, así que manda el orden de la lista.
 export function reharmonizations(db, progression) {
   const seen = new Set();
-  return INTENTIONS
-    .map(i => reharmonize(db, progression, i))
+  return PRESETS
+    .map(p => reharmonize(db, progression, p))
     .filter(Boolean)
-    .sort((a, b) => a.cost - b.cost)
     .filter(v => {
-      const key = v.steps.map(s => `${s.symbol}:${s.top}`).join(" ");
+      const key = v.steps.map(s => `${s.symbol}:${s.frets.join(".")}`).join(" ");
       return !seen.has(key) && seen.add(key);
     });
 }

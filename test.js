@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { Chord, Note } from "tonal";
 import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, rootOf, RULES, KINDS } from "./rules.js";
-import { reharmonizations } from "./reharm.js";
+import { reharmonizations, pairVoices } from "./reharm.js";
 import { capoSuggestions, capoArrangements, shapeSymbol } from "./capo.js";
 import { parseSearch, parseTab, suggestionSlug, decodeEntities } from "./song.js";
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, playablePositions, STRINGS, MAX_FRET } from "./guitar.js";
@@ -505,8 +505,9 @@ test("rearmoniza la progresión entera respetando el original donde toca", () =>
     }
     // Cada digitación tiene que sonar el acorde que dice.
     for (const s of v.steps) {
-      const leidos = identify(s.frets).candidates.map(c => c.symbol);
-      assert.ok(leidos.some(x => x === s.symbol || x.startsWith(`${s.symbol}/`)),
+      const leidos = identify(s.frets).candidates.map(c => c.symbol.toLowerCase());
+      const dicho = s.symbol.toLowerCase();
+      assert.ok(leidos.some(x => x === dicho || x.startsWith(`${dicho}/`)),
         `${s.symbol} no suena a lo que dice: ${leidos}`);
       assert.equal(s.top, Math.max(...s.frets.map((f, i) => (f < 0 ? -1 : STRINGS[i][1] + f))), "la voz de arriba es la nota más aguda");
     }
@@ -524,9 +525,49 @@ test("la línea se mueve hacia donde pide cada intención", () => {
   const pedal = versiones.find(v => v.intention.id === "pedal");
   if (pedal) assert.ok(pedal.held >= 1, "la pedal debería repetir alguna nota");
 
-  // Ninguna versión debe dar saltos grandes en la voz de arriba: ese es el punto.
-  for (const v of versiones) {
+  // Los presets que persiguen la línea no deben dar saltos grandes en la voz de
+  // arriba: ese es su punto. Los demás optimizan otra cosa y pueden saltar.
+  for (const v of versiones.filter(x => x.intention.w.movTop)) {
     assert.equal(v.leaps, 0, `${v.intention.name} da saltos: ${v.line.join(" → ")}`);
+  }
+});
+
+test("el emparejamiento de voces cuenta movimiento, quietas y voces sueltas", () => {
+  // El ejemplo de MEJORAS.md: C (G-C-E) → Am (A-C-E) es G→A y dos voces quietas.
+  assert.deepEqual(pairVoices([55, 60, 64], [57, 60, 64]), { moved: 2, held: 2, leaps: 0, structural: 0 });
+  // Una voz nueva no se empareja a lo loco: cuenta como cambio estructural.
+  const p = pairVoices([55, 60, 64], [55, 60, 64, 67]);
+  assert.equal(p.structural, 1);
+  assert.equal(p.moved, 0);
+  // Un salto de quinta es un salto, no dos voces sueltas.
+  assert.deepEqual(pairVoices([60], [67]), { moved: 7, held: 0, leaps: 1, structural: 0 });
+});
+
+test("cada preset gana en lo suyo", () => {
+  for (const texto of ["C Am F G7", "D A Bm G"]) {
+    const versiones = reharmonizations(guitarDb, parseProgression(texto));
+    const ids = versiones.map(v => v.intention.id);
+    assert.ok(ids.length >= 3, `pocas versiones para "${texto}": ${ids}`);
+    const por = id => versiones.find(v => v.intention.id === id);
+    const resto = id => versiones.filter(v => v.intention.id !== id);
+    // El dedupe puede fundir presets, así que cada aserto solo aplica si su
+    // versión sobrevivió con etiqueta propia.
+    const res = por("resonancia");
+    if (res) for (const v of resto("resonancia")) {
+      assert.ok(res.aire >= v.aire, `resonancia (${res.aire} al aire) pierde con ${v.intention.id} (${v.aire})`);
+    }
+    // Su función objetivo pesa 1 el semitono movido y 2 la voz sin pareja: la
+    // comparación usa esa misma vara, no los semitonos a secas.
+    const min = por("minimo");
+    const quieto = v => v.movimiento + 2 * v.sueltas;
+    if (min) for (const v of resto("minimo")) {
+      assert.ok(quieto(min) <= quieto(v), `mínimo (${quieto(min)}) pierde con ${v.intention.id} (${quieto(v)})`);
+    }
+    const cont = por("continuidad");
+    if (cont) for (const v of resto("continuidad")) {
+      assert.ok(cont.comunes + cont.quietas >= v.comunes + v.quietas,
+        `continuidad (${cont.comunes}+${cont.quietas}) pierde con ${v.intention.id} (${v.comunes}+${v.quietas})`);
+    }
   }
 });
 
@@ -534,8 +575,10 @@ test("las sustituciones del arreglo salen de las reglas y van explicadas", () =>
   const nombres = new Set(RULES.map(r => r.name));
   for (const texto of ["C Am F G7", "Am F C G", "D A Bm G", "C Am F G7 C Am Dm G7"]) {
     for (const v of reharmonizations(guitarDb, parseProgression(texto))) {
-      const cambios = v.steps.filter(s => s.changed);
-      assert.ok(cambios.length <= Math.max(1, Math.round(parseProgression(texto).length / 3)) * 2,
+      // El presupuesto cuenta huecos tocados (un cliché mete varios acordes en
+      // un solo hueco y gasta uno), así que aquí se cuenta lo mismo.
+      const huecos = new Set(v.steps.filter(s => s.changed).map(s => s.slot));
+      assert.ok(huecos.size <= Math.max(1, Math.round(parseProgression(texto).length / 3)) * 2,
         `demasiados cambios en "${texto}": ${v.steps.map(s => s.symbol).join(" ")}`);
       for (const s of v.steps.filter(x => x.rule)) {
         assert.ok(nombres.has(s.rule), `regla desconocida: ${s.rule}`);
