@@ -1,6 +1,9 @@
 import { Chord, Note } from "tonal";
 
-// El catálogo: 466.000 canciones con sus progresiones por partes, publicadas
+// GUARDADO: hoy la app no importa este fichero. Sigue probado, y sigue en pie el
+// catálogo que lee; el porqué de tenerlo aparte está en guardado/LEEME.md.
+//
+// El catálogo: 385.664 canciones con sus progresiones por partes, publicadas
 // como ficheros estáticos en un repo aparte, De Chordis Mysteriis. Salen de
 // Chordonomicon, un dataset académico de progresiones, con los títulos
 // resueltos contra un volcado público de pistas de Spotify. Aquí no hay

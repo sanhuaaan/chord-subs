@@ -14,7 +14,9 @@ import {
   KEY, emptyLibrary, readLibrary, writeLibrary, libraryJson, parseLibrary,
   mergeLibrary, saveSection, removeSection, removeSong, songKey,
 } from "./library.js";
-import { firma, huella, ventanas, shardDe, buscar, cancion, dondeSuena, sinEdicion, puntua } from "./catalogo.js";
+import {
+  firma, huella, ventanas, shardDe, buscar, cancion, dondeSuena, sinEdicion, puntua,
+} from "./guardado/catalogo.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
 

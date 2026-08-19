@@ -106,42 +106,40 @@ siguiente: buscar rearmonización y cejilla a la vez.
   centro. Si algún día se quiere, la maquinaria está: es exponer el vector de
   pesos en la interfaz.
 
-## 4. Fuente de canciones propia a partir de Chordonomicon — hecho (2026-08-19)
+## 4. Fuente de canciones propia a partir de Chordonomicon — hecho y guardado (2026-08-19)
 
-Está publicado: **385.664 canciones con sus progresiones por partes** en un repo estático aparte
-(**De Chordis Mysteriis**), y en la app una segunda fuente de búsqueda junto a Ultimate Guitar más la
-pestaña **Dónde suena**, que es la consulta inversa. La tubería entera está en `datos/`, con su
-`LEEME.md`; el README cuenta lo que hace y lo que no.
+Se hizo entero y se retiró el mismo día, después de usarlo. Lo que se construyó sigue en pie:
+**385.664 canciones con sus progresiones por partes** publicadas en un repo estático aparte
+—**De Chordis Mysteriis**—, el módulo que las lee y la tubería que las fabrica, todo en `guardado/`
+y todo probado. Lo que no está es enchufado a la app: ni la segunda fuente del buscador ni la
+pestaña «Dónde suena». La versión conectada vive en la rama `catalogo`.
 
-Lo que se confirmó al hacerlo:
+**Por qué se guardó.** La consulta inversa era la razón de hacerlo —de tu progresión hacia afuera,
+descubrimiento en vez de consulta— y en uso resultó no aportar: saber que `C Am F G` suena en 24.190
+canciones no dice nada de `C Am F G`, y una lista de cuarenta que no has elegido, ordenada por una
+señal pobre, no lleva a ninguna parte. La búsqueda por título se fue con ella, porque Ultimate
+Guitar ya la cubre y con transcripciones mejores.
 
-- El join contra el volcado de 56M de pistas cubre **376.400 de los 430.323 ids** (87,5%),
-  medido, y tarda **37 segundos** leyendo solo tres columnas por HTTP: no hay que bajarse los 4
-  GB. Propagando el nombre del intérprete por su id de Spotify se recuperan 80.000 filas más, que
-  al final no se publican porque sin título no se pueden ni buscar ni enseñar.
-- La grafía traduce **exacta en el 99,93%** de los 52 millones de acordes. El resto baja por una
-  escalera de simplificaciones hasta algo que tonal sepa leer; un solo token de 4.314 no da ni
-  para eso.
+**Lo que se aprendió, que es lo que queda:**
+
+- El join contra el volcado de 56M de pistas cubre **376.400 de los 430.323 ids** (87,5%), medido, y
+  tarda **37 segundos** leyendo solo tres columnas por HTTP: no hay que bajarse los 4 GB.
+  Propagando el nombre del intérprete por su id de Spotify se recuperan 80.000 filas más.
+- La grafía de Chordonomicon traduce **exacta en el 99,93%** de los 52 millones de acordes. El resto
+  baja por una escalera de simplificaciones hasta algo que tonal sepa leer; un solo token de 4.314
+  no da ni para eso.
 - La firma transpositiva sale barata: con familias en vez de cifrados completos, las ventanas de
-  cuatro acordes de todo el catálogo son **112.071 firmas distintas**, y las de tres, 13.046. Eso
-  es lo que hace que el índice inverso quepa en 47 MB en vez de en varios cientos.
+  cuatro acordes de todo el catálogo son **112.071 firmas distintas**, y las de tres, 13.046. Eso es
+  lo que hace que el índice inverso quepa en 47 MB en vez de en varios cientos.
 - El total publicado son **211 MB** en 12.500 ficheros. Una búsqueda se lleva un trozo del índice
   (20-100 KB comprimidos), abrir una canción otro de 40 KB.
+- **Sin señal de popularidad no hay orden bueno.** Se usó cuántas canciones tiene cada intérprete en
+  el propio dataset, que confunde "muy transcrito" con "conocido" —Johnny Cash tiene 571 y los
+  Beatles 136—. Se mitigó quitando las coletillas de edición ("- Remastered 2009") antes de
+  comparar, pero es medio arreglo, y es medio arreglo de lo que más se notaba al usarlo.
 
-**Lo que queda abierto de aquí:**
-
-- **Los títulos que faltan.** 294.000 filas se quedan fuera por no tener título: unas porque no
-  traen id de Spotify (el 35%) y otras porque su id no está en el volcado (~54.000). Estas
-  segundas se pueden resolver a goteo con el oEmbed público de Spotify, sin claves. Cada una que
-  se resuelva es una canción más que se puede buscar y una más en los recuentos.
-- **Cómo se ordena lo que sale.** No hay señal de popularidad y de Spotify no se coge: se usa
-  cuántas canciones tiene cada intérprete en el propio dataset, que confunde "muy transcrito" con
-  "conocido" —Johnny Cash tiene 571 y los Beatles 136—. Se nota buscando cualquier clásico:
-  versiones oscuras que se llaman exactamente igual le ganan al original. Se mitigó quitando las
-  coletillas de edición ("- Remastered 2009") antes de comparar, pero el fondo sigue ahí. Una
-  fuente libre de popularidad (MusicBrainz, ListenBrainz) lo arreglaría de verdad.
-- **Buscar la progresión entera, no por ventanas.** Hoy una progresión de seis acordes se
-  pregunta como tres ventanas de cuatro. Encontrar canciones que llevan las seis seguidas pediría
-  cruzar las listas, y las listas están recortadas a 40 por firma, así que haría falta guardar más
-  o verificar canción a canción.
+**Si algún día vuelve**, además de reconectarlo (`guardado/LEEME.md` dice cómo), estas dos quedaron
+sin hacer y siguen valiendo: rellenar los ~54.000 títulos que faltan con el oEmbed público de
+Spotify, y traer popularidad de una fuente libre (MusicBrainz, ListenBrainz) para que el orden deje
+de ser el punto flojo.
 

@@ -5,10 +5,10 @@ import { lectura, firmaVentana, huella, palabras } from "../catalogo.js";
 
 // Convierte el volcado de Chordonomicon (una línea de JSON por canción, con el
 // título ya resuelto: ver LEEME.md) en los ficheros estáticos que se publican
-// en jangle-data. Todo lo que decide qué se puede buscar y cómo se puntúa está
-// aquí; la app solo lee.
+// en De Chordis Mysteriis. Todo lo que decide qué se puede buscar y cómo se
+// puntúa está aquí; quien lea el catálogo solo lee.
 //
-//   node datos/construir.mjs canciones.jsonl ../jangle-data
+//   node guardado/datos/construir.mjs canciones.jsonl ../de-chordis-mysteriis
 //
 // La firma de una progresión y la partición en palabras salen de catalogo.js,
 // que es lo que usa el navegador: si cambian ahí, hay que rehacer los datos.

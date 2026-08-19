@@ -1,5 +1,5 @@
 import { Chord, Note } from "tonal";
-import { noteName } from "../notes.js";
+import { noteName } from "../../notes.js";
 
 // Chordonomicon escribe los acordes con su propia grafía: la 's' es sostenido
 // (Fs = F#), 'min' es menor y 'no3d' es un acorde sin tercera. Traducirla es casi
