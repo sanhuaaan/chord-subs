@@ -195,47 +195,80 @@ keySelect.addEventListener("change", () => transposeTo(keySelect.value));
 // detrás de ella, con su digitación y lo que se gana. Debajo el menú: todos los
 // colores que esa cejilla pone a tu alcance, los haya elegido el arreglo o no.
 // Una sola ordenación, la del arreglo, que es la que sabe si algo es tocable.
-function renderCapo(progression) {
-  const colores = new Map(capoSuggestions(progression).map(cp => [cp.capo, cp]));
-  // Sin la base de datos no hay digitaciones que elegir, así que queda el menú.
-  const arreglos = db ? capoArrangements(db, progression).slice(0, 3) : [];
-  const cejillas = arreglos.length ? arreglos : [...colores.values()].slice(0, 3).map(cp => ({ capo: cp.capo }));
-
-  for (const a of cejillas) {
-    const li = document.createElement("li");
-    li.append(el("strong", { textContent: a.capo ? `Cejilla en traste ${a.capo}` : "Sin cejilla" }));
-    if (a.steps) {
-      li.append(" ", el("small", {
-        textContent: `${plural(a.aire, "cuerda al aire", "cuerdas al aire")} · ${plural(a.quietas, "nota que no se mueve", "notas que no se mueven")}`,
-      }));
-      li.append(chartOf(a));
-    }
-
-    const cp = colores.get(a.capo);
-    if (!cp) continue;
-    li.append(el("p", { className: "why hint", textContent: "y además, si buscas color:" }));
-    const cols = el("div", { className: "cols" });
-    for (const pc of cp.perChord) {
-      const sh = shapeSymbol(pc.chord, a.capo);
-      const forma = shapeOf(sh)?.positions[0];
-      const head = el("p", { className: "why" });
-      head.append(conCejilla(chordSpan(pc.chord, sh), forma, a.capo));
-      const exts = el("ul", { className: "exts" });
-      for (const ext of pc.extensions) {
-        const row = document.createElement("li");
-        const conAire = forma && openString(forma, ext.stringIdx);
-        row.append("→ ", conCejilla(extChordSpan(ext, sh), conAire, a.capo),
-          ` (${ext.note} en ${ext.string} al aire)`);
-        exts.append(row);
-      }
-      const block = document.createElement("div");
-      block.append(head, exts);
-      cols.append(block);
-    }
-    li.append(cols);
-    capoList.append(li);
+// La tarjeta de una cejilla: su arreglo (si la BD dio digitaciones) y el
+// catálogo de colores que esa cejilla pone a tiro.
+function capoCard(a) {
+  const li = document.createElement("li");
+  li.append(el("strong", { textContent: a.capo ? `Cejilla en traste ${a.capo}` : "Sin cejilla" }));
+  if (a.steps) {
+    li.append(" ", el("small", {
+      textContent: `${plural(a.aire, "cuerda al aire", "cuerdas al aire")} · ${plural(a.quietas, "nota que no se mueve", "notas que no se mueven")}`,
+    }));
+    li.append(chartOf(a));
   }
+
+  const cp = capoColores.get(a.capo);
+  if (!cp) return li;
+  li.append(el("p", { className: "why hint", textContent: "y además, si buscas color:" }));
+  const cols = el("div", { className: "cols" });
+  for (const pc of cp.perChord) {
+    const sh = shapeSymbol(pc.chord, a.capo);
+    const forma = shapeOf(sh)?.positions[0];
+    const head = el("p", { className: "why" });
+    head.append(conCejilla(chordSpan(pc.chord, sh), forma, a.capo));
+    const exts = el("ul", { className: "exts" });
+    for (const ext of pc.extensions) {
+      const row = document.createElement("li");
+      const conAire = forma && openString(forma, ext.stringIdx);
+      row.append("→ ", conCejilla(extChordSpan(ext, sh), conAire, a.capo),
+        ` (${ext.note} en ${ext.string} al aire)`);
+      exts.append(row);
+    }
+    const block = document.createElement("div");
+    block.append(head, exts);
+    cols.append(block);
+  }
+  li.append(cols);
+  return li;
 }
+
+let capoColores = new Map();
+let capoExtra = new Map(); // cejillas que el ranking dejó fuera, por traste
+
+function renderCapo(progression) {
+  capoColores = new Map(capoSuggestions(progression).map(cp => [cp.capo, cp]));
+  // Sin la base de datos no hay digitaciones que elegir, así que queda el menú.
+  const arreglos = db ? capoArrangements(db, progression) : [];
+  const todos = arreglos.length ? arreglos : [...capoColores.values()].map(cp => ({ capo: cp.capo }));
+
+  for (const a of todos.slice(0, 3)) capoList.append(capoCard(a));
+
+  // El resto de trastes, a un clic: el ranking propone, pero a lo mejor la
+  // canción pide justo la cejilla que no ganó.
+  capoExtra = new Map(todos.slice(3).map(a => [a.capo, a]));
+  if (!capoExtra.size) return;
+  const fila = el("li", { className: "otras-cejillas" });
+  fila.append(el("span", { className: "why", textContent: "Otras cejillas:" }));
+  for (const a of [...capoExtra.values()].sort((x, y) => x.capo - y.capo)) {
+    const b = el("button", { type: "button", textContent: a.capo ? `traste ${a.capo}` : "sin cejilla" });
+    b.dataset.capo = a.capo;
+    if (a.aire != null) b.title = `${plural(a.aire, "cuerda al aire", "cuerdas al aire")}`;
+    fila.append(b);
+  }
+  capoList.append(fila);
+}
+
+// Abrir una cejilla del resto: su tarjeta aparece donde estaba la fila de
+// botones, y el botón se gasta. La fila desaparece con el último.
+capoList.addEventListener("click", e => {
+  const btn = e.target.closest("button[data-capo]");
+  if (!btn) return;
+  const fila = btn.closest("li");
+  fila.before(capoCard(capoExtra.get(Number(btn.dataset.capo))));
+  btn.remove();
+  if (!fila.querySelector("button")) fila.remove();
+});
+
 
 // Un acorde de la pestaña de cejilla se abre en el mástil con su cejilla puesta y
 // con la digitación que enseña su diagrama, no con la primera que tenga la BD:

@@ -1,5 +1,6 @@
 import { Chord, Note } from "tonal";
 import { qualityOf, transposeSymbol, intervalTo, optionsFor } from "./rules.js";
+import { linkCost, alAire, PRESETS } from "./reharm.js";
 import { dbSpelling, playablePositions, MAX_FRET, STRINGS } from "./guitar.js";
 import { noteName } from "./notes.js";
 
@@ -75,44 +76,23 @@ export function capoSuggestions(progression, maxFret = 7) {
 // común a dos acordes seguidos no es que se comparta, es que sigue sonando sola
 // mientras la mano se va a otro sitio.
 
-// Cuánto vale cada cosa. Son los números que definen el sonido que se busca, así
-// que están juntos y con nombre en vez de repartidos por las fórmulas.
-const VALE = {
-  aire: 3,          // cada cuerda al aire del acorde
-  quieta: 2,        // nota que no se mueve: misma cuerda y mismo traste que antes
-  quietaAlAire: 2,  // y si esa nota quieta era al aire, cuenta doble: no se toca ni al cambiar
-  comun: 0.5,       // la misma nota en otro sitio del mástil
-  adorno: 1,        // peaje por no dejar el acorde como estaba
-  mano: 0.4,        // por traste que salta la mano entre dos posturas
-};
-
-const alAire = frets => frets.filter(f => f === 0).length;
-const pcs = frets => new Set(frets.map((f, i) => (f < 0 ? -1 : (STRINGS[i][1] + f) % 12)).filter(x => x >= 0));
+// El coste es el mismo que usa la rearmonización, con su preset resonante; aquí
+// solo se añade la cejilla como dimensión de búsqueda y el filtro de solo-adornos.
+const RESONANTE = PRESETS.find(p => p.id === "resonancia");
 
 // Solo adornos: add9, sus2, 6, maj7, m7… Cambian el color pero no la función, que
 // es justo lo que una cuerda al aire le hace a un acorde. Sustituirlo por otro o
 // meterle acordes delante ya sería rearmonizar, y para eso está su pestaña.
 const esAdorno = o => !o.rule || o.kind === "color";
 
-const costeNodo = n => -VALE.aire * n.aire + (n.rule ? VALE.adorno : 0);
-
-const costeEnlace = (a, b) => {
-  let quietas = 0;
-  let quietasAlAire = 0;
-  a.frets.forEach((f, i) => {
-    if (f < 0 || f !== b.frets[i]) return;
-    quietas++;
-    if (f === 0) quietasAlAire++;
-  });
-  const comunes = [...a.pcs].filter(x => b.pcs.has(x)).length;
-  return -VALE.quieta * quietas - VALE.quietaAlAire * quietasAlAire - VALE.comun * comunes
-    + VALE.mano * Math.abs(b.baseFret - a.baseFret);
-};
+// ponytail: peaje fijo por adornar, fuera del vocabulario de pesos; es el mando
+// de cuántos adornos salen, no parte del coste de encadenar.
+const costeNodo = n => -RESONANTE.w.aire * n.aire + (n.rule ? 1 : 0);
 
 // Camino mínimo por capas: cada acorde ofrece sus adornos y cada adorno sus
-// digitaciones, y lo que se paga por encadenar dos es lo que se pierde de
-// resonancia. Sin presupuesto de cambios como en la rearmonización: aquí ningún
-// adorno cambia el acorde, así que no hay nada que limitar.
+// digitaciones, y lo que se paga por encadenar dos lo dice linkCost con el
+// preset resonante. Sin presupuesto de cambios como en la rearmonización: aquí
+// ningún adorno cambia el acorde, así que no hay nada que limitar.
 function mejorCadena(layers) {
   layers.forEach((layer, i) => {
     for (const n of layer) {
@@ -123,7 +103,7 @@ function mejorCadena(layers) {
       }
       let mejor = null;
       for (const p of layers[i - 1]) {
-        const total = p.total + costeEnlace(p, n);
+        const total = p.total + linkCost(p, n, RESONANTE);
         if (!mejor || total < mejor.total) mejor = { total, nodo: p };
       }
       n.total = mejor.total + costeNodo(n);
@@ -144,7 +124,7 @@ function arreglo(db, progression, capo) {
       // Los trastes de la forma se cuentan desde la cejilla, así que lo que hay
       // que comprobar es dónde caen de verdad en el mástil.
       .filter(v => v.frets.every(f => capo + f <= MAX_FRET))
-      .map(v => ({ ...v, pcs: pcs(v.frets), aire: alAire(v.frets), sounding: o.chords[0], rule: o.rule }))));
+      .map(v => ({ ...v, aire: alAire(v.frets), sounding: o.chords[0], rule: o.rule }))));
   if (layers.some(l => !l.length)) return null;
 
   const cadena = mejorCadena(layers);

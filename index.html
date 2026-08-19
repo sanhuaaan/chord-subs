@@ -160,6 +160,9 @@
     #subs summary small { font-weight: normal; }
     /* Cada grupo de opciones (adornar/cambiar/añadir) en su propia tarjeta. */
     #subs .kind { border: var(--linea) solid var(--borde); border-radius: var(--radio); padding: 0.6rem 1rem 0.75rem; margin: 0.75rem 0; }
+    .otras-cejillas { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+    .otras-cejillas .why { margin: 0; }
+    .otras-cejillas button { font-size: 0.8rem; padding: 0.15rem 0.6rem; }
     /* Rótulo de sección, compartido por los grupos de opciones y el identificador. */
     #subs h4, #readout h3 {
       font-size: 0.7rem;
@@ -339,6 +342,8 @@
       /* Las sugerencias de cejilla, apiladas: un grupo debajo de otro. Dentro,
          los acordes de cada grupo sí se reparten el ancho en columnas. */
       #capo > li { border: var(--linea) solid var(--borde); border-radius: var(--radio); padding: 0.75rem 1rem; margin-bottom: 1rem; border-bottom: var(--linea) solid var(--borde); }
+      /* La fila de "otras cejillas" no es una tarjeta: sin borde de tarjeta. */
+      #capo > li.otras-cejillas { border: none; padding: 0.2rem 0.2rem; }
       #capo > li > strong { display: block; margin-bottom: 0.35rem; }
       #capo .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0 2rem; align-items: start; }
       /* Cancionero y resultados de búsqueda, en rejilla. */

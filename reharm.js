@@ -19,7 +19,7 @@ import { noteName } from "./notes.js";
 // pinta cuando se paga `movTop`: -1 quiere la línea bajando, +1 subiendo, 0
 // quieta. No es una imposición: es lo que sale barato, así que si la progresión
 // no da para ello se cede en vez de fallar.
-const PRESETS = [
+export const PRESETS = [
   {
     id: "descendente", dir: -1,
     name: "Línea descendente",
@@ -54,7 +54,7 @@ const PRESETS = [
     id: "resonancia",
     name: "Máxima resonancia",
     why: "Manda la caja: cuantas más cuerdas al aire y más dedos quietos, más suena la guitarra sola.",
-    w: { aire: 3, quietas: 2, comunes: 0.5, mano: 0.4 },
+    w: { aire: 3, quietas: 2, quietasAlAire: 2, comunes: 0.5, mano: 0.4 },
   },
 ];
 
@@ -100,13 +100,17 @@ export function pairVoices(a, b) {
   return { moved, held, leaps, structural };
 }
 
-const alAire = frets => frets.filter(f => f === 0).length;
+export const alAire = frets => frets.filter(f => f === 0).length;
 const quietasEntre = (a, b) => a.frets.reduce((n, f, i) => n + (f >= 0 && f === b.frets[i] ? 1 : 0), 0);
+// Una nota quieta que además es al aire cuenta doble: no se toca ni al cambiar.
+const quietasAlAireEntre = (a, b) => a.frets.reduce((n, f, i) => n + (f === 0 && b.frets[i] === 0 ? 1 : 0), 0);
 const comunesEntre = (a, b) => [...a.pcs].filter(x => b.pcs.has(x)).length;
 
 // Lo que cuesta encadenar dos digitaciones según el preset. Cada factor mide
 // una cosa y el peso dice cuánto importa; lo que pesa cero ni se calcula.
-function linkCost(prev, next, preset) {
+// Lo comparte la pestaña de cejilla: su arreglo es este mismo coste con el
+// preset resonante, con la cejilla como dimensión extra de búsqueda.
+export function linkCost(prev, next, preset) {
   const w = preset.w;
   let cost = (w.mano ?? 0) * Math.abs(next.baseFret - prev.baseFret); // saltos de mano por el mástil
   if (w.movTop) {
@@ -129,6 +133,7 @@ function linkCost(prev, next, preset) {
       + (w.salto ?? 0) * p.leaps;
   }
   if (w.quietas) cost -= w.quietas * quietasEntre(prev, next);
+  if (w.quietasAlAire) cost -= w.quietasAlAire * quietasAlAireEntre(prev, next);
   if (w.comunes) cost -= w.comunes * comunesEntre(prev, next);
   return cost;
 }
