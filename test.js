@@ -14,6 +14,7 @@ import {
   KEY, emptyLibrary, readLibrary, writeLibrary, libraryJson, parseLibrary,
   mergeLibrary, saveSection, removeSection, removeSong, songKey,
 } from "./library.js";
+import { firma, huella, ventanas, shardDe, buscar, cancion, dondeSuena, sinEdicion, puntua } from "./catalogo.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
 
@@ -908,4 +909,119 @@ test("rootOf saca la fundamental tal como está escrita", () => {
   assert.equal(rootOf("F#m7/A"), "F#");
   assert.equal(rootOf("Db"), "Db");
   assert.equal(rootOf("xyz"), null);
+});
+
+// ── Catálogo ────────────────────────────────────────────────────────────────
+
+// El catálogo son ficheros estáticos, así que aquí se le pone un servidor de
+// mentira: lo que se prueba es qué pide y qué hace con lo que le llega.
+const conCatalogo = (ficheros, fn) => async () => {
+  const antes = globalThis.fetch;
+  const pedidos = [];
+  globalThis.fetch = async url => {
+    const ruta = new URL(url).pathname.split("/").filter(Boolean).slice(1).join("/");
+    pedidos.push(ruta);
+    return ruta in ficheros
+      ? { ok: true, status: 200, json: async () => ficheros[ruta] }
+      : { ok: false, status: 404 };
+  };
+  try {
+    await fn(pedidos);
+  } finally {
+    globalThis.fetch = antes;
+  }
+};
+
+test("la firma de una progresión no depende del tono ni del color", () => {
+  // Es lo que hace que preguntar por Am F C G encuentre también a quien la toca
+  // en si menor, y a quien le pone séptimas.
+  assert.equal(firma(["Am", "F", "C", "G7"]), firma(["Bm", "G", "D", "A"]));
+  assert.equal(firma(["Am", "F", "C", "G7"]), firma(["Am7", "F6", "Cmaj7", "G"]));
+  // Pero sí depende de lo que suena: un mayor donde había un menor es otra cosa.
+  assert.notEqual(firma(["Am", "F", "C", "G"]), firma(["A", "F", "C", "G"]));
+  // Y el bajo no cuenta: C/E es C tocado de otra manera.
+  assert.equal(firma(["C", "F", "G"]), firma(["C/E", "F", "G/B"]));
+  assert.equal(firma(["C", "Zzz", "G"]), null);
+});
+
+test("una progresión larga se pregunta por trozos, los de cuatro primero", () => {
+  const vs = ventanas(["C", "Am", "F", "G", "Em"]);
+  assert.deepEqual(vs.filter(v => v.largo === 4).map(v => v.acordes.join(" ")),
+    ["C Am F G", "Am F G Em"]);
+  assert.deepEqual(vs.filter(v => v.largo === 3).map(v => v.desde), [0, 1, 2]);
+  // Con tres acordes justos no hay ventana de cuatro, y la de tres es la entera.
+  assert.deepEqual(ventanas(["C", "Am", "F"]).map(v => v.largo), [3]);
+  assert.deepEqual(ventanas(["C", "Am"]), []);
+});
+
+test("de qué palabra tirar: el prefijo más largo que esté publicado", () => {
+  const man = { the: 6000, wal: 40, wall: 12, wallf: 3 };
+  assert.equal(shardDe("wallflower", man), "wallf");
+  assert.equal(shardDe("wall", man), "wall");
+  assert.equal(shardDe("walk", man), "wal");
+  assert.equal(shardDe("the", man), "the");
+  // Palabra más corta que los prefijos: valen los que empiecen por ella.
+  assert.deepEqual(shardDe("wa", man), ["wal", "wall", "wallf"]);
+  assert.equal(shardDe("zz", man), null);
+});
+
+test("buscar pide un solo trozo del índice y filtra con la consulta entera", conCatalogo({
+  "titulos.json": { hot: 3, cal: 2 },
+  "titulos/cal.json": {
+    a: ["Eagles", "Gipsy Kings"],
+    f: [[1, "Hotel California", 0], [2, "Hotel California (Spanish Mix)", 1]],
+  },
+  "titulos/hot.json": { a: ["Otro"], f: [[3, "Hot Stuff", 0]] },
+}, async pedidos => {
+  const r = await buscar("hotel california");
+  // Tira de "cal", que es el trozo más pequeño de los dos que valen.
+  assert.ok(pedidos.includes("titulos/cal.json"));
+  assert.ok(!pedidos.includes("titulos/hot.json"));
+  // El título exacto va primero, y lo que no lleva las dos palabras no sale.
+  assert.deepEqual(r.map(x => x.id), [1, 2]);
+  assert.equal(r[0].artist, "Eagles");
+  assert.deepEqual(await buscar("   "), []);
+}));
+
+test("las partes de una canción del catálogo se leen en castellano", conCatalogo({
+  "canciones/4.json": { 1000: [["verse_1, verse_2", "C Am F G"], ["chorus_1", "F G C"]] },
+}, async () => {
+  const partes = await cancion(1000);
+  assert.deepEqual(partes.map(p => p.name), ["Estrofa, Estrofa 2", "Estribillo"]);
+  assert.deepEqual(partes[0].chords, ["C", "Am", "F", "G"]);
+  // Una canción que no está no es un error: es que no está.
+  assert.equal(await cancion(1001), null);
+}));
+
+test("dónde suena devuelve cuántas la llevan y una muestra con nombre", conCatalogo({
+  [`progresiones/4/${huella(firma(["C", "Am", "F", "G"]))}.json`]: {
+    [firma(["C", "Am", "F", "G"])]: [24190, [[7, "Let It Be", "The Beatles"], [8, "Sin nadie", ""]]],
+  },
+}, async () => {
+  const [v] = ventanas(["C", "Am", "F", "G"]);
+  const r = await dondeSuena(v);
+  assert.equal(r.total, 24190);
+  assert.deepEqual(r.canciones.map(c => c.song), ["Let It Be", "Sin nadie"]);
+  assert.equal(r.canciones[1].artist, "");
+  // La misma progresión en otro tono cae en el mismo sitio del índice.
+  const [otra] = ventanas(["D", "Bm", "G", "A"]);
+  assert.equal((await dondeSuena(otra)).total, 24190);
+}));
+
+test("al puntuar un título se le quita la coletilla de la edición", () => {
+  // Los títulos vienen de Spotify y arrastran cómo se publicó la pista. Sin
+  // quitarla, cualquier versión que se llame exactamente igual le gana al original.
+  assert.equal(sinEdicion("Let It Be - Remastered 2009"), "Let It Be");
+  assert.equal(sinEdicion("Hotel California - Live; 1999 Remaster"), "Hotel California");
+  assert.equal(sinEdicion("Wonderwall (Remastered)"), "Wonderwall");
+  // Pero un título que lleva esas palabras de suyo se queda como está.
+  assert.equal(sinEdicion("Live and Let Die"), "Live and Let Die");
+  assert.equal(sinEdicion("Cover Me"), "Cover Me");
+  assert.equal(sinEdicion("- Live"), "- Live"); // no se puede quedar en nada
+
+  const ws = ["hotel", "california"];
+  const original = [1, "Hotel California - 2013 Remaster", "Eagles"];
+  const version = [2, "Hotel California", "Grupo Cualquiera"];
+  // Con el original arriba del fichero —su intérprete está más transcrito— gana él.
+  assert.ok(puntua(original, ws, 0) > puntua(version, ws, 0.9));
 });
