@@ -80,7 +80,12 @@ export function playablePositions(db, symbol, max = Infinity) {
       .filter(Boolean);
     if (sounding.length < 3) continue;
     const top = sounding.reduce((a, b) => (b.midi > a.midi ? b : a));
-    out.push({ symbol, position, frets, top: top.midi, topString: top.stringIdx, baseFret: position.baseFret });
+    const midis = sounding.map(s => s.midi).sort((a, b) => a - b);
+    out.push({
+      symbol, position, frets, midis, bass: midis[0],
+      pcs: new Set(midis.map(m => m % 12)),
+      top: top.midi, topString: top.stringIdx, baseFret: position.baseFret,
+    });
     if (out.length === max) break;
   }
   return out;
@@ -99,7 +104,10 @@ export function shapeSvg(p) {
   const T = 16;   // margen superior (para × y ○)
   const SW = 10;  // separación entre cuerdas
   const FH = 15;  // alto de traste
-  const L = p.baseFret > 1 ? 14 : 8;
+  // Margen fijo aunque no haya número de traste: si varía, varía el ancho del
+  // viewBox y con él la altura renderizada, y los diagramas de una progresión
+  // dejan de estar a la misma altura.
+  const L = 14;
   const x = s => L + SW * s; // s: 0 (6ª cuerda) … 5 (1ª)
   const W = x(5) + 8;
   const H = T + FH * 4 + 4;
