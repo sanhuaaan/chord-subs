@@ -160,3 +160,137 @@ sin hacer y siguen valiendo: rellenar los ~54.000 títulos que faltan con el oEm
 Spotify, y traer popularidad de una fuente libre (MusicBrainz, ListenBrainz) para que el orden deje
 de ser el punto flojo.
 
+
+## 5. Explorar desde este resultado
+
+**La idea.** Si una tarjeta te gusta —esa versión con cejilla 2, esos voicings—, pulsar
+**Explorar** y que Jangle vuelva a buscar partiendo de ahí. No hay resultado final:
+encuentro algo, trasteo con ello, encuentro otra cosa. Es la forma de la aplicación
+llevada a su conclusión.
+
+**Dónde está hoy.** Media idea ya funciona, por accidente. Todo el estado de la app es
+el texto del campo más el hash: `transposeTo` reescribe el campo y hace
+`form.requestSubmit()`, y de ahí salen gratis la persistencia al recargar, el atrás como
+deshacer y el enlace compartible. Un «Explorar» que solo se lleve **los acordes** de una
+tarjeta (`Cmaj7 Am7 F6 G7sus4` en vez de `C Am F G`) es ese mismo gesto y cabe en cinco
+líneas.
+
+**Lo que no cabe ahí.** Lo que pides es partir de la **realización**, no de los símbolos,
+y eso choca con dos cosas. Una, los motores arrancan libres: `reharmonize` monta sus capas
+desde `optionsFor` y `bestChain` empieza cobrando `nodeCost` en la capa 0 —no hay por
+dónde clavar un voicing de salida. Dos, una realización no se sabe escribir: el hash
+guarda seis caracteres por acorde y una realización son seis trastes, una afinación y una
+cejilla por acorde.
+
+**Por dónde seguiría.** Un ancla opcional en las dos búsquedas: una capa 0 de un solo
+nodo (el voicing de partida) y, si acaso, un peaje por alejarse de la digitación anclada
+—que sería otro factor de `linkCost`, no un caso especial—. Con eso «Explorar» es *rehacer
+la pregunta con este acorde ya decidido*, que es más útil que rehacerla desde cero. La
+serialización es la parte aburrida y la que decide si el resultado se puede compartir;
+merece la pena resolverla junto con el hilo 9, que necesita exactamente lo mismo.
+
+## 6. Comparar dos realizaciones
+
+**La idea.** Marcar dos tarjetas y verlas enfrentadas —diagramas, cuerdas al aire, notas
+comunes, movimiento total, voz superior— sin que ninguna se declare mejor. Una herramienta
+de decisión, no un veredicto.
+
+**Dónde está hoy.** Los números ya están todos calculados y ya se enseñan: `arrangementStats`
+devuelve `open`, `common`, `still`, `movement` y `unpaired` para **todas** las versiones,
+pese al preset que las ganara, y `lineStats` da la línea de arriba. Eso se hizo así a
+posta —«comparar los números entre tarjetas es parte de la gracia»— pero se quedó a medias:
+hoy comparas leyendo dos párrafos separados por media pantalla.
+
+**Por dónde seguiría.** Es casi todo interfaz: seleccionar dos tarjetas y pintarlas en dos
+columnas con los mismos números alineados por fila. Lo único que hay que pensar de verdad
+es qué pasa cuando las dos realizaciones no tienen los mismos acordes (una rearmonización
+contra otra que sustituyó en otro sitio): la fila de la izquierda ya no es «el mismo
+acorde». Alinear por hueco de la progresión original —el `slot` que cada paso ya lleva—
+en vez de por posición en la lista.
+
+**El riesgo.** Que la tabla invite a leer «gana la que tiene más cuerdas al aire». Los
+números están para escuchar mentalmente, y eso hay que decirlo en la propia tarjeta, no
+darlo por supuesto.
+
+## 7. Mantener una nota — pedal y cuerda abierta
+
+**La idea.** Elegir una nota (o una cuerda) y que Jangle busque realizaciones que la
+mantengan siempre que se pueda. Son dos ideas que resultaron ser una: una cuerda abierta
+es una nota mantenida que además no cuesta un dedo. Y es la manera natural de llegar a los
+add9, los sus2 y los acordes incompletos: no partes del acorde buscando digitación, partes
+de una resonancia que quieres conservar y ves qué se puede construir alrededor.
+
+**Dónde está hoy.** El preset `pedal` mantiene la **voz de arriba**, que no es lo mismo:
+manda `topMove` con `dir: 0`, así que sujeta la nota más aguda, sea la que sea, y no una
+elegida. Los factores `still` y `stillOpen` cuentan cuerdas quietas y quietas-al-aire,
+pero sin decir cuáles. Y hay un problema de forma: mantener una cuerda concreta es una
+propiedad **del nodo** (`frets[i] === 0`), no del enlace, y `linkCost` solo sabe de pares.
+El hueco donde entraría ya existe: `bestChain(layers, preset, nodeCost)` recibe el coste
+de nodo desde fuera; la rearmonización lo mete a mano dentro de `internal`.
+
+**Lo que dicen los números.** Medido sobre 96 acordes (doce fundamentales × ocho calidades):
+
+- Con las formas curadas de chords-db, una cuerda dada está al aire en el **8–23%** de los
+  acordes según cuál (la 1ª es la mejor servida, la 6ª la peor). Con `generate.js` en
+  estándar sube a un **29% parejo en las seis**, y ahí se para: no es la base de datos, es
+  que el 71% restante **no contiene esa nota**. Es un techo musical, no técnico. Por eso
+  esto no puede ser un filtro: sobre una progresión de cuatro acordes, exigir la 2ª al aire
+  fallaría casi siempre. Tiene que ser un peso, como todo lo demás —lo que sale barato, no
+  lo que se impone—.
+- Ahora bien, si la nota mantenida puede **renombrar** el acorde en vez de tener que
+  pertenecer a él, la cobertura pasa de 29% a **56%**: 28 acordes de 96 ya la tienen y otros
+  26 la admiten como add9, sus4, 6, maj7, m9… Ese segundo camino es el interesante, y es
+  justo el que ya sabe recorrer la tabla `EXT` de `capo.js`.
+
+**Por dónde seguiría.** Un preset con parámetro (nota o cuerda objetivo) que pague coste de
+nodo por no sostenerla, más la decisión de si el pedal puede renombrar. Depende del resto
+del hilo 2 —meter `generate.js` en estándar—, porque con cuatro formas por acorde el
+buscador no tiene sitio donde elegir. Ese resto deja de ser un extra y pasa a ser el
+requisito.
+
+## 8. Un modo caos controlado
+
+**La idea.** Un **Sorpréndeme** que no busque lo óptimo, sino que se aleje a posta de lo
+convencional sin abandonar la progresión: `C Am F G` devolviendo `Cmaj7 Am(add9) F6
+G7sus4`, o colando un acorde prestado. Con un mando: conservador ↔ aventurado.
+
+**Dónde está hoy.** El presupuesto de rareza **ya existe**, solo que fijo y escondido:
+`budgetFor` permite tocar un tercio de la progresión y `budgetCost` cobra un adorno a mitad
+de precio que una sustitución, contado en medios dentro del estado del Viterbi. El
+comentario dice por qué: «un Fm prestado en el sitio justo es un hallazgo, y en cada compás
+es otra canción».
+
+**Por dónde seguiría.** Lo barato es exponer ese presupuesto como el mando y ya. Lo que no
+resuelve es el «sorpréndeme»: subir el presupuesto da **el mismo** arreglo con más cambios,
+porque el camino mínimo sigue siendo único y determinista. Para que sorprenda hace falta
+otra cosa —el segundo o tercer mejor camino en vez del primero, o desempatar al azar entre
+caminos de coste parecido—, y eso es maquinaria nueva (k-mejores caminos sobre el mismo
+grafo). Antes de escribirla conviene probar si con el mando solo ya aparecen cosas que no
+se te habrían ocurrido, que puede que sí.
+
+**El riesgo.** Que salga ruido con nombre de acorde. La red que ya hay —`repeatCost`, el
+recargo por tocar el primer acorde— está puesta contra eso y habrá que ver si aguanta con
+el presupuesto abierto.
+
+## 9. Guardar hallazgos, no solo canciones
+
+**La idea.** Junto al cancionero, una colección de **hallazgos**: no «canción →
+progresión», sino la receta entera —`C Am F G`, afinación estándar, cejilla 2, preset
+Resonancia, cuatro cuerdas al aire, nota pedal B—. Jangle como cuaderno propio de recursos
+guitarrísticos.
+
+**Dónde está hoy.** `library.js` guarda canciones en localStorage con una identidad
+deliberadamente sencilla: `songKey` es intérprete + título en minúsculas, sin ids
+generados, para que el JSON exportado se pueda editar a mano. Un hallazgo no tiene título
+ni intérprete, así que necesita su propia identidad, y lo honesto es que sea la receta
+misma —acordes + setup + preset— para que guardar dos veces lo mismo siga sin duplicar.
+
+**Por dónde seguiría.** Otra colección al lado, con su clave y su versión, que reutilice
+descargar/cargar/fundir tal cual. Lo que hay que resolver primero es **cómo se escribe una
+realización**, que es el mismo problema del hilo 5: hoy no hay forma de nombrar «estos
+voicings». Resuelto eso, un hallazgo es esa cadena más una nota tuya, y «Explorar» y
+«Guardar» son el mismo dato leído de dos maneras.
+
+**Lo que lo haría valer la pena.** Que un hallazgo se pueda volver a abrir y seguir
+trasteando —o sea, el hilo 5— y que se pueda pasar a alguien, que es lo que ya hacen
+descargar y cargar. Sin esas dos, es una lista de capturas de pantalla en texto.
