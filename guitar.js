@@ -9,10 +9,21 @@ const DB_SPELLING = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb",
 // El nombre con el que hay que buscar una nota en la base de datos de diagramas.
 export const dbSpelling = note => DB_SPELLING[Note.chroma(note)];
 
+// Afinaciones con nombre, de 6ª a 1ª en notas MIDI al aire. La primera es la
+// estándar y es la única que conoce chords-db: las demás valen donde las notas
+// se leen del mástil (el analizador), no de la base de datos de diagramas.
+export const TUNINGS = [
+  { id: "estandar", name: "afinación estándar", midis: [40, 45, 50, 55, 59, 64] },
+  { id: "dropd", name: "Drop D", midis: [38, 45, 50, 55, 59, 64] },
+  { id: "dadgad", name: "DADGAD", midis: [38, 45, 50, 55, 57, 62] },
+  { id: "openg", name: "Open G", midis: [38, 43, 50, 55, 59, 62] },
+  { id: "opend", name: "Open D", midis: [38, 45, 50, 54, 57, 62] },
+].map(t => ({ ...t, notes: t.midis.map(noteName).join(" ") }));
+
 // Afinación estándar de 6ª a 1ª: nombre de la cuerda y su nota MIDI al aire. El
 // orden es el de las posiciones de chords-db (índice 0 = 6ª), y `midi % 12` da
 // el croma para quien solo necesite la altura relativa.
-export const STRINGS = [["6ª", 40], ["5ª", 45], ["4ª", 50], ["3ª", 55], ["2ª", 59], ["1ª", 64]];
+export const STRINGS = TUNINGS[0].midis.map((m, i) => [`${6 - i}ª`, m]);
 
 // Hasta dónde llega el mástil del analizador.
 export const MAX_FRET = 15;
@@ -145,7 +156,7 @@ export function shapeSvg(p) {
 // marcan a la izquierda de la cejuela, y `labels[cuerda]` escribe a la derecha
 // el papel de esa nota (1, 3, b7…), que es quien lo llame sabrá calcularlo.
 // `root` resalta la fundamental para ver de un vistazo dónde cae en el mástil.
-export function fretboardSvg(frets, { maxFret = MAX_FRET, labels = [], root = null, capo = 0 } = {}) {
+export function fretboardSvg(frets, { maxFret = MAX_FRET, labels = [], root = null, capo = 0, tuning = TUNINGS[0].midis } = {}) {
   const G = 26;   // ancho de la columna de ×/○ a la izquierda de la cejuela
   const FW = 30;  // ancho de traste
   const SS = 22;  // separación entre cuerdas
@@ -195,7 +206,7 @@ export function fretboardSvg(frets, { maxFret = MAX_FRET, labels = [], root = nu
   }
 
   frets.forEach((f, s) => {
-    const note = noteName(STRINGS[s][1] + f);
+    const note = noteName(tuning[s] + f);
     if (f === -1) {
       el.push(`<text class="muted" x="${G / 2}" y="${y(s) + 3.5}" text-anchor="middle" font-size="11">×</text>`);
     } else if (f === 0) {

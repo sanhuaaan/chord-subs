@@ -1,5 +1,5 @@
 import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, rootOf, KINDS } from "./rules.js";
-import { KEYS } from "./notes.js";
+import { KEYS, noteName } from "./notes.js";
 import { capoSuggestions, capoArrangements, shapeSymbol } from "./capo.js";
 import { identify, degreeShort } from "./identify.js";
 import { reharmonizations } from "./reharm.js";
@@ -8,7 +8,7 @@ import {
   readLibrary, writeLibrary, libraryJson, parseLibrary, mergeLibrary,
   saveSection, removeSection, removeSong, songKey,
 } from "./library.js";
-import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, MAX_FRET } from "./guitar.js";
+import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, MAX_FRET, TUNINGS } from "./guitar.js";
 
 // Crear un nodo con sus propiedades de una vez: es el gesto más repetido del
 // fichero y en su forma larga no cabe de un vistazo.
@@ -434,16 +434,61 @@ const voicing = document.querySelector("#voicing");
 const picked = [-1, -1, -1, -1, -1, -1]; // formato chords-db: índice 0 = 6ª cuerda
 let chosenRoot = null; // la lectura que el usuario ha elegido; si no, manda el ranking
 let capo = 0; // cejilla puesta en el mástil: la trae el arreglo de la pestaña de cejilla
+let tuning = TUNINGS[0]; // afinación del mástil; solo el analizador sabe de otras
+
+// El selector de afinación: cambia qué nota suena en cada casilla, no qué
+// casillas hay marcadas, así que las pulsaciones se quedan y se renombran.
+const tuningSel = document.querySelector("#tuning");
+const customRow = document.querySelector("#custom-tuning");
+for (const t of TUNINGS) {
+  tuningSel.append(el("option", { value: t.id, textContent: `${t.notes} · ${t.name}` }));
+}
+tuningSel.append(el("option", { value: "custom", textContent: "personalizada…" }));
+
+// La afinación propia se edita cuerda a cuerda y sobrevive en localStorage. La
+// primera vez parte de la que estuviera puesta: elegir Open G y de ahí retocar
+// es justo cómo se inventa una afinación.
+const CUSTOM_KEY = "jangle.tuning";
+const saved = JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? "null");
+const custom = { id: "custom", name: "personalizada", midis: saved ?? null };
+
+function renderCustomRow() {
+  customRow.replaceChildren();
+  custom.midis.forEach((m, i) => {
+    const sel = el("select", { title: `${6 - i}ª cuerda al aire` });
+    // Una octava alrededor de la estándar: cada nombre de nota sale una sola vez.
+    const base = TUNINGS[0].midis[i];
+    for (let midi = base - 7; midi <= base + 4; midi++) {
+      sel.append(el("option", { value: midi, textContent: noteName(midi), selected: midi === m }));
+    }
+    sel.addEventListener("change", () => {
+      custom.midis[i] = Number(sel.value);
+      localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom.midis));
+      renderIdent();
+    });
+    customRow.append(sel);
+  });
+}
+
+tuningSel.addEventListener("change", () => {
+  if (tuningSel.value === "custom") {
+    custom.midis ??= [...tuning.midis];
+    renderCustomRow();
+  }
+  tuning = TUNINGS.find(t => t.id === tuningSel.value) ?? custom;
+  customRow.hidden = tuning !== custom;
+  renderIdent();
+});
 
 function renderIdent() {
-  const { notes, candidates } = identify(picked);
+  const { notes, candidates } = identify(picked, tuning.midis);
   // Si la fundamental elegida ya no suena, se vuelve solo a la lectura mejor valorada.
   const best = candidates.find(c => c.root === chosenRoot) ?? candidates[0];
 
   // Con la lectura principal, cada cuerda lleva escrito su papel junto al mástil.
   const labels = [];
   if (best) for (const n of notes) labels[n.stringIdx] = degreeShort(best.root, n.note);
-  board.innerHTML = fretboardSvg(picked, { labels, root: best?.root ?? null, capo });
+  board.innerHTML = fretboardSvg(picked, { labels, root: best?.root ?? null, capo, tuning: tuning.midis });
 
   voicing.textContent = picked.map(f => (f < 0 ? "×" : f)).join(" ") + (capo ? `  ·  cejilla en ${capo}` : "");
   readout.replaceChildren();
@@ -521,6 +566,11 @@ document.addEventListener("click", e => {
   picked.splice(0, 6, ...frets);
   capo = Number(origen.dataset.capo ?? 0);
   chosenRoot = origen.dataset.root ?? null;
+  // Las digitaciones de las otras pestañas vienen de chords-db, que solo sabe
+  // de estándar: en otra afinación esos trastes sonarían otro acorde.
+  tuning = TUNINGS[0];
+  tuningSel.value = tuning.id;
+  customRow.hidden = true;
   renderIdent();
 });
 

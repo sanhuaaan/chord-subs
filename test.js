@@ -7,7 +7,7 @@ import { parseProgression, suggest, detectKey, transposeSymbol, intervalTo, root
 import { reharmonizations, pairVoices } from "./reharm.js";
 import { capoSuggestions, capoArrangements, shapeSymbol } from "./capo.js";
 import { parseSearch, parseTab, suggestionSlug, decodeEntities } from "./song.js";
-import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, playablePositions, STRINGS, MAX_FRET } from "./guitar.js";
+import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, playablePositions, STRINGS, TUNINGS, MAX_FRET } from "./guitar.js";
 import { NOTES, KEYS } from "./notes.js";
 import { identify, soundingNotes, degreeName, spell } from "./identify.js";
 import {
@@ -276,6 +276,22 @@ test("identifica acordes abiertos corrientes por sus pulsaciones", () => {
   for (const [nombre, frets] of Object.entries(casos)) {
     assert.equal(identify(frets).candidates[0].symbol, nombre, `${nombre} = ${frets}`);
   }
+});
+
+test("la afinación cambia lo que suena, no lo que está marcado", () => {
+  const abierta = [0, 0, 0, 0, 0, 0];
+  const por = id => TUNINGS.find(t => t.id === id).midis;
+  // Las seis al aire: en estándar no forman nada corriente; en las abiertas, sí.
+  assert.equal(identify(abierta, por("dadgad")).candidates[0].symbol, "Dsus4");
+  assert.equal(identify(abierta, por("openg")).candidates[0].symbol, "G/D");
+  assert.equal(identify(abierta, por("opend")).candidates[0].symbol, "D");
+  // La forma de E estándar, con la 6ª en Drop D, gana una séptima en el bajo:
+  // mismo dibujo, otro acorde.
+  assert.equal(identify([0, 2, 2, 1, 0, 0], por("dropd")).candidates[0].symbol, "E7/D");
+  // Sin afinación, la estándar: exactamente lo mismo que antes de que existieran.
+  assert.deepEqual(identify([-1, 3, 2, 0, 1, 0]), identify([-1, 3, 2, 0, 1, 0], por("estandar")));
+  // Y cada afinación sabe decir sus notas, que es lo que enseña el selector.
+  assert.equal(TUNINGS.find(t => t.id === "dadgad").notes, "D A D G A D");
 });
 
 test("el bajo distingue la inversión: C/E no es C", () => {

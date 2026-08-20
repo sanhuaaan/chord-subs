@@ -1,5 +1,5 @@
 import { Note } from "tonal";
-import { STRINGS } from "./guitar.js";
+import { STRINGS, TUNINGS } from "./guitar.js";
 import { NOTES, noteName } from "./notes.js";
 
 // Cómo llama un guitarrista a cada distancia en semitonos desde la fundamental.
@@ -121,9 +121,10 @@ export function spell(steps) {
 // Notas que suenan, de grave a aguda. La primera es el bajo, que es lo que
 // distingue C de C/E. Ojo: con formas altas la 3ª cuerda puede sonar por encima
 // de la 2ª, por eso se ordena por altura real y no por número de cuerda.
-export function soundingNotes(frets) {
+// La afinación son los seis midis de las cuerdas al aire; sin ella, la estándar.
+export function soundingNotes(frets, tuning = TUNINGS[0].midis) {
   return frets
-    .map((f, i) => (f < 0 ? null : { string: STRINGS[i][0], stringIdx: i, fret: f, midi: STRINGS[i][1] + f }))
+    .map((f, i) => (f < 0 ? null : { string: STRINGS[i][0], stringIdx: i, fret: f, midi: tuning[i] + f }))
     .filter(Boolean)
     .map(n => ({ ...n, note: noteName(n.midi) }))
     .sort((a, b) => a.midi - b.midi);
@@ -140,8 +141,8 @@ const score = (suffix, isBass) =>
 // sea el que el guitarrista tenía en mente. La más grave manda en el cifrado,
 // así que las que no la tienen por fundamental salen como inversión (X/bajo).
 // ponytail: con una sola nota no hay nada que nombrar; desde dos sí
-export function identify(frets) {
-  const notes = soundingNotes(frets);
+export function identify(frets, tuning) {
+  const notes = soundingNotes(frets, tuning);
   const pcs = [...new Set(notes.map(n => n.note))]; // Set conserva el orden: pcs[0] es el bajo
   if (pcs.length < 2) return { notes, pcs, candidates: [] };
 

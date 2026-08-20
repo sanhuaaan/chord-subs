@@ -262,7 +262,21 @@
     #board .capo { fill: var(--apagado); opacity: 0.5; }
     #board .degree { fill: var(--acento-suave); font-family: ui-monospace, monospace; }
     #board .placeholder { padding: 1rem 0; }
-    #tuning { display: block; font-size: 0.75rem; color: var(--apagado); text-align: right; letter-spacing: 0.08em; }
+    #tuning {
+      display: block; margin-left: auto; font-size: 0.75rem; color: var(--apagado);
+      letter-spacing: 0.08em; padding: 0.15rem 0.4rem; border-radius: var(--radio);
+      background: var(--panel); border: var(--linea) solid var(--borde);
+    }
+    #tuning:hover { background: var(--panel-alto); border-color: var(--acento); }
+    /* La afinación propia: un selector de nota por cuerda, de 6ª a 1ª. */
+    #custom-tuning { display: flex; justify-content: flex-end; gap: 0.25rem; margin: 0.3rem 0 0; }
+    /* display:flex le ganaría al display:none del atributo hidden. */
+    #custom-tuning[hidden] { display: none; }
+    #custom-tuning select {
+      font-size: 0.75rem; padding: 0.1rem 0.15rem; border-radius: var(--radio);
+      background: var(--panel); color: var(--texto); border: var(--linea) solid var(--borde);
+    }
+    #custom-tuning select:hover { background: var(--panel-alto); border-color: var(--acento); }
     #voicing { font-family: ui-monospace, monospace; letter-spacing: 0.1em; }
     .others { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0; margin: 0.5rem 0 0.75rem; }
     .others li { list-style: none; padding: 0.35rem 0.7rem; border: var(--linea) solid var(--borde); border-radius: var(--radio); font-size: 1rem; cursor: pointer; }
@@ -440,7 +454,8 @@
   </div>
   <section id="ident">
     <h2>Identificador de acordes</h2>
-    <span id="tuning">E A D G B E<br>afinación estándar</span>
+    <select id="tuning" title="Afinación del mástil"></select>
+    <div id="custom-tuning" hidden></div>
     <div id="board">
       <p class="why placeholder">El mástil no ha cargado. Si has abierto el archivo directamente
         (<code>file://</code>), el navegador bloquea los módulos: sirve la carpeta con
