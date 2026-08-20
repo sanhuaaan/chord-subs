@@ -321,8 +321,15 @@ test("las afinaciones compiten por la misma progresión con costes comparables",
   assert.equal(out.length, TUNINGS.length, "todas las afinaciones dan arreglo");
   assert.ok(out.every((a, i) => !i || out[i - 1].cost <= a.cost), "ordenadas por coste");
   for (const a of out) {
-    assert.deepEqual(a.steps.map(s => s.symbol), ["D", "G", "A", "D"], "los acordes son los escritos");
+    assert.equal(a.steps.length, 4, "un paso por acorde");
+    a.steps.forEach((s, i) => {
+      if (!s.changed) assert.equal(s.sounding, progression[i].symbol, "sin adorno suena lo escrito");
+      assert.equal(rootOf(s.sounding), rootOf(progression[i].symbol), "el adorno no cambia la raíz");
+    });
   }
+  // Los adornos entran en la búsqueda como en la cejilla: con tanto aire a
+  // mano, alguna afinación colorea algún acorde.
+  assert.ok(out.some(a => a.steps.some(s => s.changed)), "algún adorno sale elegido");
   // La gracia de la pestaña: para una progresión en re, la estándar no gana.
   const estandar = out.find(a => a.tuning.id === "estandar");
   assert.ok(out[0].aire >= estandar.aire, "la ganadora resuena al menos como la estándar");

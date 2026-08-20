@@ -446,13 +446,13 @@ function renderRetune(progression) {
     }));
     const chart = el("div", { className: "chart" });
     for (const s of a.steps) {
-      const step = el("div", { className: "step" });
-      const name = el("span", { className: "chord", textContent: s.symbol });
+      const step = el("div", { className: s.changed ? "step changed" : "step" });
+      const name = el("span", { className: "chord", textContent: s.sounding });
       // El clic lleva la afinación consigo: el analizador se pone en ella y
       // los trastes suenan a lo que dice la tarjeta.
       name.dataset.frets = s.frets.join(",");
       name.dataset.midis = a.tuning.midis.join(",");
-      name.dataset.root = rootOf(s.symbol);
+      name.dataset.root = rootOf(s.sounding);
       const svg = document.createElement("span");
       svg.innerHTML = shapeSvg(s.position);
       step.append(name, svg, el("span", {

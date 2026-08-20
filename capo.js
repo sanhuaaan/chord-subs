@@ -1,5 +1,5 @@
 import { Chord, Note } from "tonal";
-import { qualityOf, transposeSymbol, intervalTo, optionsFor } from "./rules.js";
+import { qualityOf, transposeSymbol, intervalTo, optionsFor, esAdorno } from "./rules.js";
 import { alAire, PRESETS, mejorCadena } from "./reharm.js";
 import { dbSpelling, playablePositions, MAX_FRET, STRINGS } from "./guitar.js";
 import { noteName } from "./notes.js";
@@ -79,11 +79,6 @@ export function capoSuggestions(progression, maxFret = 7) {
 // El coste es el mismo que usa la rearmonización, con su preset resonante; aquí
 // solo se añade la cejilla como dimensión de búsqueda y el filtro de solo-adornos.
 const RESONANTE = PRESETS.find(p => p.id === "resonancia");
-
-// Solo adornos: add9, sus2, 6, maj7, m7… Cambian el color pero no la función, que
-// es justo lo que una cuerda al aire le hace a un acorde. Sustituirlo por otro o
-// meterle acordes delante ya sería rearmonizar, y para eso está su pestaña.
-const esAdorno = o => !o.rule || o.kind === "color";
 
 // ponytail: peaje fijo por adornar, fuera del vocabulario de pesos; es el mando
 // de cuántos adornos salen, no parte del coste de encadenar.
