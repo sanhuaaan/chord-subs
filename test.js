@@ -10,6 +10,7 @@ import { parseSearch, parseTab, suggestionSlug, decodeEntities } from "./song.js
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, playablePositions, STRINGS, TUNINGS, MAX_FRET } from "./guitar.js";
 import { NOTES, KEYS } from "./notes.js";
 import { identify, soundingNotes, degreeName, spell } from "./identify.js";
+import { generateShapes } from "./generate.js";
 import {
   KEY, emptyLibrary, readLibrary, writeLibrary, libraryJson, parseLibrary,
   mergeLibrary, saveSection, removeSection, removeSong, songKey,
@@ -261,6 +262,57 @@ test("shapeSvg dibuja cuerdas, trastes y puntos", () => {
   assert.ok(svg.startsWith("<svg"));
   assert.ok(svg.includes("<circle"));
   assert.ok(svg.includes("<line"));
+});
+
+test("el generador encuentra las formas abiertas de toda la vida", () => {
+  // El arnés que lo mantiene honesto: si en estándar no salen las formas
+  // curadas de chords-db, el generador está mal.
+  const casos = {
+    "C": [-1, 3, 2, 0, 1, 0],
+    "Am": [-1, 0, 2, 2, 1, 0],
+    "E": [0, 2, 2, 1, 0, 0],
+    "G7": [3, 2, 0, 0, 0, 1],
+    "Dm7": [-1, -1, 0, 2, 1, 1],
+    "F": [1, 3, 3, 2, 1, 1],
+  };
+  for (const [symbol, frets] of Object.entries(casos)) {
+    const gen = generateShapes(symbol);
+    assert.ok(gen.some(s => s.frets.join() === frets.join()), `${symbol} = ${frets}`);
+  }
+});
+
+test("todo lo generado cumple el contrato, en cualquier afinación", () => {
+  const por = id => TUNINGS.find(t => t.id === id).midis;
+  for (const [symbol, tuning] of [["C", por("estandar")], ["G", por("openg")], ["Dm7", por("dadgad")], ["Amaj7", por("dropd")]]) {
+    const chromas = new Set(Chord.get(symbol).notes.map(Note.chroma));
+    const root = Note.chroma(Chord.get(symbol).tonic);
+    const shapes = generateShapes(symbol, tuning);
+    assert.ok(shapes.length, `${symbol} genera algo`);
+    for (const s of shapes) {
+      const sounding = s.frets.filter(f => f >= 0);
+      assert.ok(sounding.length >= 4, "suenan al menos cuatro cuerdas");
+      assert.ok([...s.pcs].every(c => chromas.has(c)), "solo notas del acorde");
+      assert.ok(s.pcs.has(root), "la fundamental siempre suena");
+      const fretted = s.frets.filter(f => f > 0);
+      if (fretted.length) {
+        assert.ok(Math.max(...fretted) - Math.min(...fretted) < 4, "cabe en una mano");
+      }
+      const i0 = s.frets.findIndex(f => f >= 0);
+      const i1 = s.frets.findLastIndex(f => f >= 0);
+      assert.ok(!s.frets.slice(i0, i1).includes(-1), "sin mudas interiores");
+      assert.ok([root, (root + 7) % 12].includes(s.bass % 12), "el bajo es fundamental o quinta");
+    }
+  }
+});
+
+test("en las afinaciones abiertas el generador encuentra lo que les da nombre", () => {
+  const por = id => TUNINGS.find(t => t.id === id).midis;
+  const alAire = [0, 0, 0, 0, 0, 0];
+  assert.ok(generateShapes("G", por("openg")).some(s => s.frets.join() === alAire.join()), "Open G: las seis al aire son G");
+  assert.ok(generateShapes("D", por("opend")).some(s => s.frets.join() === alAire.join()), "Open D: las seis al aire son D");
+  // Y el orden pone la fundamental en el bajo por delante de la quinta.
+  const [primera] = generateShapes("G", por("openg"));
+  assert.equal(primera.bass % 12, Note.chroma("G"), "la primera lleva G en el bajo");
 });
 
 test("identifica acordes abiertos corrientes por sus pulsaciones", () => {
