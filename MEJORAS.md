@@ -72,6 +72,21 @@ digitaciones es un proyecto en sí mismo, con sus propias reglas de tocabilidad
 pena solo si de verdad quieres explorar afinaciones abiertas; para pulir la
 estándar hay caminos más baratos.
 
+**El destino concreto (2026-08-20).** Una **pestaña nueva y separada** que tome
+el motor unificado de rearmonizar y cejilla —que tras el hilo 3 ya es agnóstico
+a la afinación: `linkCost`, el emparejamiento de voces y los presets operan
+sobre midis y trastes, nada ahí supone estándar— y lo aplique sobre digitaciones
+generadas para la afinación elegida. Separada a propósito: lo generado es
+tocable pero no siempre idiomático, y mezclarlo con las formas curadas de
+chords-db degradaría las pestañas que ya funcionan. Si el generador madura, ya
+se verá si sustituye a la base de datos también en estándar.
+
+**El orden.** Primero el **selector de afinación en el analizador**, que es casi
+gratis —ahí la afinación son solo los seis midis de las cuerdas al aire— y
+obliga a decidir la representación común (presets tipo Drop D, DADGAD, Open G, y
+custom por cuerda) que luego hereda todo lo demás. Después el generador, que es
+el 80% del esfuerzo. La pestaña, al final, es enchufar el motor.
+
 ## 3. Rearmonización mediante sistema de costes — hecho (2026-08-19)
 
 Implementado tal como se describía: `reharm.js` tiene una única función de
