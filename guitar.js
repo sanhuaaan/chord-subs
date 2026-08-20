@@ -15,10 +15,23 @@ export const dbSpelling = note => DB_SPELLING[Note.chroma(note)];
 export const TUNINGS = [
   { id: "standard", name: "afinación estándar", midis: [40, 45, 50, 55, 59, 64] },
   { id: "dropd", name: "Drop D", midis: [38, 45, 50, 55, 59, 64] },
-  { id: "dadgad", name: "DADGAD", midis: [38, 45, 50, 55, 57, 62] },
+  { id: "dropc", name: "Drop C", midis: [36, 43, 48, 53, 57, 62] },
+  { id: "dstandard", name: "D estándar", midis: [38, 43, 48, 53, 57, 62] },
   { id: "openg", name: "Open G", midis: [38, 43, 50, 55, 59, 62] },
   { id: "opend", name: "Open D", midis: [38, 45, 50, 54, 57, 62] },
-].map(t => ({ ...t, notes: t.midis.map(noteName).join(" ") }));
+  // La tercera de Open E es G#, no Ab: la tabla de notas no sabe de contextos,
+  // así que la etiqueta va escrita a mano.
+  { id: "opene", name: "Open E", midis: [40, 47, 52, 56, 59, 64], notes: "E B E G# B E" },
+  { id: "dadgad", name: "DADGAD", midis: [38, 45, 50, 55, 57, 62] },
+  { id: "openc", name: "Open C", midis: [36, 43, 48, 55, 60, 64] },
+  { id: "doubledropd", name: "Double Drop D", midis: [38, 45, 50, 55, 59, 62] },
+  { id: "opena", name: "Open A", midis: [40, 45, 49, 52, 57, 64] },
+  { id: "cstandard", name: "C estándar", midis: [36, 41, 46, 51, 55, 60] },
+  { id: "bstandard", name: "B estándar", midis: [35, 40, 45, 50, 54, 59] },
+  { id: "opendm", name: "Open Dm", midis: [38, 45, 50, 53, 57, 62] },
+  { id: "opengm", name: "Open Gm", midis: [38, 43, 50, 55, 58, 62] },
+  { id: "cgcgcd", name: "CGCGCD", midis: [36, 43, 48, 55, 60, 62] },
+].map(t => ({ ...t, notes: t.notes ?? t.midis.map(noteName).join(" ") }));
 
 // Afinación estándar de 6ª a 1ª: nombre de la cuerda y su nota MIDI al aire. El
 // orden es el de las posiciones de chords-db (índice 0 = 6ª), y `midi % 12` da

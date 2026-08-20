@@ -161,7 +161,13 @@ form.addEventListener("submit", async e => {
 
   renderReharm(progression);
 
-  renderRetune(progression);
+  // Con dieciséis afinaciones el producto entero ronda el segundo de cálculo:
+  // que las demás pestañas pinten primero. Si llega otro submit antes de que
+  // toque, este se descarta y pinta solo el último.
+  retuneProg = progression;
+  setTimeout(() => {
+    if (retuneProg === progression) renderRetune(progression);
+  }, 0);
 });
 
 // ── Transponer: la misma progresión sonando en otro tono ────────────────────
