@@ -4,8 +4,8 @@ Aquí está la tubería que fabrica **De Chordis Mysteriis**, el repo de fichero
 progresiones de 385.664 canciones. Se ejecuta una vez, a mano, en una máquina con red y unos gigas
 libres.
 
-> La app no usa hoy este catálogo: está guardado, con el porqué en [el LEEME de al
-> lado](../LEEME.md). El repo de datos sigue publicado y esta tubería sigue valiendo tal cual.
+> La app no usa hoy este catálogo: está guardado, con el porqué en [el README de al
+> lado](../README.md). El repo de datos sigue publicado y esta tubería sigue valiendo tal cual.
 
 ## La fuente
 
