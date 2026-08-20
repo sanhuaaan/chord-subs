@@ -1,5 +1,6 @@
 import { Chord, Note } from "tonal";
 import { TUNINGS, MAX_FRET } from "./guitar.js";
+import { alAire, PRESETS, mejorCadena } from "./reharm.js";
 
 // Genera digitaciones para un acorde en una afinación cualquiera. Es lo que
 // chords-db no puede hacer: sus formas suponen afinación estándar y en otra
@@ -100,4 +101,37 @@ export function generateShapes(symbol, tuning = TUNINGS[0].midis, max = Infinity
     || a.baseFret - b.baseFret
     || b.midis.length - a.midis.length);
   return out.slice(0, max);
+}
+
+// ── Qué afinación le sienta mejor a una progresión ──────────────────────────
+
+const RESONANTE = PRESETS.find(p => p.id === "resonancia");
+
+// El mejor arreglo de la progresión en cada afinación candidata: digitaciones
+// generadas y el mismo camino mínimo resonante de la cejilla. Mismo preset y
+// misma progresión en todas, así que aquí los costes SÍ son comparables entre
+// sí y el orden lo decide el coste total: la afinación que gana es la que más
+// resuena tocando justo lo que has escrito.
+export function tuningArrangements(progression, tunings, max = 120) {
+  const out = [];
+  for (const tuning of tunings) {
+    const layers = progression.map(c => generateShapes(c.symbol, tuning.midis)
+      .map(v => ({ ...v, aire: alAire(v.frets) }))
+      // ponytail: recorte por resonancia antes del camino mínimo; si algún día
+      // el preset deja de premiar el aire, recortar por lo que premie
+      .sort((a, b) => b.aire - a.aire)
+      .slice(0, max));
+    if (layers.some(l => !l.length)) continue;
+    const cadena = mejorCadena(layers, RESONANTE, n => -RESONANTE.w.aire * n.aire);
+    const quietas = cadena.slice(1).reduce((n, p, i) =>
+      n + p.frets.filter((f, s) => f >= 0 && f === cadena[i].frets[s]).length, 0);
+    out.push({
+      tuning,
+      cost: cadena.at(-1).total,
+      steps: cadena.map(n => ({ symbol: n.symbol, position: n.position, frets: n.frets, aire: n.aire })),
+      aire: cadena.reduce((n, x) => n + x.aire, 0),
+      quietas,
+    });
+  }
+  return out.sort((a, b) => a.cost - b.cost);
 }

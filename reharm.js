@@ -316,3 +316,29 @@ export function reharmonizations(db, progression) {
       return !seen.has(key) && seen.add(key);
     });
 }
+
+// Camino mínimo por capas, sin presupuesto de cambios: cada capa ofrece sus
+// voicings, los enlaces los paga linkCost con el preset dado y cada nodo su
+// propio coste. Lo comparten la cejilla y las afinaciones; la rearmonización
+// tiene su Viterbi aparte porque además raciona cuántos acordes se cambian.
+export function mejorCadena(layers, preset, costeNodo) {
+  layers.forEach((layer, i) => {
+    for (const n of layer) {
+      if (i === 0) {
+        n.total = costeNodo(n);
+        n.from = null;
+        continue;
+      }
+      let mejor = null;
+      for (const p of layers[i - 1]) {
+        const total = p.total + linkCost(p, n, preset);
+        if (!mejor || total < mejor.total) mejor = { total, nodo: p };
+      }
+      n.total = mejor.total + costeNodo(n);
+      n.from = mejor.nodo;
+    }
+  });
+  const cadena = [];
+  for (let n = layers.at(-1).reduce((a, b) => (b.total < a.total ? b : a)); n; n = n.from) cadena.unshift(n);
+  return cadena;
+}

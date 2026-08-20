@@ -10,7 +10,7 @@ import { parseSearch, parseTab, suggestionSlug, decodeEntities } from "./song.js
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, playablePositions, STRINGS, TUNINGS, MAX_FRET } from "./guitar.js";
 import { NOTES, KEYS } from "./notes.js";
 import { identify, soundingNotes, degreeName, spell } from "./identify.js";
-import { generateShapes } from "./generate.js";
+import { generateShapes, tuningArrangements } from "./generate.js";
 import {
   KEY, emptyLibrary, readLibrary, writeLibrary, libraryJson, parseLibrary,
   mergeLibrary, saveSection, removeSection, removeSong, songKey,
@@ -313,6 +313,20 @@ test("en las afinaciones abiertas el generador encuentra lo que les da nombre", 
   // Y el orden pone la fundamental en el bajo por delante de la quinta.
   const [primera] = generateShapes("G", por("openg"));
   assert.equal(primera.bass % 12, Note.chroma("G"), "la primera lleva G en el bajo");
+});
+
+test("las afinaciones compiten por la misma progresión con costes comparables", () => {
+  const progression = parseProgression("D G A D");
+  const out = tuningArrangements(progression, TUNINGS);
+  assert.equal(out.length, TUNINGS.length, "todas las afinaciones dan arreglo");
+  assert.ok(out.every((a, i) => !i || out[i - 1].cost <= a.cost), "ordenadas por coste");
+  for (const a of out) {
+    assert.deepEqual(a.steps.map(s => s.symbol), ["D", "G", "A", "D"], "los acordes son los escritos");
+  }
+  // La gracia de la pestaña: para una progresión en re, la estándar no gana.
+  const estandar = out.find(a => a.tuning.id === "estandar");
+  assert.ok(out[0].aire >= estandar.aire, "la ganadora resuena al menos como la estándar");
+  assert.notEqual(out[0].tuning.id, "estandar", "una afinación abierta le gana a la estándar en re");
 });
 
 test("identifica acordes abiertos corrientes por sus pulsaciones", () => {

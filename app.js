@@ -9,6 +9,7 @@ import {
   saveSection, removeSection, removeSong, songKey,
 } from "./library.js";
 import { findShape, shapeSvg, fretboardSvg, openString, absoluteFrets, MAX_FRET, TUNINGS } from "./guitar.js";
+import { tuningArrangements } from "./generate.js";
 
 // Crear un nodo con sus propiedades de una vez: es el gesto más repetido del
 // fichero y en su forma larga no cabe de un vistazo.
@@ -20,6 +21,7 @@ const input = document.querySelector("#progression");
 const summary = document.querySelector("#summary");
 const subsList = document.querySelector("#subs");
 const capoList = document.querySelector("#capo");
+const retuneList = document.querySelector("#retune");
 const reharmList = document.querySelector("#reharm");
 const error = document.querySelector("#error");
 
@@ -110,7 +112,7 @@ function extChordSpan(ext, baseSym) {
 
 form.addEventListener("submit", async e => {
   e.preventDefault();
-  summary.innerHTML = subsList.innerHTML = capoList.innerHTML = "";
+  summary.innerHTML = subsList.innerHTML = capoList.innerHTML = retuneList.innerHTML = "";
   error.textContent = "";
   transposeBox.hidden = true;
   await dbReady;
@@ -158,6 +160,8 @@ form.addEventListener("submit", async e => {
   renderCapo(progression);
 
   renderReharm(progression);
+
+  renderRetune(progression);
 });
 
 // ── Transponer: la misma progresión sonando en otro tono ────────────────────
@@ -423,6 +427,39 @@ function renderReharm(progression) {
       }));
     }
     reharmList.append(li);
+  }
+}
+
+// ── Pestaña "Afinaciones": la misma progresión en cada afinación ─────────────
+
+// El mismo motor resonante de la cejilla, sobre digitaciones generadas para
+// cada afinación candidata (las predefinidas y la personalizada, si existe).
+// Mismo preset y misma progresión en todas: los costes son comparables y el
+// orden dice qué afinación le sienta mejor a lo que has escrito.
+function renderRetune(progression) {
+  const candidatas = [...TUNINGS, ...(custom.midis ? [{ ...custom, notes: custom.midis.map(noteName).join(" ") }] : [])];
+  for (const a of tuningArrangements(progression, candidatas)) {
+    const li = document.createElement("li");
+    li.append(el("strong", { textContent: `${a.tuning.notes} · ${a.tuning.name}` }));
+    li.append(" ", el("small", {
+      textContent: `${plural(a.aire, "cuerda al aire", "cuerdas al aire")} · ${plural(a.quietas, "nota que no se mueve", "notas que no se mueven")}`,
+    }));
+    const chart = el("div", { className: "chart" });
+    for (const s of a.steps) {
+      const step = el("div", { className: "step" });
+      // ponytail: sin data-frets — el analizador carga en estándar y estos
+      // trastes son de otra afinación; abrirlos ahí sonaría a otro acorde
+      const name = el("span", { className: "chord", textContent: s.symbol });
+      const svg = document.createElement("span");
+      svg.innerHTML = shapeSvg(s.position);
+      step.append(name, svg, el("span", {
+        className: "top",
+        textContent: s.aire ? `${s.aire} al aire` : "sin cuerdas al aire",
+      }));
+      chart.append(step);
+    }
+    li.append(chart);
+    retuneList.append(li);
   }
 }
 

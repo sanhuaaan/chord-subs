@@ -1,6 +1,6 @@
 import { Chord, Note } from "tonal";
 import { qualityOf, transposeSymbol, intervalTo, optionsFor } from "./rules.js";
-import { linkCost, alAire, PRESETS } from "./reharm.js";
+import { alAire, PRESETS, mejorCadena } from "./reharm.js";
 import { dbSpelling, playablePositions, MAX_FRET, STRINGS } from "./guitar.js";
 import { noteName } from "./notes.js";
 
@@ -89,32 +89,6 @@ const esAdorno = o => !o.rule || o.kind === "color";
 // de cuántos adornos salen, no parte del coste de encadenar.
 const costeNodo = n => -RESONANTE.w.aire * n.aire + (n.rule ? 1 : 0);
 
-// Camino mínimo por capas: cada acorde ofrece sus adornos y cada adorno sus
-// digitaciones, y lo que se paga por encadenar dos lo dice linkCost con el
-// preset resonante. Sin presupuesto de cambios como en la rearmonización: aquí
-// ningún adorno cambia el acorde, así que no hay nada que limitar.
-function mejorCadena(layers) {
-  layers.forEach((layer, i) => {
-    for (const n of layer) {
-      if (i === 0) {
-        n.total = costeNodo(n);
-        n.from = null;
-        continue;
-      }
-      let mejor = null;
-      for (const p of layers[i - 1]) {
-        const total = p.total + linkCost(p, n, RESONANTE);
-        if (!mejor || total < mejor.total) mejor = { total, nodo: p };
-      }
-      n.total = mejor.total + costeNodo(n);
-      n.from = mejor.nodo;
-    }
-  });
-  const cadena = [];
-  for (let n = layers.at(-1).reduce((a, b) => (b.total < a.total ? b : a)); n; n = n.from) cadena.unshift(n);
-  return cadena;
-}
-
 // Para cada cejilla, el mejor arreglo que se puede tocar detrás de ella. Null si
 // la BD no da digitaciones para alguno de los acordes.
 function arreglo(db, progression, capo) {
@@ -127,7 +101,7 @@ function arreglo(db, progression, capo) {
       .map(v => ({ ...v, aire: alAire(v.frets), sounding: o.chords[0], rule: o.rule }))));
   if (layers.some(l => !l.length)) return null;
 
-  const cadena = mejorCadena(layers);
+  const cadena = mejorCadena(layers, RESONANTE, costeNodo);
   const quietas = cadena.slice(1).reduce((n, p, i) =>
     n + p.frets.filter((f, s) => f >= 0 && f === cadena[i].frets[s]).length, 0);
   return {
