@@ -112,20 +112,32 @@ const RESONANTE = PRESETS.find(p => p.id === "resonancia");
 // adornos salen, fuera del vocabulario de pesos.
 const costeNodo = n => -RESONANTE.w.aire * n.aire + (n.rule ? 1 : 0);
 
-// El mejor arreglo de la progresión en cada afinación candidata: cada capa son
-// los adornos del acorde (como en la cejilla) por sus digitaciones generadas, y
-// el mismo camino mínimo resonante. Mismo preset y misma progresión en todas,
-// así que aquí los costes SÍ son comparables entre sí y el orden lo decide el
-// coste total: la afinación que gana es la que más resuena con lo que tocas.
+// El mejor arreglo de la progresión en cada setup candidato: una afinación y,
+// si trae `capo`, una cejilla en ese traste. Cada capa son los adornos del
+// acorde (como en la cejilla) por sus digitaciones generadas, y el mismo
+// camino mínimo resonante. Mismo preset y misma progresión en todos, así que
+// aquí los costes SÍ son comparables entre sí y el orden lo decide el coste
+// total: el setup que gana es el que más resuena con lo que tocas.
+//
+// La cejilla es solo una afinación virtual: generar sobre `midis + capo` da
+// trastes relativos a ella (el 0 es la cuerda que solo pisa la cejilla) y las
+// notas que suenan salen bien solas — a diferencia de la pestaña de cejilla,
+// aquí no hay formas con nombre que transponer.
 export function tuningArrangements(progression, tunings, max = 120) {
   const opciones = optionsFor(progression).map(options => options.filter(esAdorno));
   const out = [];
   for (const tuning of tunings) {
+    const capo = tuning.capo ?? 0;
+    const virtual = capo ? tuning.midis.map(m => m + capo) : tuning.midis;
     // Los mismos símbolos se repiten entre huecos (el acorde y sus adornos):
     // generar una sola vez por símbolo y afinación.
     const previas = new Map();
     const genera = symbol => {
-      if (!previas.has(symbol)) previas.set(symbol, generateShapes(symbol, tuning.midis));
+      if (!previas.has(symbol)) {
+        previas.set(symbol, generateShapes(symbol, virtual)
+          // Los trastes son relativos a la cejilla: que no se salgan del mástil.
+          .filter(v => v.frets.every(f => f + capo <= MAX_FRET)));
+      }
       return previas.get(symbol);
     };
     const layers = opciones.map(options => options
@@ -141,6 +153,7 @@ export function tuningArrangements(progression, tunings, max = 120) {
       n + p.frets.filter((f, s) => f >= 0 && f === cadena[i].frets[s]).length, 0);
     out.push({
       tuning,
+      capo,
       cost: cadena.at(-1).total,
       steps: cadena.map((n, i) => ({
         sounding: n.sounding,

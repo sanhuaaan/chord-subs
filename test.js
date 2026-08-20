@@ -336,6 +336,19 @@ test("las afinaciones compiten por la misma progresión con costes comparables",
   assert.notEqual(out[0].tuning.id, "estandar", "una afinación abierta le gana a la estándar en re");
 });
 
+test("la cejilla entra como dimensión del setup", () => {
+  const progression = parseProgression("F Bb C");
+  const estandar = TUNINGS[0];
+  const out = tuningArrangements(progression, [estandar, { ...estandar, capo: 1 }]);
+  // Para F Bb C, la cejilla al 1 desbloquea las formas abiertas de E A B.
+  assert.equal(out[0].capo, 1, "la cejilla al 1 gana a la estándar pelada");
+  assert.ok(out[0].aire > out[1].aire, "y gana por resonancia");
+  // Los trastes de los pasos son relativos a la cejilla y caben en el mástil.
+  for (const s of out[0].steps) {
+    assert.ok(s.frets.every(f => f + out[0].capo <= MAX_FRET), "todo dentro del mástil");
+  }
+});
+
 test("identifica acordes abiertos corrientes por sus pulsaciones", () => {
   const casos = {
     "C": [-1, 3, 2, 0, 1, 0],

@@ -433,38 +433,66 @@ function renderReharm(progression) {
 // ── Pestaña "Afinaciones": la misma progresión en cada afinación ─────────────
 
 // El mismo motor resonante de la cejilla, sobre digitaciones generadas para
-// cada afinación candidata (las predefinidas y la personalizada, si existe).
-// Mismo preset y misma progresión en todas: los costes son comparables y el
-// orden dice qué afinación le sienta mejor a lo que has escrito.
-function renderRetune(progression) {
-  const candidatas = [...TUNINGS, ...(custom.midis ? [{ ...custom, notes: custom.midis.map(noteName).join(" ") }] : [])];
-  for (const a of tuningArrangements(progression, candidatas)) {
-    const li = document.createElement("li");
-    li.append(el("strong", { textContent: `${a.tuning.notes} · ${a.tuning.name}` }));
-    li.append(" ", el("small", {
-      textContent: `${plural(a.aire, "cuerda al aire", "cuerdas al aire")} · ${plural(a.quietas, "nota que no se mueve", "notas que no se mueven")}`,
+// cada setup candidato: las afinaciones predefinidas y la personalizada (si
+// existe), cada una con o sin cejilla. Mismo preset y misma progresión en
+// todos: los costes son comparables y el orden dice qué setup le sienta mejor
+// a lo que has escrito. Las cejillas no compiten de salida —serían decenas de
+// setups y segundos de cálculo—: cada afinación lleva un botón que las prueba.
+let retuneProg = null;       // la progresión pintada, para expandir cejillas
+let retuneCandidatas = [];   // los setups base, por id
+
+function retuneCard(a) {
+  const li = document.createElement("li");
+  li.append(el("strong", {
+    textContent: `${a.tuning.notes} · ${a.tuning.name}${a.capo ? ` · cejilla en ${a.capo}` : ""}`,
+  }));
+  li.append(" ", el("small", {
+    textContent: `${plural(a.aire, "cuerda al aire", "cuerdas al aire")} · ${plural(a.quietas, "nota que no se mueve", "notas que no se mueven")}`,
+  }));
+  const chart = el("div", { className: "chart" });
+  for (const s of a.steps) {
+    const step = el("div", { className: s.changed ? "step changed" : "step" });
+    const name = el("span", { className: "chord", textContent: s.sounding });
+    // El clic lleva el setup consigo: el analizador se pone en esa afinación,
+    // con su cejilla, y los trastes suenan a lo que dice la tarjeta.
+    name.dataset.frets = s.frets.map(f => (f < 0 ? -1 : f + a.capo)).join(",");
+    name.dataset.midis = a.tuning.midis.join(",");
+    if (a.capo) name.dataset.capo = a.capo;
+    name.dataset.root = rootOf(s.sounding);
+    const svg = document.createElement("span");
+    svg.innerHTML = shapeSvg(s.position);
+    step.append(name, svg, el("span", {
+      className: "top",
+      textContent: s.aire ? `${s.aire} al aire` : "sin cuerdas al aire",
     }));
-    const chart = el("div", { className: "chart" });
-    for (const s of a.steps) {
-      const step = el("div", { className: s.changed ? "step changed" : "step" });
-      const name = el("span", { className: "chord", textContent: s.sounding });
-      // El clic lleva la afinación consigo: el analizador se pone en ella y
-      // los trastes suenan a lo que dice la tarjeta.
-      name.dataset.frets = s.frets.join(",");
-      name.dataset.midis = a.tuning.midis.join(",");
-      name.dataset.root = rootOf(s.sounding);
-      const svg = document.createElement("span");
-      svg.innerHTML = shapeSvg(s.position);
-      step.append(name, svg, el("span", {
-        className: "top",
-        textContent: s.aire ? `${s.aire} al aire` : "sin cuerdas al aire",
-      }));
-      chart.append(step);
-    }
-    li.append(chart);
-    retuneList.append(li);
+    chart.append(step);
   }
+  li.append(chart);
+  if (!a.capo) {
+    const b = el("button", { type: "button", textContent: "probar con cejilla" });
+    b.dataset.tuning = a.tuning.id;
+    li.append(b);
+  }
+  return li;
 }
+
+function renderRetune(progression) {
+  retuneProg = progression;
+  retuneCandidatas = [...TUNINGS, ...(custom.midis ? [{ ...custom, notes: custom.midis.map(noteName).join(" ") }] : [])];
+  for (const a of tuningArrangements(progression, retuneCandidatas)) retuneList.append(retuneCard(a));
+}
+
+// Probar con cejilla: los setups de esa afinación con cejilla del 1 al 5, y
+// las tres que más resuenan se cuelan debajo de su tarjeta. El botón se gasta.
+retuneList.addEventListener("click", e => {
+  const btn = e.target.closest("button[data-tuning]");
+  if (!btn) return;
+  const t = retuneCandidatas.find(x => x.id === btn.dataset.tuning);
+  const li = btn.closest("li");
+  const capos = tuningArrangements(retuneProg, [1, 2, 3, 4, 5].map(capo => ({ ...t, capo })));
+  for (const a of capos.slice(0, 3).reverse()) li.after(retuneCard(a));
+  btn.remove();
+});
 
 // ── Identificador de acordes: mástil clicable → nombre del acorde ───────────
 
