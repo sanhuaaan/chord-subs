@@ -6,7 +6,7 @@ tests lo siguen probando, así que si algún día vuelve, vuelve funcionando.
 
 ## Qué hay
 
-`catalogo.js` es el módulo que lee **De Chordis Mysteriis**, el catálogo de 385.664 canciones con
+`catalog.js` es el módulo que lee **De Chordis Mysteriis**, el catálogo de 385.664 canciones con
 sus progresiones por partes que sigue publicado en
 [su repo](https://github.com/sanhuaaan/de-chordis-mysteriis) y en
 `sanhuaaan.github.io/de-chordis-mysteriis`. Sabe tres cosas: buscar por título, abrir una canción, y
@@ -40,5 +40,5 @@ git diff main..catalogo -- app.js index.html
 
 Son unas ciento cincuenta líneas: el import, la mitad de catálogo del diálogo de buscar, la pestaña
 y su panel, y los estilos de los trozos. Los ficheros de esta carpeta habría que devolverlos a la
-raíz (`catalogo.js` y `datos/`), que es de donde salieron, y arreglar las dos rutas de import que
+raíz (`catalog.js` y `datos/`), que es de donde salieron, y arreglar las dos rutas de import que
 cambiaron al moverlos.

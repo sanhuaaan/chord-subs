@@ -136,14 +136,14 @@ form.addEventListener("submit", async e => {
     // La canción en negrita y la parte detrás: lo que identifica la progresión
     // es de qué canción sale; la parte matiza cuál de ellas. El intérprete va
     // pegado al título, que es con quien forma el nombre de la canción.
-    const origen = el("p", { className: "origen" });
-    origen.append(
+    const source = el("p", { className: "origin" });
+    source.append(
       el("strong", { textContent: songContext.song ?? songContext.label }),
       songContext.song
         ? `${songContext.artist ? ` — ${songContext.artist}` : ""} · ${songContext.part}`
         : "",
     );
-    summary.append(origen);
+    summary.append(source);
   }
 
   const original = document.createElement("p");
@@ -206,25 +206,25 @@ function capoCard(a) {
   li.append(el("strong", { textContent: a.capo ? `Cejilla en traste ${a.capo}` : "Sin cejilla" }));
   if (a.steps) {
     li.append(" ", el("small", {
-      textContent: `${plural(a.aire, "cuerda al aire", "cuerdas al aire")} · ${plural(a.quietas, "nota que no se mueve", "notas que no se mueven")}`,
+      textContent: `${plural(a.open, "cuerda al open", "cuerdas al open")} · ${plural(a.still, "nota que no se mueve", "notas que no se mueven")}`,
     }));
     li.append(chartOf(a));
   }
 
-  const cp = capoColores.get(a.capo);
+  const cp = capoColors.get(a.capo);
   if (!cp) return li;
   li.append(el("p", { className: "why hint", textContent: "y además, si buscas color:" }));
   const cols = el("div", { className: "cols" });
   for (const pc of cp.perChord) {
     const sh = shapeSymbol(pc.chord, a.capo);
-    const forma = shapeOf(sh)?.positions[0];
+    const dbShape = shapeOf(sh)?.positions[0];
     const head = el("p", { className: "why" });
-    head.append(conCejilla(chordSpan(pc.chord, sh), forma, a.capo));
+    head.append(withCapo(chordSpan(pc.chord, sh), dbShape, a.capo));
     const exts = el("ul", { className: "exts" });
     for (const ext of pc.extensions) {
       const row = document.createElement("li");
-      const conAire = forma && openString(forma, ext.stringIdx);
-      row.append("→ ", conCejilla(extChordSpan(ext, sh), conAire, a.capo),
+      const withOpen = dbShape && openString(dbShape, ext.stringIdx);
+      row.append("→ ", withCapo(extChordSpan(ext, sh), withOpen, a.capo),
         ` (${ext.note} en ${ext.string} al aire)`);
       exts.append(row);
     }
@@ -236,43 +236,43 @@ function capoCard(a) {
   return li;
 }
 
-let capoColores = new Map();
+let capoColors = new Map();
 let capoExtra = []; // cejillas que el ranking dejó fuera, en su orden
-const quedanCejillas = () =>
+const remainingCapoLabel = () =>
   `ver otra cejilla · ${capoExtra.length === 1 ? "queda una" : `quedan ${capoExtra.length}`}`;
 
 function renderCapo(progression) {
-  capoColores = new Map(capoSuggestions(progression).map(cp => [cp.capo, cp]));
+  capoColors = new Map(capoSuggestions(progression).map(cp => [cp.capo, cp]));
   // Sin la base de datos no hay digitaciones que elegir, así que queda el menú.
-  const arreglos = db ? capoArrangements(db, progression) : [];
-  const todos = arreglos.length ? arreglos : [...capoColores.values()].map(cp => ({ capo: cp.capo }));
+  const arrangements = db ? capoArrangements(db, progression) : [];
+  const all = arrangements.length ? arrangements : [...capoColors.values()].map(cp => ({ capo: cp.capo }));
 
-  for (const a of todos.slice(0, 3)) capoList.append(capoCard(a));
+  for (const a of all.slice(0, 3)) capoList.append(capoCard(a));
 
   // El resto de trastes, dosificado: un solo botón que en cada pulsación saca
   // la siguiente del ranking, dice cuántas quedan y se va con la última.
-  capoExtra = todos.slice(3);
+  capoExtra = all.slice(3);
   if (!capoExtra.length) return;
-  const fila = el("li", { className: "otras-cejillas" });
-  fila.append(el("button", { type: "button", textContent: quedanCejillas() }));
-  capoList.append(fila);
+  const row = el("li", { className: "other-capos" });
+  row.append(el("button", { type: "button", textContent: remainingCapoLabel() }));
+  capoList.append(row);
 }
 
 // Ver otra cejilla: la tarjeta aparece donde está el botón, que baja con ella.
 capoList.addEventListener("click", e => {
-  const btn = e.target.closest(".otras-cejillas button");
+  const btn = e.target.closest(".other-capos button");
   if (!btn) return;
-  const fila = btn.closest("li");
-  fila.before(capoCard(capoExtra.shift()));
-  if (capoExtra.length) btn.textContent = quedanCejillas();
-  else fila.remove();
+  const row = btn.closest("li");
+  row.before(capoCard(capoExtra.shift()));
+  if (capoExtra.length) btn.textContent = remainingCapoLabel();
+  else row.remove();
 });
 
 
 // Un acorde de la pestaña de cejilla se abre en el mástil con su cejilla puesta y
 // con la digitación que enseña su diagrama, no con la primera que tenga la BD:
 // si no, la figura del mástil no se parece a la que acabas de ver.
-function conCejilla(span, position, capo) {
+function withCapo(span, position, capo) {
   if (!position) return span;
   const frets = absoluteFrets(position).map(f => (f < 0 ? -1 : capo + f));
   if (frets.some(f => f > MAX_FRET)) return span; // no cabe en el mástil del analizador
@@ -297,7 +297,7 @@ function chartOf(a) {
     svg.innerHTML = shapeSvg(s.position);
     step.append(name, svg, el("span", {
       className: "top",
-      textContent: s.aire ? `${s.aire} al aire` : "sin cuerdas al aire",
+      textContent: s.open ? `${s.open} al aire` : "sin cuerdas al aire",
     }));
     chart.append(step);
   }
@@ -407,13 +407,13 @@ function renderReharm(progression) {
     const conjunct = `${v.conjunct} de ${v.moves} movimientos por grado conjunto`;
     li.append(el("p", {
       className: "why",
-      textContent: `${conjunct}, ${plural(v.held, "nota repetida", "notas repetidas")} y ${plural(v.leaps, "salto", "saltos")}.`,
+      textContent: `${conjunct}, ${plural(v.held, "nota repetida", "notas repetidas")} y ${plural(v.leaps, "leap", "saltos")}.`,
     }));
     // Los mismos números en todas las tarjetas, gane quien gane: comparar la
     // resonante con la melódica es justo para lo que están.
     li.append(el("p", {
       className: "why",
-      textContent: `${plural(v.aire, "cuerda al aire", "cuerdas al aire")}, ${plural(v.comunes, "nota común", "notas comunes")} y ${plural(v.movimiento, "semitono", "semitonos")} de movimiento entre voces.`,
+      textContent: `${plural(v.open, "cuerda al open", "cuerdas al open")}, ${plural(v.common, "nota común", "notas common")} y ${plural(v.movement, "semitono", "semitonos")} de movimiento entre voces.`,
     }));
     for (const s of v.steps.filter(x => x.rule && x.changed)) {
       li.append(el("p", {
@@ -441,7 +441,7 @@ function retuneCard(a) {
     textContent: `${a.tuning.notes} · ${a.tuning.name}${a.capo ? ` · cejilla en ${a.capo}` : ""}`,
   }));
   li.append(" ", el("small", {
-    textContent: `${plural(a.aire, "cuerda al aire", "cuerdas al aire")} · ${plural(a.quietas, "nota que no se mueve", "notas que no se mueven")}`,
+    textContent: `${plural(a.open, "cuerda al open", "cuerdas al open")} · ${plural(a.still, "nota que no se mueve", "notas que no se mueven")}`,
   }));
   const chart = el("div", { className: "chart" });
   for (const s of a.steps) {
@@ -457,7 +457,7 @@ function retuneCard(a) {
     svg.innerHTML = shapeSvg(s.position);
     step.append(name, svg, el("span", {
       className: "top",
-      textContent: s.aire ? `${s.aire} al aire` : "sin cuerdas al aire",
+      textContent: s.open ? `${s.open} al aire` : "sin cuerdas al aire",
     }));
     chart.append(step);
   }
@@ -466,19 +466,19 @@ function retuneCard(a) {
     // Probar con cejilla: un desplegable que, la primera vez que se abre,
     // calcula esa afinación con cejilla del 1 al 5 y enseña dentro las tres
     // que más resuenan. Cerrarlo las esconde sin recalcular.
-    const det = el("details", { className: "cejillas" });
+    const det = el("details", { className: "capos" });
     det.append(el("summary", { textContent: "probar con cejilla" }));
     det.addEventListener("toggle", () => {
       if (!det.open || det.dataset.hecho) return;
       det.dataset.hecho = "1";
-      const ul = el("ul", { className: "cejillas-lista" });
+      const ul = el("ul", { className: "capo-list" });
       ul.append(el("li", { className: "why", textContent: "calculando…" }));
       det.append(ul);
       // El cálculo en el hilo congelaría la animación de apertura: se difiere
       // hasta que el plegado (0.25s) haya terminado.
       setTimeout(() => {
-        const capos = tuningArrangements(retuneProg, [1, 2, 3, 4, 5].map(capo => ({ ...a.tuning, capo })));
-        ul.replaceChildren(...capos.slice(0, 3).map(retuneCard));
+        const capoQueue = tuningArrangements(retuneProg, [1, 2, 3, 4, 5].map(capo => ({ ...a.tuning, capo })));
+        ul.replaceChildren(...capoQueue.slice(0, 3).map(retuneCard));
       }, 260);
     });
     li.append(det);
@@ -488,8 +488,8 @@ function retuneCard(a) {
 
 function renderRetune(progression) {
   retuneProg = progression;
-  const candidatas = [...TUNINGS, ...(custom.midis ? [{ ...custom, notes: custom.midis.map(noteName).join(" ") }] : [])];
-  for (const a of tuningArrangements(progression, candidatas)) retuneList.append(retuneCard(a));
+  const candidates = [...TUNINGS, ...(custom.midis ? [{ ...custom, notes: custom.midis.map(noteName).join(" ") }] : [])];
+  for (const a of tuningArrangements(progression, candidates)) retuneList.append(retuneCard(a));
 }
 
 // ── Identificador de acordes: mástil clicable → nombre del acorde ───────────
@@ -592,12 +592,12 @@ function renderIdent() {
 
   // Las lecturas cuya fundamental no suena van aparte y avisando: el cifrado
   // nombra una nota que no está marcada, y leerlo sin saberlo lleva a engaño.
-  const sinRaiz = candidates.filter(c => c.rootless);
-  if (sinRaiz.length) {
+  const rootless = candidates.filter(c => c.rootless);
+  if (rootless.length) {
     readout.append(
       el("h3", { textContent: "Sin la fundamental" }),
       p("why hint", "Estas lecturas no tienen su fundamental entre las notas marcadas: la pone el bajo. Es lo corriente cuando no tocas solo, y la guitarra se queda con las notas que definen el acorde."),
-      chips(sinRaiz),
+      chips(rootless),
     );
   }
 
@@ -619,23 +619,23 @@ board.addEventListener("click", e => {
 // Cualquier acorde escrito en las otras pestañas lleva al analizador con su
 // primera posición ya marcada en el mástil.
 document.addEventListener("click", e => {
-  const origen = e.target.closest("[data-load], [data-frets]");
-  if (!origen) return;
+  const source = e.target.closest("[data-load], [data-frets]");
+  if (!source) return;
   // Las pestañas de rearmonización y cejilla traen su propia digitación —la que
   // hace la línea, la que deja cuerdas al aire—, así que se carga esa y no la
   // primera que tenga la BD para ese acorde. La de cejilla trae además su traste.
-  const position = origen.dataset.frets ? null : loadablePosition(origen.dataset.load);
-  const frets = origen.dataset.frets ? origen.dataset.frets.split(",").map(Number)
+  const position = source.dataset.frets ? null : loadablePosition(source.dataset.load);
+  const frets = source.dataset.frets ? source.dataset.frets.split(",").map(Number)
     : position ? absoluteFrets(position)
     : [];
   if (frets.length !== 6) return;
   picked.splice(0, 6, ...frets);
-  capo = Number(origen.dataset.capo ?? 0);
-  chosenRoot = origen.dataset.root ?? null;
+  capo = Number(source.dataset.capo ?? 0);
+  chosenRoot = source.dataset.root ?? null;
   // Las digitaciones de las otras pestañas vienen de chords-db (estándar),
   // salvo las de Afinaciones, que traen la suya en data-midis: el mástil se
   // pone en esa afinación para que los trastes suenen a lo que dice la tarjeta.
-  const midis = origen.dataset.midis ? origen.dataset.midis.split(",").map(Number) : TUNINGS[0].midis;
+  const midis = source.dataset.midis ? source.dataset.midis.split(",").map(Number) : TUNINGS[0].midis;
   tuning = TUNINGS.find(t => t.midis.join() === midis.join()) ?? custom;
   if (tuning === custom) {
     custom.midis = midis;
@@ -685,24 +685,24 @@ songQuery.addEventListener("input", () => {
 
 // Una respuesta que llega tarde, cuando ya se teclea otra cosa, no debe pintar
 // nada: cada búsqueda se queda con su número y solo pinta la de turno.
-let buscando = 0;
+let searching = 0;
 
 document.querySelector("#song-form").addEventListener("submit", e => {
   e.preventDefault();
   songResults.replaceChildren();
   songSections.replaceChildren();
   songStatus.textContent = "";
-  const texto = songQuery.value.trim();
-  if (!texto) return;
-  const mia = ++buscando;
+  const text = songQuery.value.trim();
+  if (!text) return;
+  const mine = ++searching;
   songStatus.textContent = "Buscando…";
-  enUltimateGuitar(texto, mia);
+  onUltimateGuitar(text, mine);
 });
 
-async function enUltimateGuitar(texto, mia) {
+async function onUltimateGuitar(text, mine) {
   try {
-    const results = await searchSongs(texto);
-    if (mia !== buscando) return;
+    const results = await searchSongs(text);
+    if (mine !== searching) return;
     songStatus.textContent = results.length ? "" : "Sin transcripciones de acordes para esa búsqueda.";
     for (const r of results.slice(0, 10)) {
       const li = document.createElement("li");
@@ -717,7 +717,7 @@ async function enUltimateGuitar(texto, mia) {
       songResults.append(li);
     }
   } catch (err) {
-    if (mia === buscando) songStatus.textContent = err.message;
+    if (mine === searching) songStatus.textContent = err.message;
   }
 }
 
@@ -731,12 +731,12 @@ function renderSections(meta, sections, titulo) {
     box.append(el("strong", { textContent: sec.name }));
     const chords = el("div", { className: "chords" });
     for (const sym of sec.chords) chords.append(chordSpan(sym));
-    const suya = { ...meta, part: sec.name };
+    const theirs = { ...meta, part: sec.name };
     const use = el("button", { type: "button", textContent: "Usar" });
-    use.addEventListener("click", () => useSection(suya, sec.chords));
+    use.addEventListener("click", () => useSection(theirs, sec.chords));
     const keep = el("button", { type: "button", textContent: "Guardar" });
     keep.addEventListener("click", () => {
-      const msg = saveToLibrary(suya, sec.chords);
+      const msg = saveToLibrary(theirs, sec.chords);
       if (!msg) return;
       keep.textContent = msg;
       keep.disabled = true;
@@ -771,7 +771,7 @@ const songBox = document.querySelector("#song-box");
 const libraryBox = document.querySelector("#library-box");
 document.querySelector("#open-song").addEventListener("click", () => songBox.showModal());
 document.querySelector("#open-library").addEventListener("click", () => libraryBox.showModal());
-for (const b of document.querySelectorAll("dialog .cerrar")) {
+for (const b of document.querySelectorAll("dialog .close")) {
   b.addEventListener("click", () => b.closest("dialog").close());
 }
 const libraryList = document.querySelector("#library-list");
@@ -934,12 +934,12 @@ document.querySelector("#library-file").addEventListener("change", async e => {
   try {
     const { lib: incoming, dropped } = parseLibrary(await file.text());
     const { lib: next, songs, sections } = mergeLibrary(lib, incoming);
-    const aviso = dropped ? ` Se ha descartado ${plural(dropped, "entrada por el formato", "entradas por el formato")}.` : "";
+    const notice = dropped ? ` Se ha descartado ${plural(dropped, "entrada por el formato", "entradas por el formato")}.` : "";
     if (!songs && !sections) {
-      libraryStatus.textContent = `Ese cancionero ya lo tenías entero: no hay nada nuevo que añadir.${aviso}`;
+      libraryStatus.textContent = `Ese cancionero ya lo tenías entero: no hay nada nuevo que añadir.${notice}`;
       return;
     }
-    commit(next, `Cargado: ${plural(songs, "canción nueva", "canciones nuevas")} y ${plural(sections, "parte nueva", "partes nuevas")}.${aviso}`);
+    commit(next, `Cargado: ${plural(songs, "canción nueva", "canciones nuevas")} y ${plural(sections, "parte nueva", "partes nuevas")}.${notice}`);
   } catch (err) {
     libraryStatus.textContent = err.message;
   }

@@ -21,40 +21,40 @@ import { noteName } from "./notes.js";
 // no da para ello se cede en vez de fallar.
 export const PRESETS = [
   {
-    id: "descendente", dir: -1,
+    id: "descending", dir: -1,
     name: "Línea descendente",
     why: "La voz de arriba cae por grados conjuntos. Es el recurso más socorrido para que una progresión estática tire hacia delante.",
-    w: { movTop: 1, mano: 0.4 },
+    w: { topMove: 1, hand: 0.4 },
   },
   {
-    id: "ascendente", dir: 1,
+    id: "ascending", dir: 1,
     name: "Línea ascendente",
     why: "La voz de arriba sube paso a paso, que empuja y abre. Funciona bien en un puente o subiendo a un estribillo.",
-    w: { movTop: 1, mano: 0.4 },
+    w: { topMove: 1, hand: 0.4 },
   },
   {
     id: "pedal", dir: 0,
     name: "Nota pedal arriba",
     why: "La misma nota aguda se mantiene mientras los acordes cambian por debajo. Da unidad y hace que los cambios suenen a color, no a movimiento.",
-    w: { movTop: 1, mano: 0.4 },
+    w: { topMove: 1, hand: 0.4 },
   },
   {
-    id: "minimo",
+    id: "minimal",
     name: "Movimiento mínimo",
     why: "Cada voz va a lo que tiene más cerca: los acordes se funden uno en otro casi sin mover ni la mano ni el oído.",
-    w: { movVoces: 1, salto: 3, estructura: 2, mano: 0.4 },
+    w: { voiceMove: 1, leap: 3, structure: 2, hand: 0.4 },
   },
   {
-    id: "continuidad",
+    id: "continuity",
     name: "Máxima continuidad",
     why: "Las notas que dos acordes comparten se quedan sonando donde están; cambia lo justo para que el cambio se note.",
-    w: { comunes: 1.5, quietas: 2, estructura: 2, movVoces: 0.3, mano: 0.4 },
+    w: { common: 1.5, still: 2, structure: 2, voiceMove: 0.3, hand: 0.4 },
   },
   {
-    id: "resonancia",
+    id: "resonance",
     name: "Máxima resonancia",
     why: "Manda la caja: cuantas más cuerdas al aire y más dedos quietos, más suena la guitarra sola.",
-    w: { aire: 3, quietas: 2, quietasAlAire: 2, comunes: 0.5, mano: 0.4 },
+    w: { open: 3, still: 2, stillOpen: 2, common: 0.5, hand: 0.4 },
   },
 ];
 
@@ -66,21 +66,21 @@ export const PRESETS = [
 // dinámica: emparejar las dos siguientes o dejar una sin pareja (una voz que
 // aparece o desaparece), con un peaje fijo que decide cuándo compensa lo uno o
 // lo otro.
-const SUELTA = 4; // semitonos que "cuesta" una voz sin pareja al alinear
+const UNPAIRED = 4; // semitonos que "cuesta" una voz sin pareja al alinear
 
 export function pairVoices(a, b) {
   const D = Array.from({ length: a.length + 1 }, (_, i) => {
     const row = new Array(b.length + 1).fill(0);
-    row[0] = i * SUELTA;
+    row[0] = i * UNPAIRED;
     return row;
   });
-  for (let j = 1; j <= b.length; j++) D[0][j] = j * SUELTA;
+  for (let j = 1; j <= b.length; j++) D[0][j] = j * UNPAIRED;
   for (let i = 1; i <= a.length; i++) {
     for (let j = 1; j <= b.length; j++) {
       D[i][j] = Math.min(
         D[i - 1][j - 1] + Math.abs(a[i - 1] - b[j - 1]),
-        D[i - 1][j] + SUELTA,
-        D[i][j - 1] + SUELTA,
+        D[i - 1][j] + UNPAIRED,
+        D[i][j - 1] + UNPAIRED,
       );
     }
   }
@@ -94,17 +94,17 @@ export function pairVoices(a, b) {
       if (d === 0) held++;
       if (d > 4) leaps++;
       i--; j--;
-    } else if (i > 0 && D[i][j] === D[i - 1][j] + SUELTA) { structural++; i--; }
+    } else if (i > 0 && D[i][j] === D[i - 1][j] + UNPAIRED) { structural++; i--; }
     else { structural++; j--; }
   }
   return { moved, held, leaps, structural };
 }
 
-export const alAire = frets => frets.filter(f => f === 0).length;
-const quietasEntre = (a, b) => a.frets.reduce((n, f, i) => n + (f >= 0 && f === b.frets[i] ? 1 : 0), 0);
+export const openStrings = frets => frets.filter(f => f === 0).length;
+const stillBetween = (a, b) => a.frets.reduce((n, f, i) => n + (f >= 0 && f === b.frets[i] ? 1 : 0), 0);
 // Una nota quieta que además es al aire cuenta doble: no se toca ni al cambiar.
-const quietasAlAireEntre = (a, b) => a.frets.reduce((n, f, i) => n + (f === 0 && b.frets[i] === 0 ? 1 : 0), 0);
-const comunesEntre = (a, b) => [...a.pcs].filter(x => b.pcs.has(x)).length;
+const stillOpenBetween = (a, b) => a.frets.reduce((n, f, i) => n + (f === 0 && b.frets[i] === 0 ? 1 : 0), 0);
+const commonBetween = (a, b) => [...a.pcs].filter(x => b.pcs.has(x)).length;
 
 // Lo que cuesta encadenar dos digitaciones según el preset. Cada factor mide
 // una cosa y el peso dice cuánto importa; lo que pesa cero ni se calcula.
@@ -112,8 +112,8 @@ const comunesEntre = (a, b) => [...a.pcs].filter(x => b.pcs.has(x)).length;
 // preset resonante, con la cejilla como dimensión extra de búsqueda.
 export function linkCost(prev, next, preset) {
   const w = preset.w;
-  let cost = (w.mano ?? 0) * Math.abs(next.baseFret - prev.baseFret); // saltos de mano por el mástil
-  if (w.movTop) {
+  let cost = (w.hand ?? 0) * Math.abs(next.baseFret - prev.baseFret); // saltos de mano por el mástil
+  if (w.topMove) {
     // Manda el salto de la voz superior: el grado conjunto sale gratis porque
     // es lo que hace línea, repetir nota cuesta poco, y el salto se paga caro.
     const delta = next.top - prev.top;
@@ -124,17 +124,17 @@ export function linkCost(prev, next, preset) {
       : 12 + step;
     if (preset.dir !== 0 && Math.sign(delta) === -preset.dir) top += 7; // se va en contra de la línea
     if (next.topString !== 5) top += 1.5; // mejor que la línea caiga en la 1ª cuerda
-    cost += w.movTop * top;
+    cost += w.topMove * top;
   }
-  if (w.movVoces || w.estructura || w.salto) {
+  if (w.voiceMove || w.structure || w.leap) {
     const p = pairVoices(prev.midis, next.midis);
-    cost += (w.movVoces ?? 0) * p.moved
-      + (w.estructura ?? 0) * p.structural
-      + (w.salto ?? 0) * p.leaps;
+    cost += (w.voiceMove ?? 0) * p.moved
+      + (w.structure ?? 0) * p.structural
+      + (w.leap ?? 0) * p.leaps;
   }
-  if (w.quietas) cost -= w.quietas * quietasEntre(prev, next);
-  if (w.quietasAlAire) cost -= w.quietasAlAire * quietasAlAireEntre(prev, next);
-  if (w.comunes) cost -= w.comunes * comunesEntre(prev, next);
+  if (w.still) cost -= w.still * stillBetween(prev, next);
+  if (w.stillOpen) cost -= w.stillOpen * stillOpenBetween(prev, next);
+  if (w.common) cost -= w.common * commonBetween(prev, next);
   return cost;
 }
 
@@ -194,7 +194,7 @@ function reharmonize(db, progression, preset, maxVoicings = 5) {
       );
       for (const chain of chains) {
         let internal = optionCost(option, slot);
-        for (const v of chain) internal -= (preset.w.aire ?? 0) * alAire(v.frets);
+        for (const v of chain) internal -= (preset.w.open ?? 0) * openStrings(v.frets);
         for (let k = 1; k < chain.length; k++) internal += linkCost(chain[k - 1], chain[k], preset);
         nodes.push({ option, chain, internal });
       }
@@ -287,18 +287,18 @@ function lineStats(steps) {
 // Y qué tal el arreglo entero. Se mide todo en todas las versiones, pese al
 // preset: comparar los números entre tarjetas es parte de la gracia.
 function arrangementStats(steps) {
-  let aire = 0, comunes = 0, quietas = 0, movimiento = 0, sueltas = 0;
+  let open = 0, common = 0, still = 0, movement = 0, unpaired = 0;
   steps.forEach((s, i) => {
-    aire += alAire(s.frets);
+    open += openStrings(s.frets);
     if (!i) return;
     const p = steps[i - 1];
-    comunes += comunesEntre(p, s);
-    quietas += quietasEntre(p, s);
-    const pares = pairVoices(p.midis, s.midis);
-    movimiento += pares.moved;
-    sueltas += pares.structural;
+    common += commonBetween(p, s);
+    still += stillBetween(p, s);
+    const pairs = pairVoices(p.midis, s.midis);
+    movement += pairs.moved;
+    unpaired += pairs.structural;
   });
-  return { aire, comunes, quietas, movimiento, sueltas };
+  return { open, common, still, movement, unpaired };
 }
 
 // Una versión por preset, cada una con su etiqueta y su porqué. Dos presets
@@ -321,24 +321,24 @@ export function reharmonizations(db, progression) {
 // voicings, los enlaces los paga linkCost con el preset dado y cada nodo su
 // propio coste. Lo comparten la cejilla y las afinaciones; la rearmonización
 // tiene su Viterbi aparte porque además raciona cuántos acordes se cambian.
-export function mejorCadena(layers, preset, costeNodo) {
+export function bestChain(layers, preset, nodeCost) {
   layers.forEach((layer, i) => {
     for (const n of layer) {
       if (i === 0) {
-        n.total = costeNodo(n);
+        n.total = nodeCost(n);
         n.from = null;
         continue;
       }
-      let mejor = null;
+      let best = null;
       for (const p of layers[i - 1]) {
         const total = p.total + linkCost(p, n, preset);
-        if (!mejor || total < mejor.total) mejor = { total, nodo: p };
+        if (!best || total < best.total) best = { total, node: p };
       }
-      n.total = mejor.total + costeNodo(n);
-      n.from = mejor.nodo;
+      n.total = best.total + nodeCost(n);
+      n.from = best.node;
     }
   });
-  const cadena = [];
-  for (let n = layers.at(-1).reduce((a, b) => (b.total < a.total ? b : a)); n; n = n.from) cadena.unshift(n);
-  return cadena;
+  const chain = [];
+  for (let n = layers.at(-1).reduce((a, b) => (b.total < a.total ? b : a)); n; n = n.from) chain.unshift(n);
+  return chain;
 }

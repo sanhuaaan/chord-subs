@@ -389,12 +389,12 @@ Lo que no hace: editar una parte guardada en el sitio. Se carga con «Usar», se
 vuelve a guardar; el formulario queda apuntando a ella —con su intérprete y su enlace— así que es un
 par de clics.
 
-En el repo hay uno guardado, `cancionero.json`, como copia de seguridad. La app no lo carga sola: se
+En el repo hay uno guardado, `songbook.json`, como copia de seguridad. La app no lo carga sola: se
 importa con «Cargar cancionero», como cualquier otro.
 
 ## Lo que hay guardado y no está puesto
 
-En [`guardado/`](guardado/) vive un **catálogo propio de 385.664 canciones** con sus progresiones
+En [`archived/`](archived/) vive un **catálogo propio de 385.664 canciones** con sus progresiones
 por partes —[De Chordis Mysteriis](https://github.com/sanhuaaan/de-chordis-mysteriis), publicado y
 en pie—, el módulo que lo lee y la tubería que lo fabrica desde
 [Chordonomicon](https://huggingface.co/datasets/ailsntua/Chordonomicon). Con eso la app llegó a
@@ -405,7 +405,7 @@ canciones suena la progresión que tienes escrita, en cualquier tono—, en una 
 **No está puesto.** Probado en uso, saber que tu progresión suena en 24.190 canciones no dice nada
 de tu progresión, y la lista que salía no llevaba a ninguna parte. Está guardado entero y sigue
 pasando los tests; el porqué y cómo se vuelve a conectar están en
-[`guardado/LEEME.md`](guardado/LEEME.md), y la versión de la app con todo enchufado, en la rama
+[`archived/README.md`](archived/README.md), y la versión de la app con todo enchufado, en la rama
 `catalogo`.
 
 ## Stack

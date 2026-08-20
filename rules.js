@@ -462,7 +462,7 @@ export function optionsFor(progression, key = detectKey(progression)) {
 // que es justo lo que una cuerda al aire le hace a un acorde. Es el filtro que
 // comparten la cejilla y las afinaciones: sustituir el acorde o meterle otros
 // delante ya es rearmonizar, y para eso está su pestaña.
-export const esAdorno = o => !o.rule || o.kind === "color";
+export const isAdornment = o => !o.rule || o.kind === "color";
 
 // La vista plana que quiere la pestaña de sustituciones: sin la opción de dejarlo
 // como está, que ahí no es una sugerencia sino la ausencia de una.

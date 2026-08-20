@@ -16,8 +16,8 @@ import {
   mergeLibrary, saveSection, removeSection, removeSong, songKey,
 } from "./library.js";
 import {
-  firma, huella, ventanas, shardDe, buscar, cancion, dondeSuena, sinEdicion, puntua,
-} from "./guardado/catalogo.js";
+  signature, fingerprint, windows, shardFor, search, song, whereSounds, withoutEdition, score,
+} from "./archived/catalog.js";
 
 const guitarDb = createRequire(import.meta.url)("@tombatossals/chords-db/lib/guitar.json");
 
@@ -161,12 +161,12 @@ test("findShape encuentra varias posiciones y usa la enarmonía de la BD", () =>
 test("las reglas generan grafías que existen en la BD de guitarra", () => {
   // Las doce fundamentales por cada calidad que se puede escribir en el buscador:
   // ninguna regla debe proponer un cifrado que luego no se pueda dibujar.
-  const raices = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
-  for (const raiz of raices) {
-    for (const calidad of ["", "m", "7", "m7", "maj7", "6", "sus4"]) {
-      for (const s of suggest(parseProgression(`${raiz}${calidad} ${raiz}`))) {
+  const roots = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+  for (const rootNote of roots) {
+    for (const quality of ["", "m", "7", "m7", "maj7", "6", "sus4"]) {
+      for (const s of suggest(parseProgression(`${rootNote}${quality} ${rootNote}`))) {
         for (const sym of s.replacement) {
-          assert.ok(findShape(guitarDb, sym), `sin posición de guitarra: ${sym} (de ${raiz}${calidad})`);
+          assert.ok(findShape(guitarDb, sym), `sin posición de guitarra: ${sym} (de ${rootNote}${quality})`);
         }
       }
     }
@@ -191,20 +191,20 @@ test("las extensiones de cejilla se llaman como acordes que existen", () => {
   // m13 es el único cifrado correcto que chords-db no indexa: se propone igual
   // (el tooltip dibuja la forma base con la cuerda al aire, no ese acorde), pero
   // no se puede abrir en el mástil. Si aparece otro, que se entere alguien.
-  const sinDiagrama = new Set();
-  for (const raiz of NOTES) {
-    for (const calidad of ["", "m", "7", "m7", "maj7", "6", "m6", "sus4"]) {
-      for (const cp of capoSuggestions(parseProgression(raiz + calidad))) {
+  const withoutDiagram = new Set();
+  for (const rootNote of NOTES) {
+    for (const quality of ["", "m", "7", "m7", "maj7", "6", "m6", "sus4"]) {
+      for (const cp of capoSuggestions(parseProgression(rootNote + quality))) {
         for (const pc of cp.perChord) {
           for (const e of pc.extensions) {
             assert.ok(Chord.get(e.as).tonic, `cifrado que no se puede leer: ${e.as}`);
-            if (!findShape(guitarDb, e.as)) sinDiagrama.add(e.as.replace(/^[A-G][b#]?/, ""));
+            if (!findShape(guitarDb, e.as)) withoutDiagram.add(e.as.replace(/^[A-G][b#]?/, ""));
           }
         }
       }
     }
   }
-  assert.deepEqual([...sinDiagrama], ["m13"]);
+  assert.deepEqual([...withoutDiagram], ["m13"]);
 });
 
 test("cejilla: con séptima el nombre la conserva, sin ella no la inventa", () => {
@@ -253,8 +253,8 @@ test("openString abre la cuerda pedida sobre la forma en primera posición", () 
   assert.equal(opened.frets[2], 0);
   assert.deepEqual(opened.frets.toSpliced(2, 1), am.frets.toSpliced(2, 1), "solo cambia esa cuerda");
   assert.deepEqual(openString(am, 5).frets, am.frets, "ya estaba al aire: la forma vale tal cual");
-  const alta = findShape(guitarDb, "Am").positions.find(p => p.baseFret > 1);
-  assert.equal(openString(alta, 2).frets[2], 0, "en formas altas la cuerda al aire es la cejilla");
+  const high = findShape(guitarDb, "Am").positions.find(p => p.baseFret > 1);
+  assert.equal(openString(high, 2).frets[2], 0, "en formas altas la cuerda al aire es la cejilla");
 });
 
 test("shapeSvg dibuja cuerdas, trastes y puntos", () => {
@@ -267,7 +267,7 @@ test("shapeSvg dibuja cuerdas, trastes y puntos", () => {
 test("el generador encuentra las formas abiertas de toda la vida", () => {
   // El arnés que lo mantiene honesto: si en estándar no salen las formas
   // curadas de chords-db, el generador está mal.
-  const casos = {
+  const cases = {
     "C": [-1, 3, 2, 0, 1, 0],
     "Am": [-1, 0, 2, 2, 1, 0],
     "E": [0, 2, 2, 1, 0, 0],
@@ -275,15 +275,15 @@ test("el generador encuentra las formas abiertas de toda la vida", () => {
     "Dm7": [-1, -1, 0, 2, 1, 1],
     "F": [1, 3, 3, 2, 1, 1],
   };
-  for (const [symbol, frets] of Object.entries(casos)) {
+  for (const [symbol, frets] of Object.entries(cases)) {
     const gen = generateShapes(symbol);
     assert.ok(gen.some(s => s.frets.join() === frets.join()), `${symbol} = ${frets}`);
   }
 });
 
 test("todo lo generado cumple el contrato, en cualquier afinación", () => {
-  const por = id => TUNINGS.find(t => t.id === id).midis;
-  for (const [symbol, tuning] of [["C", por("estandar")], ["G", por("openg")], ["Dm7", por("dadgad")], ["Amaj7", por("dropd")]]) {
+  const byId = id => TUNINGS.find(t => t.id === id).midis;
+  for (const [symbol, tuning] of [["C", byId("standard")], ["G", byId("openg")], ["Dm7", byId("dadgad")], ["Amaj7", byId("dropd")]]) {
     const chromas = new Set(Chord.get(symbol).notes.map(Note.chroma));
     const root = Note.chroma(Chord.get(symbol).tonic);
     const shapes = generateShapes(symbol, tuning);
@@ -306,12 +306,12 @@ test("todo lo generado cumple el contrato, en cualquier afinación", () => {
 });
 
 test("en las afinaciones abiertas el generador encuentra lo que les da nombre", () => {
-  const por = id => TUNINGS.find(t => t.id === id).midis;
-  const alAire = [0, 0, 0, 0, 0, 0];
-  assert.ok(generateShapes("G", por("openg")).some(s => s.frets.join() === alAire.join()), "Open G: las seis al aire son G");
-  assert.ok(generateShapes("D", por("opend")).some(s => s.frets.join() === alAire.join()), "Open D: las seis al aire son D");
+  const byId = id => TUNINGS.find(t => t.id === id).midis;
+  const openStrings = [0, 0, 0, 0, 0, 0];
+  assert.ok(generateShapes("G", byId("openg")).some(s => s.frets.join() === openStrings.join()), "Open G: las seis al aire son G");
+  assert.ok(generateShapes("D", byId("opend")).some(s => s.frets.join() === openStrings.join()), "Open D: las seis al aire son D");
   // Y el orden pone la fundamental en el bajo por delante de la quinta.
-  const [primera] = generateShapes("G", por("openg"));
+  const [primera] = generateShapes("G", byId("openg"));
   assert.equal(primera.bass % 12, Note.chroma("G"), "la primera lleva G en el bajo");
 });
 
@@ -331,18 +331,18 @@ test("las afinaciones compiten por la misma progresión con costes comparables",
   // mano, alguna afinación colorea algún acorde.
   assert.ok(out.some(a => a.steps.some(s => s.changed)), "algún adorno sale elegido");
   // La gracia de la pestaña: para una progresión en re, la estándar no gana.
-  const estandar = out.find(a => a.tuning.id === "estandar");
-  assert.ok(out[0].aire >= estandar.aire, "la ganadora resuena al menos como la estándar");
-  assert.notEqual(out[0].tuning.id, "estandar", "una afinación abierta le gana a la estándar en re");
+  const standard = out.find(a => a.tuning.id === "standard");
+  assert.ok(out[0].open >= standard.open, "la ganadora resuena al menos como la estándar");
+  assert.notEqual(out[0].tuning.id, "standard", "una afinación abierta le gana a la estándar en re");
 });
 
 test("la cejilla entra como dimensión del setup", () => {
   const progression = parseProgression("F Bb C");
-  const estandar = TUNINGS[0];
-  const out = tuningArrangements(progression, [estandar, { ...estandar, capo: 1 }]);
+  const standard = TUNINGS[0];
+  const out = tuningArrangements(progression, [standard, { ...standard, capo: 1 }]);
   // Para F Bb C, la cejilla al 1 desbloquea las formas abiertas de E A B.
   assert.equal(out[0].capo, 1, "la cejilla al 1 gana a la estándar pelada");
-  assert.ok(out[0].aire > out[1].aire, "y gana por resonancia");
+  assert.ok(out[0].open > out[1].open, "y gana por resonancia");
   // Los trastes de los pasos son relativos a la cejilla y caben en el mástil.
   for (const s of out[0].steps) {
     assert.ok(s.frets.every(f => f + out[0].capo <= MAX_FRET), "todo dentro del mástil");
@@ -350,7 +350,7 @@ test("la cejilla entra como dimensión del setup", () => {
 });
 
 test("identifica acordes abiertos corrientes por sus pulsaciones", () => {
-  const casos = {
+  const cases = {
     "C": [-1, 3, 2, 0, 1, 0],
     "Am": [-1, 0, 2, 2, 1, 0],
     "E": [0, 2, 2, 1, 0, 0],
@@ -359,23 +359,23 @@ test("identifica acordes abiertos corrientes por sus pulsaciones", () => {
     "Dm7": [-1, -1, 0, 2, 1, 1],
     "Dsus4": [-1, -1, 0, 2, 3, 3],
   };
-  for (const [nombre, frets] of Object.entries(casos)) {
+  for (const [nombre, frets] of Object.entries(cases)) {
     assert.equal(identify(frets).candidates[0].symbol, nombre, `${nombre} = ${frets}`);
   }
 });
 
 test("la afinación cambia lo que suena, no lo que está marcado", () => {
-  const abierta = [0, 0, 0, 0, 0, 0];
-  const por = id => TUNINGS.find(t => t.id === id).midis;
+  const openShape = [0, 0, 0, 0, 0, 0];
+  const byId = id => TUNINGS.find(t => t.id === id).midis;
   // Las seis al aire: en estándar no forman nada corriente; en las abiertas, sí.
-  assert.equal(identify(abierta, por("dadgad")).candidates[0].symbol, "Dsus4");
-  assert.equal(identify(abierta, por("openg")).candidates[0].symbol, "G/D");
-  assert.equal(identify(abierta, por("opend")).candidates[0].symbol, "D");
+  assert.equal(identify(openShape, byId("dadgad")).candidates[0].symbol, "Dsus4");
+  assert.equal(identify(openShape, byId("openg")).candidates[0].symbol, "G/D");
+  assert.equal(identify(openShape, byId("opend")).candidates[0].symbol, "D");
   // La forma de E estándar, con la 6ª en Drop D, gana una séptima en el bajo:
   // mismo dibujo, otro acorde.
-  assert.equal(identify([0, 2, 2, 1, 0, 0], por("dropd")).candidates[0].symbol, "E7/D");
+  assert.equal(identify([0, 2, 2, 1, 0, 0], byId("dropd")).candidates[0].symbol, "E7/D");
   // Sin afinación, la estándar: exactamente lo mismo que antes de que existieran.
-  assert.deepEqual(identify([-1, 3, 2, 0, 1, 0]), identify([-1, 3, 2, 0, 1, 0], por("estandar")));
+  assert.deepEqual(identify([-1, 3, 2, 0, 1, 0]), identify([-1, 3, 2, 0, 1, 0], byId("standard")));
   // Y cada afinación sabe decir sus notas, que es lo que enseña el selector.
   assert.equal(TUNINGS.find(t => t.id === "dadgad").notes, "D A D G A D");
 });
@@ -393,8 +393,8 @@ test("las notas salen ordenadas de grave a aguda, no por cuerda", () => {
   assert.deepEqual(notes.map(n => n.string), ["5ª", "4ª", "3ª", "2ª", "1ª"]);
   assert.ok(notes.every((n, i) => i === 0 || n.midi >= notes[i - 1].midi), "orden por altura real");
   // La 3ª cuerda muy pisada suena por encima de la 2ª: el bajo es el de la 2ª.
-  const alta = soundingNotes([-1, -1, -1, 8, 1, 3]);
-  assert.deepEqual(alta.map(n => n.string), ["2ª", "3ª", "1ª"]);
+  const high = soundingNotes([-1, -1, -1, 8, 1, 3]);
+  assert.deepEqual(high.map(n => n.string), ["2ª", "3ª", "1ª"]);
   assert.equal(identify([-1, -1, -1, 8, 1, 3]).candidates[0].symbol, "Cm", "sin inversión: el bajo es C");
 });
 
@@ -417,17 +417,17 @@ test("con una sola nota no hay acorde que nombrar; con dos ya sí", () => {
 });
 
 test("dos notas ya son acorde: quintas, terceras y sextas", () => {
-  const nombres = frets => identify(frets).candidates.filter(c => !c.rootless).map(c => c.symbol);
+  const names = frets => identify(frets).candidates.filter(c => !c.rootless).map(c => c.symbol);
   // La quinta justa es el acorde de quinta de toda la vida, y se lleva la lectura
   // buena: la otra tendría que inventarse una fundamental que no está en el bajo.
-  assert.deepEqual(nombres([-1, 3, 5, -1, -1, -1]), ["C5", "Gsus4(no5)/C"]);
+  assert.deepEqual(names([-1, 3, 5, -1, -1, -1]), ["C5", "Gsus4(no5)/C"]);
   // La tercera decide el carácter; el cifrado avisa de que no hay quinta.
-  assert.deepEqual(nombres([-1, 3, 2, -1, -1, -1]), ["C(no5)", "E(#5,no3)/C"]);
-  assert.equal(nombres([-1, 3, 1, -1, -1, -1])[0], "Cm(no5)");
+  assert.deepEqual(names([-1, 3, 2, -1, -1, -1]), ["C(no5)", "E(#5,no3)/C"]);
+  assert.equal(names([-1, 3, 1, -1, -1, -1])[0], "Cm(no5)");
   // Una sexta es esa misma tercera vista desde la otra nota, así que las dos
   // lecturas son las mismas dos y lo que cambia el orden es cuál queda en el bajo.
-  assert.deepEqual(nombres([-1, 3, 7, -1, -1, -1]), ["C6(no3,no5)", "Am(no5)/C"]);
-  assert.deepEqual(nombres([-1, -1, -1, 2, 1, -1]), ["Am(no5)", "C6(no3,no5)/A"]);
+  assert.deepEqual(names([-1, 3, 7, -1, -1, -1]), ["C6(no3,no5)", "Am(no5)/C"]);
+  assert.deepEqual(names([-1, -1, -1, 2, 1, -1]), ["Am(no5)", "C6(no3,no5)/A"]);
   // Ningún cifrado de díada promete notas que no suenan.
   for (const frets of [[-1, 3, 5, -1, -1, -1], [-1, 3, 2, -1, -1, -1], [-1, 3, 7, -1, -1, -1]]) {
     const { pcs, candidates } = identify(frets);
@@ -437,12 +437,12 @@ test("dos notas ya son acorde: quintas, terceras y sextas", () => {
 });
 
 test("nombra el acorde aunque no suene su fundamental", () => {
-  const sinRaiz = frets => identify(frets).candidates.filter(c => c.rootless).map(c => c.symbol);
+  const rootless = frets => identify(frets).candidates.filter(c => c.rootless).map(c => c.symbol);
   // El caso de manual: B-D-F no es un Bdim cualquiera, es el G7 sin el G.
-  assert.ok(sinRaiz([-1, -1, -1, 4, 3, 1]).includes("G7/B"), "B-D-F es G7 sin fundamental");
-  assert.ok(sinRaiz([-1, -1, -1, 9, 8, 7]).includes("Cmaj7/E"), "E-G-B es Cmaj7 sin fundamental");
-  assert.ok(sinRaiz([-1, -1, 3, 2, 1, 0]).includes("Dm9/F"), "F-A-C-E es Dm9 sin fundamental");
-  assert.ok(sinRaiz([-1, -1, -1, 9, 11, 10]).includes("C9/E"), "E-Bb-D es C9 sin fundamental");
+  assert.ok(rootless([-1, -1, -1, 4, 3, 1]).includes("G7/B"), "B-D-F es G7 sin fundamental");
+  assert.ok(rootless([-1, -1, -1, 9, 8, 7]).includes("Cmaj7/E"), "E-G-B es Cmaj7 sin fundamental");
+  assert.ok(rootless([-1, -1, 3, 2, 1, 0]).includes("Dm9/F"), "F-A-C-E es Dm9 sin fundamental");
+  assert.ok(rootless([-1, -1, -1, 9, 11, 10]).includes("C9/E"), "E-Bb-D es C9 sin fundamental");
 
   const { candidates } = identify([-1, -1, -1, 4, 3, 1]); // B-D-F
   assert.equal(candidates[0].symbol, "Bdim", "manda lo que suena: la fundamental pisada va primero");
@@ -453,30 +453,30 @@ test("nombra el acorde aunque no suene su fundamental", () => {
 
   // Sin notas guía no se inventa nada: hacen falta 3ª y 7ª para echar de menos
   // una fundamental, y con dos notas la suposición sería mayor que el dato.
-  assert.deepEqual(sinRaiz([-1, 3, 3, 0, -1, -1]), [], "un sus4 no arrastra lecturas sin fundamental");
-  assert.deepEqual(sinRaiz([-1, 3, 1, 11, 10, -1]), [], "ni un dim7, que no tiene 7ª de las que valen");
-  assert.deepEqual(sinRaiz([-1, 3, 5, -1, -1, -1]), [], "una quinta pelada tampoco");
+  assert.deepEqual(rootless([-1, 3, 3, 0, -1, -1]), [], "un sus4 no arrastra lecturas sin fundamental");
+  assert.deepEqual(rootless([-1, 3, 1, 11, 10, -1]), [], "ni un dim7, que no tiene 7ª de las que valen");
+  assert.deepEqual(rootless([-1, 3, 5, -1, -1, -1]), [], "una quinta pelada tampoco");
   // Salvo el tritono, que solo puede ser la 3ª y la 7ª de un dominante.
-  assert.deepEqual(sinRaiz([-1, -1, -1, 4, 6, -1]).sort(), ["C#7/B", "G7/B"]);
+  assert.deepEqual(rootless([-1, -1, -1, 4, 6, -1]).sort(), ["C#7/B", "G7/B"]);
 });
 
 test("da una lectura por cada nota que se tome como fundamental", () => {
   const { pcs, candidates } = identify([3, 3, 2, 4, 0, 0]); // G C E B: el acorde de referencia
-  const sonando = candidates.filter(c => !c.rootless);
+  const soundingNow = candidates.filter(c => !c.rootless);
   assert.deepEqual(pcs, ["G", "C", "E", "B"]);
-  assert.equal(sonando.length, 4, "una lectura por nota distinta");
-  assert.deepEqual(sonando.map(c => c.root).sort(), ["B", "C", "E", "G"]);
-  assert.deepEqual(sonando.map(c => c.symbol), ["Cmaj7/G", "G6/11", "Emb6/G", "Bsus4b6b9/G"]);
+  assert.equal(soundingNow.length, 4, "una lectura por nota distinta");
+  assert.deepEqual(soundingNow.map(c => c.root).sort(), ["B", "C", "E", "G"]);
+  assert.deepEqual(soundingNow.map(c => c.symbol), ["Cmaj7/G", "G6/11", "Emb6/G", "Bsus4b6b9/G"]);
   assert.ok(candidates.every(c => c.degrees.length === 4), "todas explican las mismas cuatro notas");
   // El bajo lo pone la cuerda más grave, no la fundamental de cada lectura.
-  assert.ok(sonando.every(c => (c.root === "G") !== c.inversion));
+  assert.ok(soundingNow.every(c => (c.root === "G") !== c.inversion));
 });
 
 test("cualquier puñado de notas recibe nombre, por raro que sea", () => {
   for (const frets of [[1, 2, 3, 4, 5, 6], [0, 1, 2, 3, 4, 5], [-1, -1, 5, 6, 7, 8]]) {
     const { pcs, candidates } = identify(frets);
-    const sonando = candidates.filter(c => !c.rootless);
-    assert.equal(sonando.length, pcs.length, `una lectura por nota distinta en ${frets}`);
+    const soundingNow = candidates.filter(c => !c.rootless);
+    assert.equal(soundingNow.length, pcs.length, `una lectura por nota distinta en ${frets}`);
     assert.ok(candidates.every(c => c.symbol.length > 1), "ninguna se queda sin cifrar");
     assert.equal(new Set(candidates.map(c => c.symbol)).size, candidates.length, "sin lecturas repetidas");
   }
@@ -490,20 +490,20 @@ test("las lecturas evidentes van antes que las rebuscadas", () => {
 });
 
 test("spell cifra los acordes corrientes como en un cancionero", () => {
-  const semis = sym => new Set(Chord.get(sym).notes.map(Note.chroma));
-  const esperado = {
+  const semitones = sym => new Set(Chord.get(sym).notes.map(Note.chroma));
+  const expected = {
     C: "", Cm: "m", C7: "7", Cm7: "m7", Cmaj7: "maj7", C6: "6", Cm6: "m6",
     Csus4: "sus4", Csus2: "sus2", Cdim: "dim", Cdim7: "dim7", Cm7b5: "m7b5",
     Caug: "aug", C9: "9", Cm9: "m9", Cmaj9: "maj9", C13: "13", Cadd9: "add9",
     Cmadd9: "madd9", C5: "5", C7sus4: "7sus4", C69: "6/9", Cm11: "m11", C11: "11",
   };
-  for (const [sym, sufijo] of Object.entries(esperado)) {
-    assert.equal(spell(semis(sym)), sufijo, `${sym} debería cifrarse "${sufijo}"`);
+  for (const [sym, sufijo] of Object.entries(expected)) {
+    assert.equal(spell(semitones(sym)), sufijo, `${sym} debería cifrarse "${sufijo}"`);
   }
 });
 
 test("spell lee las alteraciones según haya séptima o no", () => {
-  const s = (...semis) => spell(new Set([0, ...semis]));
+  const s = (...semitones) => spell(new Set([0, ...semitones]));
   assert.equal(s(3, 7, 8), "mb6", "sin séptima, el Ab sobre C es b6");
   assert.equal(s(4, 7, 10, 8), "7b13", "con séptima, ese mismo Ab es b13");
   assert.equal(s(4, 7, 9), "6", "sin séptima, el A sobre C es la 6ª");
@@ -513,7 +513,7 @@ test("spell lee las alteraciones según haya séptima o no", () => {
 });
 
 test("spell cifra los intervalos sueltos diciendo lo que falta", () => {
-  const s = (...semis) => spell(new Set([0, ...semis]));
+  const s = (...semitones) => spell(new Set([0, ...semitones]));
   assert.equal(s(7), "5", "la quinta justa ya se llama así: no hace falta añadir nada");
   assert.equal(s(4), "(no5)");
   assert.equal(s(3), "m(no5)");
@@ -544,13 +544,13 @@ test("fretboardSvg dibuja el mástil con una zona clicable por traste y cuerda",
     assert.ok(svg.includes(`data-string="${s}" data-fret="0"`), `columna de al aire/muda de la cuerda ${s}`);
   }
   assert.ok(svg.includes("×"), "la 6ª muda lleva su aspa");
-  assert.equal((svg.match(/class="note/g) ?? []).length, 5, "una nota por cuerda que suena");
+  assert.equal((svg.match(/class="note/g) ?? []).length, 5, "una note byId cuerda que sounds");
   assert.equal((svg.match(/>C</g) ?? []).length, 2, "las dos C del acorde llevan su nombre escrito");
 });
 
 test("el mástil escribe el nombre de cada nota y resalta la fundamental", () => {
   const svg = fretboardSvg([-1, 3, 2, 0, 1, 0], { root: "C", labels: ["", "1", "3", "5", "1", "3"] });
-  for (const nota of ["C", "E", "G"]) assert.ok(svg.includes(`>${nota}<`), `falta la nota ${nota}`);
+  for (const note of ["C", "E", "G"]) assert.ok(svg.includes(`>${note}<`), `falta la nota ${note}`);
   assert.equal((svg.match(/class="note root"/g) ?? []).length, 2, "las dos C pulsadas son fundamental");
   assert.equal((svg.match(/class="note open"/g) ?? []).length, 2, "3ª y 1ª al aire");
   assert.equal((svg.match(/class="degree"/g) ?? []).length, 5, "un grado por cuerda que suena");
@@ -566,11 +566,11 @@ test("el mástil llega al traste 15 y numera todos los trastes", () => {
 });
 
 test("absoluteFrets pasa los trastes de chords-db al mástil", () => {
-  const abierto = findShape(guitarDb, "C").positions[0]; // x32010, baseFret 1
-  assert.deepEqual(absoluteFrets(abierto), [-1, 3, 2, 0, 1, 0], "en primera posición no cambia nada");
+  const openOne = findShape(guitarDb, "C").positions[0]; // x32010, baseFret 1
+  assert.deepEqual(absoluteFrets(openOne), [-1, 3, 2, 0, 1, 0], "en primera posición no cambia nada");
 
-  const alta = findShape(guitarDb, "C").positions.find(p => p.baseFret === 3);
-  assert.deepEqual(absoluteFrets(alta), [3, 3, 5, 5, 5, 3], "el 1 de la forma es el baseFret");
+  const high = findShape(guitarDb, "C").positions.find(p => p.baseFret === 3);
+  assert.deepEqual(absoluteFrets(high), [3, 3, 5, 5, 5, 3], "el 1 de la forma es el baseFret");
 
   // El resultado tiene que sonar lo que dice la BD, que es la prueba de fuego.
   for (const sym of ["C", "Am", "G7", "F", "Dm7", "Bb", "F#7"]) {
@@ -588,16 +588,16 @@ test("las posiciones de la BD se identifican como el acorde que dicen ser", () =
   // por G), así que vale la inversión: es el mismo acorde con otro bajo.
   for (const sym of ["C", "Am", "G7", "Dm7", "F", "Cmaj7", "Bb", "Esus4"]) {
     const p = findShape(guitarDb, sym).positions.find(q => absoluteFrets(q).every(f => f <= MAX_FRET));
-    const leidos = identify(absoluteFrets(p)).candidates.map(c => c.symbol);
-    assert.ok(leidos.some(s => s === sym || s.startsWith(`${sym}/`)), `${sym} no se reconoce en su propia posición: ${leidos}`);
+    const readOnes = identify(absoluteFrets(p)).candidates.map(c => c.symbol);
+    assert.ok(readOnes.some(s => s === sym || s.startsWith(`${sym}/`)), `${sym} no se reconoce en su propia posición: ${readOnes}`);
   }
 });
 
 test("rearmoniza la progresión entera respetando el original donde toca", () => {
   const prog = parseProgression("C Am F G7");
-  const versiones = reharmonizations(guitarDb, prog);
-  assert.ok(versiones.length >= 2, "varias versiones");
-  for (const v of versiones) {
+  const versions = reharmonizations(guitarDb, prog);
+  assert.ok(versions.length >= 2, "varias versiones");
+  for (const v of versions) {
     assert.ok(v.steps.length >= prog.length, "no se pierde ningún hueco");
     assert.equal(v.steps[0].from, "C");
     assert.ok(!v.steps[0].changed, "el primer acorde planta la tonalidad: no se toca");
@@ -610,10 +610,10 @@ test("rearmoniza la progresión entera respetando el original donde toca", () =>
     }
     // Cada digitación tiene que sonar el acorde que dice.
     for (const s of v.steps) {
-      const leidos = identify(s.frets).candidates.map(c => c.symbol.toLowerCase());
-      const dicho = s.symbol.toLowerCase();
-      assert.ok(leidos.some(x => x === dicho || x.startsWith(`${dicho}/`)),
-        `${s.symbol} no suena a lo que dice: ${leidos}`);
+      const readOnes = identify(s.frets).candidates.map(c => c.symbol.toLowerCase());
+      const said = s.symbol.toLowerCase();
+      assert.ok(readOnes.some(x => x === said || x.startsWith(`${said}/`)),
+        `${s.symbol} no suena a lo que dice: ${readOnes}`);
       assert.equal(s.top, Math.max(...s.frets.map((f, i) => (f < 0 ? -1 : STRINGS[i][1] + f))), "la voz de arriba es la nota más aguda");
     }
   }
@@ -621,18 +621,18 @@ test("rearmoniza la progresión entera respetando el original donde toca", () =>
 
 test("la línea se mueve hacia donde pide cada intención", () => {
   const prog = parseProgression("D A Bm G");
-  const versiones = reharmonizations(guitarDb, prog);
-  const saltos = v => v.steps.slice(1).map((s, i) => s.top - v.steps[i].top);
+  const versions = reharmonizations(guitarDb, prog);
+  const leaps = v => v.steps.slice(1).map((s, i) => s.top - v.steps[i].top);
 
-  const baja = versiones.find(v => v.intention.id === "descendente");
-  if (baja) assert.ok(saltos(baja).every(d => d <= 0), `la descendente sube: ${baja.line.join(" ")}`);
+  const low = versions.find(v => v.intention.id === "descending");
+  if (low) assert.ok(leaps(low).every(d => d <= 0), `la descendente sube: ${low.line.join(" ")}`);
 
-  const pedal = versiones.find(v => v.intention.id === "pedal");
+  const pedal = versions.find(v => v.intention.id === "pedal");
   if (pedal) assert.ok(pedal.held >= 1, "la pedal debería repetir alguna nota");
 
   // Los presets que persiguen la línea no deben dar saltos grandes en la voz de
   // arriba: ese es su punto. Los demás optimizan otra cosa y pueden saltar.
-  for (const v of versiones.filter(x => x.intention.w.movTop)) {
+  for (const v of versions.filter(x => x.intention.w.topMove)) {
     assert.equal(v.leaps, 0, `${v.intention.name} da saltos: ${v.line.join(" → ")}`);
   }
 });
@@ -649,44 +649,44 @@ test("el emparejamiento de voces cuenta movimiento, quietas y voces sueltas", ()
 });
 
 test("cada preset gana en lo suyo", () => {
-  for (const texto of ["C Am F G7", "D A Bm G"]) {
-    const versiones = reharmonizations(guitarDb, parseProgression(texto));
-    const ids = versiones.map(v => v.intention.id);
-    assert.ok(ids.length >= 3, `pocas versiones para "${texto}": ${ids}`);
-    const por = id => versiones.find(v => v.intention.id === id);
-    const resto = id => versiones.filter(v => v.intention.id !== id);
+  for (const text of ["C Am F G7", "D A Bm G"]) {
+    const versions = reharmonizations(guitarDb, parseProgression(text));
+    const ids = versions.map(v => v.intention.id);
+    assert.ok(ids.length >= 3, `pocas versiones para "${text}": ${ids}`);
+    const byId = id => versions.find(v => v.intention.id === id);
+    const rest = id => versions.filter(v => v.intention.id !== id);
     // El dedupe puede fundir presets, así que cada aserto solo aplica si su
     // versión sobrevivió con etiqueta propia.
-    const res = por("resonancia");
-    if (res) for (const v of resto("resonancia")) {
-      assert.ok(res.aire >= v.aire, `resonancia (${res.aire} al aire) pierde con ${v.intention.id} (${v.aire})`);
+    const res = byId("resonance");
+    if (res) for (const v of rest("resonance")) {
+      assert.ok(res.open >= v.open, `resonancia (${res.open} al aire) pierde con ${v.intention.id} (${v.open})`);
     }
     // Su función objetivo pesa 1 el semitono movido y 2 la voz sin pareja: la
     // comparación usa esa misma vara, no los semitonos a secas.
-    const min = por("minimo");
-    const quieto = v => v.movimiento + 2 * v.sueltas;
-    if (min) for (const v of resto("minimo")) {
-      assert.ok(quieto(min) <= quieto(v), `mínimo (${quieto(min)}) pierde con ${v.intention.id} (${quieto(v)})`);
+    const min = byId("minimal");
+    const still = v => v.movement + 2 * v.unpaired;
+    if (min) for (const v of rest("minimal")) {
+      assert.ok(still(min) <= still(v), `mínimo (${still(min)}) pierde con ${v.intention.id} (${still(v)})`);
     }
-    const cont = por("continuidad");
-    if (cont) for (const v of resto("continuidad")) {
-      assert.ok(cont.comunes + cont.quietas >= v.comunes + v.quietas,
-        `continuidad (${cont.comunes}+${cont.quietas}) pierde con ${v.intention.id} (${v.comunes}+${v.quietas})`);
+    const cont = byId("continuity");
+    if (cont) for (const v of rest("continuity")) {
+      assert.ok(cont.common + cont.still >= v.common + v.still,
+        `continuidad (${cont.common}+${cont.still}) pierde con ${v.intention.id} (${v.common}+${v.still})`);
     }
   }
 });
 
 test("las sustituciones del arreglo salen de las reglas y van explicadas", () => {
-  const nombres = new Set(RULES.map(r => r.name));
-  for (const texto of ["C Am F G7", "Am F C G", "D A Bm G", "C Am F G7 C Am Dm G7"]) {
-    for (const v of reharmonizations(guitarDb, parseProgression(texto))) {
+  const names = new Set(RULES.map(r => r.name));
+  for (const text of ["C Am F G7", "Am F C G", "D A Bm G", "C Am F G7 C Am Dm G7"]) {
+    for (const v of reharmonizations(guitarDb, parseProgression(text))) {
       // El presupuesto cuenta huecos tocados (un cliché mete varios acordes en
       // un solo hueco y gasta uno), así que aquí se cuenta lo mismo.
-      const huecos = new Set(v.steps.filter(s => s.changed).map(s => s.slot));
-      assert.ok(huecos.size <= Math.max(1, Math.round(parseProgression(texto).length / 3)) * 2,
-        `demasiados cambios en "${texto}": ${v.steps.map(s => s.symbol).join(" ")}`);
+      const slots = new Set(v.steps.filter(s => s.changed).map(s => s.slot));
+      assert.ok(slots.size <= Math.max(1, Math.round(parseProgression(text).length / 3)) * 2,
+        `demasiados cambios en "${text}": ${v.steps.map(s => s.symbol).join(" ")}`);
       for (const s of v.steps.filter(x => x.rule)) {
-        assert.ok(nombres.has(s.rule), `regla desconocida: ${s.rule}`);
+        assert.ok(names.has(s.rule), `regla desconocida: ${s.rule}`);
         assert.ok(s.why.length > 20, `sin explicación: ${s.rule}`);
       }
     }
@@ -899,32 +899,32 @@ test("transponer mueve la fundamental y también el bajo", () => {
 });
 
 test("transponer por intervalo escribe cada tono con su grafía", () => {
-  const suena = (prog, destino) => {
-    const iv = intervalTo("C", destino);
+  const sounds = (prog, target) => {
+    const iv = intervalTo("C", target);
     return parseProgression(prog).map(c => transposeSymbol(c.symbol, iv)).join(" ");
   };
   // A tonos con bemoles salen bemoles, y a tonos con sostenidos, sostenidos:
   // eso es lo que da transponer por intervalo en vez de por semitonos.
-  assert.equal(suena("C Am F G", "Ab"), "Ab Fm Db Eb");
-  assert.equal(suena("C Am F G", "B"), "B G#m E F#");
-  assert.equal(suena("C Am F G", "E"), "E C#m A B");
-  assert.equal(suena("C Am F G", "C"), "C Am F G", "al mismo tono no cambia nada");
+  assert.equal(sounds("C Am F G", "Ab"), "Ab Fm Db Eb");
+  assert.equal(sounds("C Am F G", "B"), "B G#m E F#");
+  assert.equal(sounds("C Am F G", "E"), "E C#m A B");
+  assert.equal(sounds("C Am F G", "C"), "C Am F G", "al mismo tono no cambia nada");
 });
 
 test("transponer ida y vuelta deja la progresión como estaba", () => {
   const original = "C Am F G7";
-  for (const destino of KEYS) {
-    const ida = parseProgression(original).map(c => transposeSymbol(c.symbol, intervalTo("C", destino)));
-    const vuelta = ida.map(sym => transposeSymbol(sym, intervalTo(destino, "C")));
-    assert.deepEqual(vuelta, ["C", "Am", "F", "G7"], `no vuelve pasando por ${destino}`);
+  for (const target of KEYS) {
+    const there = parseProgression(original).map(c => transposeSymbol(c.symbol, intervalTo("C", target)));
+    const roundTrip = there.map(sym => transposeSymbol(sym, intervalTo(target, "C")));
+    assert.deepEqual(roundTrip, ["C", "Am", "F", "G7"], `no vuelve pasando por ${target}`);
   }
 });
 
 test("todo acorde transpuesto a cualquier tono sigue teniendo diagrama", () => {
   for (const sym of ["C", "Am7", "F#m", "Bb", "G7", "Ebmaj7", "Bdim"]) {
-    for (const destino of KEYS) {
-      const t = transposeSymbol(sym, intervalTo("C", destino));
-      assert.ok(findShape(guitarDb, t), `sin posición de guitarra: ${sym} → ${t} (a ${destino})`);
+    for (const target of KEYS) {
+      const t = transposeSymbol(sym, intervalTo("C", target));
+      assert.ok(findShape(guitarDb, t), `sin posición de guitarra: ${sym} → ${t} (a ${target})`);
     }
   }
 });
@@ -940,8 +940,8 @@ test("los nombres que se leen y las claves de la BD son tablas distintas", () =>
   // exporta: si vuelve a salir de ahí, cualquier sitio que solo quiera nombrar
   // una nota puede volver a coger la tabla equivocada, que es lo que hacía que
   // una progresión en Db se anunciara como "C# mayor".
-  const fuente = readFileSync(new URL("./guitar.js", import.meta.url), "utf8");
-  assert.ok(!/export\s+const\s+DB_SPELLING/.test(fuente), "la grafía de la BD no debe exportarse");
+  const sourceText = readFileSync(new URL("./guitar.js", import.meta.url), "utf8");
+  assert.ok(!/export\s+const\s+DB_SPELLING/.test(sourceText), "la grafía de la BD no debe exportarse");
 
   // Las dos tablas de notes.js responden a preguntas distintas y solo coinciden
   // en once de doce: el sonido 1 se lee C# suelto pero Db como tonalidad.
@@ -949,20 +949,20 @@ test("los nombres que se leen y las claves de la BD son tablas distintas", () =>
   assert.equal(KEYS.length, 12);
   NOTES.forEach((n, i) => assert.equal(Note.chroma(n), i, `${n} fuera de sitio`));
   KEYS.forEach((k, i) => assert.equal(Note.chroma(k), i, `${k} fuera de sitio`));
-  const distintas = NOTES.filter((n, i) => n !== KEYS[i]);
-  assert.deepEqual(distintas, ["C#"]);
+  const different = NOTES.filter((n, i) => n !== KEYS[i]);
+  assert.deepEqual(different, ["C#"]);
 });
 
 test("el arreglo de cejilla ordena por lo que resuena y sale tocable", () => {
   const prog = parseProgression("C Am F G");
-  const arreglos = capoArrangements(guitarDb, prog);
-  assert.ok(arreglos.length >= 5, "debería encontrar arreglo para casi toda cejilla");
+  const arrangements = capoArrangements(guitarDb, prog);
+  assert.ok(arrangements.length >= 5, "debería encontrar arreglo para casi toda cejilla");
 
   // Ordenado por cuerdas al aire: es el criterio que da nombre a la pestaña.
-  const aire = arreglos.map(a => a.aire);
-  assert.deepEqual(aire, [...aire].sort((x, y) => y - x));
+  const open = arrangements.map(a => a.open);
+  assert.deepEqual(open, [...open].sort((x, y) => y - x));
 
-  for (const a of arreglos) {
+  for (const a of arrangements) {
     assert.equal(a.steps.length, prog.length, "un acorde del arreglo por acorde de la progresión");
     a.steps.forEach((s, i) => {
       // Solo adornos: cambia el color, nunca la fundamental ni el acorde.
@@ -970,39 +970,39 @@ test("el arreglo de cejilla ordena por lo que resuena y sale tocable", () => {
       // La forma se toca detrás de la cejilla, así que hay que llegar con la mano.
       assert.ok(s.frets.every(f => a.capo + f <= MAX_FRET), `${s.shape} se sale del mástil con cejilla ${a.capo}`);
       assert.ok(findShape(guitarDb, s.shape), `forma sin diagrama: ${s.shape}`);
-      assert.equal(s.aire, s.frets.filter(f => f === 0).length);
+      assert.equal(s.open, s.frets.filter(f => f === 0).length);
     });
     // Las cuentas que se enseñan salen de las digitaciones elegidas, no de otro sitio.
-    assert.equal(a.aire, a.steps.reduce((n, s) => n + s.aire, 0));
+    assert.equal(a.open, a.steps.reduce((n, s) => n + s.open, 0));
   }
 });
 
 test("el arreglo de cejilla prefiere las digitaciones que dejan cuerdas al aire", () => {
-  const mejor = capoArrangements(guitarDb, parseProgression("C Am F G"))[0];
+  const best = capoArrangements(guitarDb, parseProgression("C Am F G"))[0];
   // La referencia: tocar la progresión tal cual, con la primera digitación de cada acorde.
-  const tal_cual = parseProgression("C Am F G")
+  const asWritten = parseProgression("C Am F G")
     .reduce((n, c) => n + playablePositions(guitarDb, c.symbol)[0].frets.filter(f => f === 0).length, 0);
-  assert.ok(mejor.aire > tal_cual, `el arreglo (${mejor.aire}) no mejora lo obvio (${tal_cual})`);
-  assert.ok(mejor.quietas > 0, "algo tendrá que quedarse quieto entre acordes");
+  assert.ok(best.open > asWritten, `el arreglo (${best.open}) no mejora lo obvio (${asWritten})`);
+  assert.ok(best.still > 0, "algo tendrá que quedarse quieto entre acordes");
 });
 
 test("el mástil dibuja la cejilla y lo que solo pisa ella suena al aire", () => {
   // C6 detrás de una cejilla en el 5: la forma 3 2 0 0 0 0 cae en 8 7 5 5 5 5.
-  const conCejilla = fretboardSvg([8, 7, 5, 5, 5, 5], { capo: 5 });
-  const sinCejilla = fretboardSvg([8, 7, 5, 5, 5, 5]);
+  const withCapo = fretboardSvg([8, 7, 5, 5, 5, 5], { capo: 5 });
+  const withoutCapo = fretboardSvg([8, 7, 5, 5, 5, 5]);
 
-  assert.match(conCejilla, /class="capo"/, "falta la barra de la cejilla");
-  assert.doesNotMatch(sinCejilla, /class="capo"/);
+  assert.match(withCapo, /class="capo"/, "falta la barra de la cejilla");
+  assert.doesNotMatch(withoutCapo, /class="capo"/);
 
   // Las cuatro cuerdas que solo pisa la cejilla se dibujan como cuerdas al aire,
   // que es lo que hace que la forma se reconozca al venir de la pestaña de cejilla.
-  assert.equal([...conCejilla.matchAll(/class="note[^"]*\bopen\b/g)].length, 4);
-  assert.equal([...sinCejilla.matchAll(/class="note[^"]*\bopen\b/g)].length, 0);
+  assert.equal([...withCapo.matchAll(/class="note[^"]*\bopen\b/g)].length, 4);
+  assert.equal([...withoutCapo.matchAll(/class="note[^"]*\bopen\b/g)].length, 0);
 
   // Detrás de la cejilla no se puede pisar nada, así que esas casillas no existen.
-  const trastes = s => [...s.matchAll(/class="cell" data-string="0" data-fret="(\d+)"/g)].map(m => Number(m[1]));
-  assert.deepEqual(trastes(conCejilla), [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
-  assert.equal(Math.min(...trastes(sinCejilla)), 0);
+  const fretsOf = s => [...s.matchAll(/class="cell" data-string="0" data-fret="(\d+)"/g)].map(m => Number(m[1]));
+  assert.deepEqual(fretsOf(withCapo), [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+  assert.equal(Math.min(...fretsOf(withoutCapo)), 0);
 });
 
 test("rootOf saca la fundamental tal como está escrita", () => {
@@ -1019,120 +1019,120 @@ test("rootOf saca la fundamental tal como está escrita", () => {
 
 // El catálogo son ficheros estáticos, así que aquí se le pone un servidor de
 // mentira: lo que se prueba es qué pide y qué hace con lo que le llega.
-const conCatalogo = (ficheros, fn) => async () => {
-  const antes = globalThis.fetch;
-  const pedidos = [];
+const withCatalog = (files, fn) => async () => {
+  const before = globalThis.fetch;
+  const requested = [];
   globalThis.fetch = async url => {
-    const ruta = new URL(url).pathname.split("/").filter(Boolean).slice(1).join("/");
-    pedidos.push(ruta);
-    return ruta in ficheros
-      ? { ok: true, status: 200, json: async () => ficheros[ruta] }
+    const path = new URL(url).pathname.split("/").filter(Boolean).slice(1).join("/");
+    requested.push(path);
+    return path in files
+      ? { ok: true, status: 200, json: async () => files[path] }
       : { ok: false, status: 404 };
   };
   try {
-    await fn(pedidos);
+    await fn(requested);
   } finally {
-    globalThis.fetch = antes;
+    globalThis.fetch = before;
   }
 };
 
 test("la firma de una progresión no depende del tono ni del color", () => {
   // Es lo que hace que preguntar por Am F C G encuentre también a quien la toca
   // en si menor, y a quien le pone séptimas.
-  assert.equal(firma(["Am", "F", "C", "G7"]), firma(["Bm", "G", "D", "A"]));
-  assert.equal(firma(["Am", "F", "C", "G7"]), firma(["Am7", "F6", "Cmaj7", "G"]));
+  assert.equal(signature(["Am", "F", "C", "G7"]), signature(["Bm", "G", "D", "A"]));
+  assert.equal(signature(["Am", "F", "C", "G7"]), signature(["Am7", "F6", "Cmaj7", "G"]));
   // Pero sí depende de lo que suena: un mayor donde había un menor es otra cosa.
-  assert.notEqual(firma(["Am", "F", "C", "G"]), firma(["A", "F", "C", "G"]));
+  assert.notEqual(signature(["Am", "F", "C", "G"]), signature(["A", "F", "C", "G"]));
   // Y el bajo no cuenta: C/E es C tocado de otra manera.
-  assert.equal(firma(["C", "F", "G"]), firma(["C/E", "F", "G/B"]));
-  assert.equal(firma(["C", "Zzz", "G"]), null);
+  assert.equal(signature(["C", "F", "G"]), signature(["C/E", "F", "G/B"]));
+  assert.equal(signature(["C", "Zzz", "G"]), null);
 });
 
 test("una progresión larga se pregunta por trozos, los de cuatro primero", () => {
-  const vs = ventanas(["C", "Am", "F", "G", "Em"]);
-  assert.deepEqual(vs.filter(v => v.largo === 4).map(v => v.acordes.join(" ")),
+  const vs = windows(["C", "Am", "F", "G", "Em"]);
+  assert.deepEqual(vs.filter(v => v.length === 4).map(v => v.chords.join(" ")),
     ["C Am F G", "Am F G Em"]);
-  assert.deepEqual(vs.filter(v => v.largo === 3).map(v => v.desde), [0, 1, 2]);
+  assert.deepEqual(vs.filter(v => v.length === 3).map(v => v.from), [0, 1, 2]);
   // Con tres acordes justos no hay ventana de cuatro, y la de tres es la entera.
-  assert.deepEqual(ventanas(["C", "Am", "F"]).map(v => v.largo), [3]);
-  assert.deepEqual(ventanas(["C", "Am"]), []);
+  assert.deepEqual(windows(["C", "Am", "F"]).map(v => v.length), [3]);
+  assert.deepEqual(windows(["C", "Am"]), []);
 
   // Una progresión que da la vuelta pasa dos veces por las mismas ventanas, y
   // preguntar dos veces lo mismo daría dos veces la misma respuesta.
-  const vuelta = ventanas(["C", "G", "Am", "F", "C", "G", "Am", "F"]);
-  assert.equal(new Set(vuelta.map(v => v.firma)).size, vuelta.length);
-  assert.deepEqual(vuelta.filter(v => v.largo === 4).map(v => v.acordes.join(" ")),
+  const roundTrip = windows(["C", "G", "Am", "F", "C", "G", "Am", "F"]);
+  assert.equal(new Set(roundTrip.map(v => v.signature)).size, roundTrip.length);
+  assert.deepEqual(roundTrip.filter(v => v.length === 4).map(v => v.chords.join(" ")),
     ["C G Am F", "G Am F C", "Am F C G", "F C G Am"]);
 });
 
 test("de qué palabra tirar: el prefijo más largo que esté publicado", () => {
   const man = { the: 6000, wal: 40, wall: 12, wallf: 3 };
-  assert.equal(shardDe("wallflower", man), "wallf");
-  assert.equal(shardDe("wall", man), "wall");
-  assert.equal(shardDe("walk", man), "wal");
-  assert.equal(shardDe("the", man), "the");
+  assert.equal(shardFor("wallflower", man), "wallf");
+  assert.equal(shardFor("wall", man), "wall");
+  assert.equal(shardFor("walk", man), "wal");
+  assert.equal(shardFor("the", man), "the");
   // Palabra más corta que los prefijos: valen los que empiecen por ella.
-  assert.deepEqual(shardDe("wa", man), ["wal", "wall", "wallf"]);
-  assert.equal(shardDe("zz", man), null);
+  assert.deepEqual(shardFor("wa", man), ["wal", "wall", "wallf"]);
+  assert.equal(shardFor("zz", man), null);
 });
 
-test("buscar pide un solo trozo del índice y filtra con la consulta entera", conCatalogo({
+test("buscar pide un solo trozo del índice y filtra con la consulta entera", withCatalog({
   "titulos.json": { hot: 3, cal: 2 },
   "titulos/cal.json": {
     a: ["Eagles", "Gipsy Kings"],
     f: [[1, "Hotel California", 0], [2, "Hotel California (Spanish Mix)", 1]],
   },
   "titulos/hot.json": { a: ["Otro"], f: [[3, "Hot Stuff", 0]] },
-}, async pedidos => {
-  const r = await buscar("hotel california");
+}, async requested => {
+  const r = await search("hotel california");
   // Tira de "cal", que es el trozo más pequeño de los dos que valen.
-  assert.ok(pedidos.includes("titulos/cal.json"));
-  assert.ok(!pedidos.includes("titulos/hot.json"));
+  assert.ok(requested.includes("titulos/cal.json"));
+  assert.ok(!requested.includes("titulos/hot.json"));
   // El título exacto va primero, y lo que no lleva las dos palabras no sale.
   assert.deepEqual(r.map(x => x.id), [1, 2]);
   assert.equal(r[0].artist, "Eagles");
-  assert.deepEqual(await buscar("   "), []);
+  assert.deepEqual(await search("   "), []);
 }));
 
-test("las partes de una canción del catálogo se leen en castellano", conCatalogo({
+test("las partes de una canción del catálogo se leen en castellano", withCatalog({
   "canciones/4.json": { 1000: [["verse_1, verse_2", "C Am F G"], ["chorus_1", "F G C"]] },
 }, async () => {
-  const partes = await cancion(1000);
-  assert.deepEqual(partes.map(p => p.name), ["Estrofa, Estrofa 2", "Estribillo"]);
-  assert.deepEqual(partes[0].chords, ["C", "Am", "F", "G"]);
+  const parts = await song(1000);
+  assert.deepEqual(parts.map(p => p.name), ["Estrofa, Estrofa 2", "Estribillo"]);
+  assert.deepEqual(parts[0].chords, ["C", "Am", "F", "G"]);
   // Una canción que no está no es un error: es que no está.
-  assert.equal(await cancion(1001), null);
+  assert.equal(await song(1001), null);
 }));
 
-test("dónde suena devuelve cuántas la llevan y una muestra con nombre", conCatalogo({
-  [`progresiones/4/${huella(firma(["C", "Am", "F", "G"]))}.json`]: {
-    [firma(["C", "Am", "F", "G"])]: [24190, [[7, "Let It Be", "The Beatles"], [8, "Sin nadie", ""]]],
+test("dónde suena devuelve cuántas la llevan y una muestra con nombre", withCatalog({
+  [`progresiones/4/${fingerprint(signature(["C", "Am", "F", "G"]))}.json`]: {
+    [signature(["C", "Am", "F", "G"])]: [24190, [[7, "Let It Be", "The Beatles"], [8, "Sin nadie", ""]]],
   },
 }, async () => {
-  const [v] = ventanas(["C", "Am", "F", "G"]);
-  const r = await dondeSuena(v);
+  const [v] = windows(["C", "Am", "F", "G"]);
+  const r = await whereSounds(v);
   assert.equal(r.total, 24190);
-  assert.deepEqual(r.canciones.map(c => c.song), ["Let It Be", "Sin nadie"]);
-  assert.equal(r.canciones[1].artist, "");
+  assert.deepEqual(r.songs.map(c => c.song), ["Let It Be", "Sin nadie"]);
+  assert.equal(r.songs[1].artist, "");
   // La misma progresión en otro tono cae en el mismo sitio del índice.
-  const [otra] = ventanas(["D", "Bm", "G", "A"]);
-  assert.equal((await dondeSuena(otra)).total, 24190);
+  const [otra] = windows(["D", "Bm", "G", "A"]);
+  assert.equal((await whereSounds(otra)).total, 24190);
 }));
 
 test("al puntuar un título se le quita la coletilla de la edición", () => {
   // Los títulos vienen de Spotify y arrastran cómo se publicó la pista. Sin
   // quitarla, cualquier versión que se llame exactamente igual le gana al original.
-  assert.equal(sinEdicion("Let It Be - Remastered 2009"), "Let It Be");
-  assert.equal(sinEdicion("Hotel California - Live; 1999 Remaster"), "Hotel California");
-  assert.equal(sinEdicion("Wonderwall (Remastered)"), "Wonderwall");
+  assert.equal(withoutEdition("Let It Be - Remastered 2009"), "Let It Be");
+  assert.equal(withoutEdition("Hotel California - Live; 1999 Remaster"), "Hotel California");
+  assert.equal(withoutEdition("Wonderwall (Remastered)"), "Wonderwall");
   // Pero un título que lleva esas palabras de suyo se queda como está.
-  assert.equal(sinEdicion("Live and Let Die"), "Live and Let Die");
-  assert.equal(sinEdicion("Cover Me"), "Cover Me");
-  assert.equal(sinEdicion("- Live"), "- Live"); // no se puede quedar en nada
+  assert.equal(withoutEdition("Live and Let Die"), "Live and Let Die");
+  assert.equal(withoutEdition("Cover Me"), "Cover Me");
+  assert.equal(withoutEdition("- Live"), "- Live"); // no se puede quedar en nada
 
   const ws = ["hotel", "california"];
   const original = [1, "Hotel California - 2013 Remaster", "Eagles"];
   const version = [2, "Hotel California", "Grupo Cualquiera"];
   // Con el original arriba del fichero —su intérprete está más transcrito— gana él.
-  assert.ok(puntua(original, ws, 0) > puntua(version, ws, 0.9));
+  assert.ok(score(original, ws, 0) > score(version, ws, 0.9));
 });

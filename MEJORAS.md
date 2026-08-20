@@ -68,9 +68,9 @@ Open D también.
 **La pestaña compite setups, no afinaciones.** Un setup es afinación + cejilla
 opcional; la cejilla es solo una afinación virtual (midis + traste), así que no
 hay formas con nombre que transponer y las notas salen bien solas. Cada capa
-son los adornos del acorde (el mismo filtro `esAdorno` de la cejilla, ahora en
+son los adornos del acorde (el mismo filtro `isAdornment` de la cejilla, ahora en
 rules.js) por sus digitaciones generadas, encadenados con el mismo camino
-mínimo resonante (`mejorCadena`, movida a reharm.js y parametrizada por preset
+mínimo resonante (`bestChain`, movida a reharm.js y parametrizada por preset
 y coste de nodo). Mismo preset y misma progresión en todos los setups: los
 costes por fin SON comparables y las tarjetas se ordenan por coste total. La
 estándar compite como una más —perder contra ella ahorra reafinar—. Las
@@ -113,7 +113,7 @@ ordenado ya casa bajo con bajo.
 el mismo `linkCost` y el preset resonante, y solo añade la cejilla como
 dimensión de búsqueda y el filtro de solo-adornos. El factor que solo conocía
 la cejilla —la nota quieta que además es al aire cuenta doble— entró al
-vocabulario común como `quietasAlAire`. Queda para más adelante el paso
+vocabulario común como `stillOpen`. Queda para más adelante el paso
 siguiente: buscar rearmonización y cejilla a la vez.
 
 **Lo que queda abierto de aquí:**
@@ -127,7 +127,7 @@ siguiente: buscar rearmonización y cejilla a la vez.
 
 Se hizo entero y se retiró el mismo día, después de usarlo. Lo que se construyó sigue en pie:
 **385.664 canciones con sus progresiones por partes** publicadas en un repo estático aparte
-—**De Chordis Mysteriis**—, el módulo que las lee y la tubería que las fabrica, todo en `guardado/`
+—**De Chordis Mysteriis**—, el módulo que las lee y la tubería que las fabrica, todo en `archived/`
 y todo probado. Lo que no está es enchufado a la app: ni la segunda fuente del buscador ni la
 pestaña «Dónde suena». La versión conectada vive en la rama `catalogo`.
 
@@ -155,7 +155,7 @@ Guitar ya la cubre y con transcripciones mejores.
   Beatles 136—. Se mitigó quitando las coletillas de edición ("- Remastered 2009") antes de
   comparar, pero es medio arreglo, y es medio arreglo de lo que más se notaba al usarlo.
 
-**Si algún día vuelve**, además de reconectarlo (`guardado/LEEME.md` dice cómo), estas dos quedaron
+**Si algún día vuelve**, además de reconectarlo (`archived/README.md` dice cómo), estas dos quedaron
 sin hacer y siguen valiendo: rellenar los ~54.000 títulos que faltan con el oEmbed público de
 Spotify, y traer popularidad de una fuente libre (MusicBrainz, ListenBrainz) para que el orden deje
 de ser el punto flojo.

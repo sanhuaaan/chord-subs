@@ -1,7 +1,7 @@
 import { Chord, Note } from "tonal";
 
 // GUARDADO: hoy la app no importa este fichero. Sigue probado, y sigue en pie el
-// catálogo que lee; el porqué de tenerlo aparte está en guardado/LEEME.md.
+// catálogo que lee; el porqué de tenerlo aparte está en archived/README.md.
 //
 // El catálogo: 385.664 canciones con sus progresiones por partes, publicadas
 // como ficheros estáticos en un repo aparte, De Chordis Mysteriis. Salen de
@@ -14,9 +14,9 @@ import { Chord, Note } from "tonal";
 // canciones aparece una progresión. Eso necesita un índice construido de
 // antemano, y por eso vive en datos y no en una consulta.
 //
-// localStorage.catalogo lo sobrescribe, que es la vía para desarrollar contra
+// localStorage.catalog lo sobrescribe, que es la vía para desarrollar contra
 // una copia local de los datos.
-const BASE = globalThis.localStorage?.catalogo || "https://sanhuaaan.github.io/de-chordis-mysteriis";
+const BASE = globalThis.localStorage?.catalog || "https://sanhuaaan.github.io/de-chordis-mysteriis";
 
 // ── Firma de una progresión ────────────────────────────────────────────────
 // Para buscar una progresión hace falta una forma de ella que no dependa del
@@ -28,45 +28,45 @@ const BASE = globalThis.localStorage?.catalogo || "https://sanhuaaan.github.io/d
 //
 // La misma función construye el índice: el generador del tomo importa
 // este fichero, así que si la firma cambia, los datos hay que rehacerlos.
-const leidas = new Map();
+const readings = new Map();
 
 // [croma, familia] del símbolo, o null si tonal no sabe leerlo.
-export function lectura(sym) {
-  if (leidas.has(sym)) return leidas.get(sym);
+export function reading(sym) {
+  if (readings.has(sym)) return readings.get(sym);
   const c = Chord.get(sym.split("/")[0]);
   let r = null;
   if (c.tonic) {
     const iv = new Set(c.intervals);
-    const familia = iv.has("3m") ? (iv.has("5d") ? "d" : "m")
+    const family = iv.has("3m") ? (iv.has("5d") ? "d" : "m")
       : iv.has("3M") ? (iv.has("5A") && !iv.has("5P") ? "a" : "M")
       : iv.has("4P") || iv.has("2M") ? "s"
       : "5";
-    r = [Note.chroma(c.tonic), familia];
+    r = [Note.chroma(c.tonic), family];
   }
-  leidas.set(sym, r);
+  readings.set(sym, r);
   return r;
 }
 
 // Firma de una ventana de una progresión ya leída, sin volver a mirar los
 // acordes: construir el índice recorre millones de ventanas y leerlas otra vez
 // en cada una es lo que separa unos minutos de una tarde.
-export function firmaVentana(leidas, desde, largo) {
-  const base = leidas[desde];
+export function windowSignature(readings, from, length) {
+  const base = readings[from];
   if (!base) return null;
   let out = "";
-  for (let i = desde; i < desde + largo; i++) {
-    const l = leidas[i];
+  for (let i = from; i < from + length; i++) {
+    const l = readings[i];
     if (!l) return null;
-    out += (i > desde ? "." : "") + ((l[0] - base[0] + 12) % 12) + l[1];
+    out += (i > from ? "." : "") + ((l[0] - base[0] + 12) % 12) + l[1];
   }
   return out;
 }
 
-export const firma = acordes => firmaVentana(acordes.map(lectura), 0, acordes.length);
+export const signature = chords => windowSignature(chords.map(reading), 0, chords.length);
 
 // El shard sale de una huella de la firma, no de su texto: las firmas no tienen
 // un prefijo con el que repartirlas de forma pareja.
-export const huella = s => {
+export const fingerprint = s => {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return ((h >>> 0) % 1024).toString(16).padStart(3, "0");
@@ -76,64 +76,64 @@ export const huella = s => {
 // La misma normalización con la que se indexó: minúsculas, sin tildes y solo
 // letras y números. Lo que se teclea y lo que está indexado tienen que
 // coincidir carácter a carácter, así que esto lo usan las dos puntas.
-export const normalizar = s => (s ?? "").toLowerCase().normalize("NFD")
+export const normalize = s => (s ?? "").toLowerCase().normalize("NFD")
   .replace(/[̀-ͯ]/g, "")
   .replace(/[^a-z0-9\s]+/g, " ")
   .trim();
 
-export const palabras = s => normalizar(s).split(/\s+/).filter(Boolean);
+export const words = s => normalize(s).split(/\s+/).filter(Boolean);
 
 // ── Descargas ──────────────────────────────────────────────────────────────
 // Un fichero que no está no es un error: significa que no hay nada indexado ahí.
 const cache = new Map();
 
-function traer(ruta) {
-  if (!cache.has(ruta)) {
-    cache.set(ruta, fetch(`${BASE}/${ruta}`)
+function load(path) {
+  if (!cache.has(path)) {
+    cache.set(path, fetch(`${BASE}/${path}`)
       .then(r => (r.status === 404 ? null : r.ok ? r.json() : Promise.reject(
         new Error(`El catálogo ha respondido ${r.status}. Ver el README.`))))
       .catch(err => {
-        cache.delete(ruta); // que un corte de red no deje el fallo cacheado
+        cache.delete(path); // que un corte de red no deje el fallo cacheado
         throw err.message?.startsWith("El catálogo")
           ? err
           : new Error(`No se llega al catálogo (${BASE}). Ver el README.`);
       }));
   }
-  return cache.get(ruta);
+  return cache.get(path);
 }
 
-let manifiesto = null;
-const indice = () => (manifiesto ??= traer("titulos.json"));
+let manifest = null;
+const index = () => (manifest ??= load("titulos.json"));
 
 // Qué hay publicado: cuántas canciones, de dónde salen y con qué topes se
 // construyó el índice. Lo pinta la pestaña de "dónde suena", que si no tendría
 // que llevar los números copiados a mano.
-export const meta = () => traer("meta.json");
+export const meta = () => load("meta.json");
 
 // ── Búsqueda por título ────────────────────────────────────────────────────
 // El índice reparte las canciones por prefijo de palabra, con prefijos más
 // largos donde hay más canciones (todo lo que empieza por "the" no cabe en un
 // fichero). Buscar es elegir de qué palabra tirar: la que dé el trozo más
 // pequeño, porque el filtrado fino se hace luego aquí con la consulta entera.
-export function shardDe(palabra, manifiesto) {
-  for (let n = palabra.length; n >= 3; n--) {
-    const p = palabra.slice(0, n);
-    if (manifiesto[p] != null) return p;
+export function shardFor(word, manifest) {
+  for (let n = word.length; n >= 3; n--) {
+    const p = word.slice(0, n);
+    if (manifest[p] != null) return p;
   }
   // Palabra más corta que los prefijos con que se indexó: valen todos los que
   // empiecen por ella, pero solo si son pocos; si no, hay que teclear más.
-  const hijos = Object.keys(manifiesto).filter(p => p.startsWith(palabra));
-  return hijos.length && hijos.length <= 4 ? hijos : null;
+  const children = Object.keys(manifest).filter(p => p.startsWith(word));
+  return children.length && children.length <= 4 ? children : null;
 }
 
 // Un shard es { a: [intérpretes], f: [[id, título, índice del intérprete]] }: el
 // mismo intérprete sale muchas veces en un fichero y guardarlo una sola vez es
 // un tercio menos de índice.
-const filas = trozo => (trozo?.f ?? []).map(([id, titulo, ia]) => [id, titulo, trozo.a[ia] ?? ""]);
+const rows = chunk => (chunk?.f ?? []).map(([id, title, ia]) => [id, title, chunk.a[ia] ?? ""]);
 
-const casa = (fila, ws) => {
-  const suyas = [...palabras(fila[1]), ...palabras(fila[2])];
-  return ws.every(w => suyas.some(s => s.startsWith(w)));
+const matches = (row, ws) => {
+  const own = [...words(row[1]), ...words(row[2])];
+  return ws.every(w => own.some(s => s.startsWith(w)));
 };
 
 // Lo que se teclea suele ser el título, a veces con el intérprete detrás. Puntúa
@@ -149,90 +149,90 @@ const casa = (fila, ws) => {
 // Be - Remastered 2009", "Hotel California - Live; 1999 Remaster". Sin quitarla,
 // cualquier versión de instituto que se llame exactamente igual le gana al
 // original, que es justo al revés de lo que quiere quien busca.
-const EDICION = /\s*[-–—(\[]\s*[^-–—([]*\b(remaster\w*|live|mono|stereo|version|edit|radio|single|deluxe|bonus|anniversary|demo|cover|karaoke|instrumental)\b[^-–—([]*[)\]]?\s*$/i;
-export const sinEdicion = t => {
-  const limpio = t.replace(EDICION, "").trim();
-  return limpio || t;
+const EDITION = /\s*[-–—(\[]\s*[^-–—([]*\b(remaster\w*|live|mono|stereo|version|edit|radio|single|deluxe|bonus|anniversary|demo|cover|karaoke|instrumental)\b[^-–—([]*[)\]]?\s*$/i;
+export const withoutEdition = t => {
+  const clean = t.replace(EDITION, "").trim();
+  return clean || t;
 };
 
-export function puntua(fila, ws, rango = 1) {
-  const titulo = normalizar(sinEdicion(fila[1]));
-  const enTitulo = palabras(fila[1]);
+export function score(row, ws, rank = 1) {
+  const title = normalize(withoutEdition(row[1]));
+  const inTitle = words(row[1]);
   const query = ws.join(" ");
   // Una versión en directo o una de fiesta no es la primera opción de nadie.
-  const vestida = fila[1].length - titulo.length;
-  let p = 30 * (1 - rango);
-  if (titulo === query) p += 70;
-  else if (titulo.startsWith(query)) p += 55;
-  p += 10 * ws.filter(w => enTitulo.some(s => s.startsWith(w))).length;
-  p -= Math.min(titulo.length, 40) / 10;
-  p -= vestida ? 3 : 0;
+  const dressed = row[1].length - title.length;
+  let p = 30 * (1 - rank);
+  if (title === query) p += 70;
+  else if (title.startsWith(query)) p += 55;
+  p += 10 * ws.filter(w => inTitle.some(s => s.startsWith(w))).length;
+  p -= Math.min(title.length, 40) / 10;
+  p -= dressed ? 3 : 0;
   return p;
 }
 
-export async function buscar(texto, tope = 25) {
-  const ws = palabras(texto);
+export async function search(text, limit = 25) {
+  const ws = words(text);
   if (!ws.length) return [];
-  const man = await indice();
+  const man = await index();
   if (!man) return [];
   // De qué palabra tirar: la del shard más pequeño.
-  let mejor = null;
+  let best = null;
   for (const w of ws) {
-    const s = shardDe(w, man);
+    const s = shardFor(w, man);
     if (!s) continue;
-    const nombres = Array.isArray(s) ? s : [s];
-    const tam = nombres.reduce((a, n) => a + man[n], 0);
-    if (!mejor || tam < mejor.tam) mejor = { nombres, tam };
+    const names = Array.isArray(s) ? s : [s];
+    const size = names.reduce((a, n) => a + man[n], 0);
+    if (!best || size < best.size) best = { names, size };
   }
-  if (!mejor) return [];
-  const trozos = await Promise.all(mejor.nombres.map(n => traer(`titulos/${n}.json`)));
-  const vistas = new Set();
-  const candidatas = [];
-  for (const t of trozos) {
-    for (const fila of filas(t)) {
-      if (vistas.has(fila[0]) || !casa(fila, ws)) continue;
-      vistas.add(fila[0]);
-      candidatas.push(fila);
+  if (!best) return [];
+  const chunks = await Promise.all(best.names.map(n => load(`titulos/${n}.json`)));
+  const seen = new Set();
+  const candidates = [];
+  for (const t of chunks) {
+    for (const row of rows(t)) {
+      if (seen.has(row[0]) || !matches(row, ws)) continue;
+      seen.add(row[0]);
+      candidates.push(row);
     }
   }
-  return candidatas
-    .map((f, i) => ({ fila: f, p: puntua(f, ws, i / candidatas.length) }))
+  return candidates
+    .map((f, i) => ({ row: f, p: score(f, ws, i / candidates.length) }))
     .sort((a, b) => b.p - a.p)
-    .slice(0, tope)
-    .map(({ fila: [id, song, artist] }) => ({ id, song, artist }));
+    .slice(0, limit)
+    .map(({ row: [id, song, artist] }) => ({ id, song, artist }));
 }
 
 // ── Una canción ────────────────────────────────────────────────────────────
 // Las partes vienen como [nombre, "C Am F G"], con las repeticiones seguidas ya
 // colapsadas y las partes que suenan igual fundidas, que es lo mismo que hace
 // la app al leer una transcripción de Ultimate Guitar.
-const POR_SHARD = 250;
+const PER_SHARD = 250;
 
 // Chordonomicon marca las partes en inglés y con número (verse_1, chorus_2), y
 // funde varias en una cuando suenan igual. Aquí se leen en castellano.
-const PARTES = {
+const PART_NAMES = {
   intro: "Intro", verse: "Estrofa", chorus: "Estribillo", bridge: "Puente",
   outro: "Coda", solo: "Solo", instrumental: "Instrumental", interlude: "Interludio",
   prechorus: "Pre-estribillo", "pre-chorus": "Pre-estribillo", refrain: "Estribillo",
   breakdown: "Ruptura", hook: "Gancho", song: "Progresión",
 };
 
-export function nombreParte(bruto) {
-  const partes = bruto.split(",").map(t => {
+export function partName(raw) {
+  const parts = raw.split(",").map(t => {
     const m = t.trim().match(/^(.*?)(?:_(\d+))?$/);
-    const base = PARTES[m[1]] ?? (m[1].charAt(0).toUpperCase() + m[1].slice(1));
+    const base = PART_NAMES[m[1]] ?? (m[1].charAt(0).toUpperCase() + m[1].slice(1));
     return m[2] && m[2] !== "1" ? `${base} ${m[2]}` : base;
   });
-  return [...new Set(partes)].join(", ");
+  return [...new Set(parts)].join(", ");
 }
 
-export async function cancion(id) {
-  const shard = await traer(`canciones/${Math.floor(id / POR_SHARD)}.json`);
-  const partes = shard?.[id];
-  if (!partes) return null;
-  return partes.map(([nombre, acordes]) => ({
-    name: nombreParte(nombre),
-    chords: acordes.split(" "),
+export async function song(id) {
+  const shard = await load(`canciones/${Math.floor(id / PER_SHARD)}.json`);
+  const parts = shard?.[id];
+  if (!parts) return null;
+  return parts.map(([name, chords]) => ({
+    name: partName(name),
+    chords: chords.split(" "),
   }));
 }
 
@@ -242,7 +242,7 @@ export async function cancion(id) {
 // canción que la lleva a medias también aparece. De cada firma se guarda cuántas
 // canciones la tienen y una muestra de hasta cuarenta con nombre, dos por
 // intérprete como mucho, que es lo que cabe leer.
-export const LARGOS = [4, 3];
+export const LENGTHS = [4, 3];
 
 // Todas las ventanas por las que se puede preguntar, de la más larga a la más
 // corta. Las de cuatro dicen más que las de tres, así que van primero.
@@ -250,29 +250,29 @@ export const LARGOS = [4, 3];
 // Sin repetir: una progresión que da la vuelta —C G Am F C G Am F— vuelve a
 // pasar por las mismas ventanas, y preguntar dos veces lo mismo daría dos veces
 // la misma respuesta. Manda la primera vez que aparece cada firma.
-export function ventanas(acordes) {
-  const leidas = acordes.map(lectura);
-  const vistas = new Set();
+export function windows(chords) {
+  const readings = chords.map(reading);
+  const seen = new Set();
   const out = [];
-  for (const n of LARGOS) {
-    if (acordes.length < n) continue;
-    if (acordes.length === n && n !== LARGOS[0] && out.length) break;
-    for (let i = 0; i + n <= leidas.length; i++) {
-      const f = firmaVentana(leidas, i, n);
-      if (!f || vistas.has(f)) continue;
-      vistas.add(f);
-      out.push({ firma: f, desde: i, largo: n, acordes: acordes.slice(i, i + n) });
+  for (const n of LENGTHS) {
+    if (chords.length < n) continue;
+    if (chords.length === n && n !== LENGTHS[0] && out.length) break;
+    for (let i = 0; i + n <= readings.length; i++) {
+      const f = windowSignature(readings, i, n);
+      if (!f || seen.has(f)) continue;
+      seen.add(f);
+      out.push({ signature: f, from: i, length: n, chords: chords.slice(i, i + n) });
     }
   }
   return out;
 }
 
-// { total, canciones: [{ id, song, artist }] } o null si esa ventana no está en
+// { total, songs: [{ id, song, artist }] } o null si esa ventana no está en
 // ninguna canción del catálogo.
-export async function dondeSuena(ventana) {
-  const cubo = await traer(`progresiones/${ventana.largo}/${huella(ventana.firma)}.json`);
-  const e = cubo?.[ventana.firma];
+export async function whereSounds(window) {
+  const bucket = await load(`progresiones/${window.length}/${fingerprint(window.signature)}.json`);
+  const e = bucket?.[window.signature];
   if (!e) return null;
-  const [total, muestra] = e;
-  return { total, canciones: muestra.map(([id, song, artist]) => ({ id, song, artist: artist ?? "" })) };
+  const [total, sample] = e;
+  return { total, songs: sample.map(([id, song, artist]) => ({ id, song, artist: artist ?? "" })) };
 }

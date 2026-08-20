@@ -1,6 +1,6 @@
 import { Chord, Note } from "tonal";
-import { qualityOf, transposeSymbol, intervalTo, optionsFor, esAdorno } from "./rules.js";
-import { alAire, PRESETS, mejorCadena } from "./reharm.js";
+import { qualityOf, transposeSymbol, intervalTo, optionsFor, isAdornment } from "./rules.js";
+import { openStrings, PRESETS, bestChain } from "./reharm.js";
 import { dbSpelling, playablePositions, MAX_FRET, STRINGS } from "./guitar.js";
 import { noteName } from "./notes.js";
 
@@ -78,39 +78,39 @@ export function capoSuggestions(progression, maxFret = 7) {
 
 // El coste es el mismo que usa la rearmonización, con su preset resonante; aquí
 // solo se añade la cejilla como dimensión de búsqueda y el filtro de solo-adornos.
-const RESONANTE = PRESETS.find(p => p.id === "resonancia");
+const RESONANT = PRESETS.find(p => p.id === "resonance");
 
 // ponytail: peaje fijo por adornar, fuera del vocabulario de pesos; es el mando
 // de cuántos adornos salen, no parte del coste de encadenar.
-const costeNodo = n => -RESONANTE.w.aire * n.aire + (n.rule ? 1 : 0);
+const nodeCost = n => -RESONANT.w.open * n.open + (n.rule ? 1 : 0);
 
 // Para cada cejilla, el mejor arreglo que se puede tocar detrás de ella. Null si
 // la BD no da digitaciones para alguno de los acordes.
-function arreglo(db, progression, capo) {
+function arrangement(db, progression, capo) {
   const layers = optionsFor(progression).map(options => options
-    .filter(esAdorno)
+    .filter(isAdornment)
     .flatMap(o => playablePositions(db, shapeSymbol(o.chords[0], capo))
       // Los trastes de la forma se cuentan desde la cejilla, así que lo que hay
       // que comprobar es dónde caen de verdad en el mástil.
       .filter(v => v.frets.every(f => capo + f <= MAX_FRET))
-      .map(v => ({ ...v, aire: alAire(v.frets), sounding: o.chords[0], rule: o.rule }))));
+      .map(v => ({ ...v, open: openStrings(v.frets), sounding: o.chords[0], rule: o.rule }))));
   if (layers.some(l => !l.length)) return null;
 
-  const cadena = mejorCadena(layers, RESONANTE, costeNodo);
-  const quietas = cadena.slice(1).reduce((n, p, i) =>
-    n + p.frets.filter((f, s) => f >= 0 && f === cadena[i].frets[s]).length, 0);
+  const chain = bestChain(layers, RESONANT, nodeCost);
+  const still = chain.slice(1).reduce((n, p, i) =>
+    n + p.frets.filter((f, s) => f >= 0 && f === chain[i].frets[s]).length, 0);
   return {
     capo,
-    steps: cadena.map((n, i) => ({
+    steps: chain.map((n, i) => ({
       sounding: n.sounding,
       shape: n.symbol,
       position: n.position,
       frets: n.frets,
-      aire: n.aire,
+      open: n.open,
       changed: n.sounding !== progression[i].symbol,
     })),
-    aire: cadena.reduce((n, x) => n + x.aire, 0),
-    quietas,
+    open: chain.reduce((n, x) => n + x.open, 0),
+    still,
   };
 }
 
@@ -120,8 +120,8 @@ function arreglo(db, progression, capo) {
 export function capoArrangements(db, progression, maxFret = 7) {
   const out = [];
   for (let capo = 0; capo <= maxFret; capo++) {
-    const a = arreglo(db, progression, capo);
+    const a = arrangement(db, progression, capo);
     if (a) out.push(a);
   }
-  return out.sort((x, y) => y.aire - x.aire || y.quietas - x.quietas || x.capo - y.capo);
+  return out.sort((x, y) => y.open - x.open || y.still - x.still || x.capo - y.capo);
 }

@@ -13,7 +13,7 @@ export const dbSpelling = note => DB_SPELLING[Note.chroma(note)];
 // estándar y es la única que conoce chords-db: las demás valen donde las notas
 // se leen del mástil (el analizador), no de la base de datos de diagramas.
 export const TUNINGS = [
-  { id: "estandar", name: "afinación estándar", midis: [40, 45, 50, 55, 59, 64] },
+  { id: "standard", name: "afinación estándar", midis: [40, 45, 50, 55, 59, 64] },
   { id: "dropd", name: "Drop D", midis: [38, 45, 50, 55, 59, 64] },
   { id: "dadgad", name: "DADGAD", midis: [38, 45, 50, 55, 57, 62] },
   { id: "openg", name: "Open G", midis: [38, 43, 50, 55, 59, 62] },

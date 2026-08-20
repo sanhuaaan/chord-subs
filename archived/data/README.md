@@ -29,11 +29,11 @@ que tampoco cuentan en los totales.
 
 ```bash
 python3 -m venv venv && venv/bin/pip install duckdb
-venv/bin/python guardado/datos/preparar.py canciones.jsonl   # ~5 min, 92 MB de descarga
-node --max-old-space-size=8000 guardado/datos/construir.mjs canciones.jsonl ../de-chordis-mysteriis
+venv/bin/python archived/data/prepare.py songs.jsonl   # ~5 min, 92 MB de descarga
+node --max-old-space-size=8000 archived/data/build.mjs songs.jsonl ../de-chordis-mysteriis
 ```
 
-`preparar.py` deja una línea de JSON por canción con los títulos ya resueltos. `construir.mjs`
+`prepare.py` deja una línea de JSON por canción con los títulos ya resueltos. `build.mjs`
 hace el resto: traducir la grafía, partir en partes, y escribir los tres índices.
 
 Publicar es hacer commit en el tomo y empujar: GitHub Pages sirve la carpeta tal cual, con
@@ -44,7 +44,7 @@ cd ../de-chordis-mysteriis && git add -A && git commit -m "data: …" && git pus
 ```
 
 Para trabajar contra una copia local no hace falta tocar el código: `localStorage.catalogo` manda
-sobre la constante de `catalogo.js`, igual que `localStorage.proxy` con el worker.
+sobre la constante de `catalog.js`, igual que `localStorage.proxy` con el worker.
 
 ```js
 localStorage.catalogo = "http://127.0.0.1:8124"
@@ -52,7 +52,7 @@ localStorage.catalogo = "http://127.0.0.1:8124"
 
 ## La grafía
 
-Chordonomicon escribe los acordes a su manera: `Amin`, `Fs7`, `A/Cs`, `Dno3d`. `grafia.mjs` la
+Chordonomicon escribe los acordes a su manera: `Amin`, `Fs7`, `A/Cs`, `Dno3d`. `spelling.mjs` la
 traduce a la que lee tonal y con la tabla de notas de la app (`Ds` sale como `Eb`, que es como lo
 escribe el resto de jangle). El **99,93%** de los 52 millones de acordes traduce exacto; el resto
 son cifrados que tonal no sabe leer (`Fmaj911s`, `Aaugmaj7`) y bajan por una escalera de
@@ -78,7 +78,7 @@ menos, y como el `sort` del navegador es estable, a igualdad de acierto manda es
 guardar un número por fila.
 
 **Progresiones.** La firma de una ventana no depende del tono ni del color: `Am F C G` y `Bm G D A`
-son la misma, y `Am7 F C Gsus4` también (ver `catalogo.js`, que es de donde sale la función: si
+son la misma, y `Am7 F C Gsus4` también (ver `catalog.js`, que es de donde sale la función: si
 cambia, hay que rehacer los datos). Se indexan ventanas de cuatro y de tres acordes, no
 progresiones enteras, para que una canción que lleva un trozo de la tuya también aparezca. De cada
 firma se guarda **cuántas canciones la tienen** y una **muestra de hasta 40**, dos por intérprete
