@@ -212,7 +212,7 @@ function capoCard(a) {
   li.append(el("strong", { textContent: a.capo ? `Cejilla en traste ${a.capo}` : "Sin cejilla" }));
   if (a.steps) {
     li.append(" ", el("small", {
-      textContent: `${plural(a.open, "cuerda al open", "cuerdas al open")} · ${plural(a.still, "nota que no se mueve", "notas que no se mueven")}`,
+      textContent: `${plural(a.open, "cuerda al aire", "cuerdas al aire")} · ${plural(a.still, "nota que no se mueve", "notas que no se mueven")}`,
     }));
     li.append(chartOf(a));
   }
@@ -413,13 +413,13 @@ function renderReharm(progression) {
     const conjunct = `${v.conjunct} de ${v.moves} movimientos por grado conjunto`;
     li.append(el("p", {
       className: "why",
-      textContent: `${conjunct}, ${plural(v.held, "nota repetida", "notas repetidas")} y ${plural(v.leaps, "leap", "saltos")}.`,
+      textContent: `${conjunct}, ${plural(v.held, "nota repetida", "notas repetidas")} y ${plural(v.leaps, "salto", "saltos")}.`,
     }));
     // Los mismos números en todas las tarjetas, gane quien gane: comparar la
     // resonante con la melódica es justo para lo que están.
     li.append(el("p", {
       className: "why",
-      textContent: `${plural(v.open, "cuerda al open", "cuerdas al open")}, ${plural(v.common, "nota común", "notas common")} y ${plural(v.movement, "semitono", "semitonos")} de movimiento entre voces.`,
+      textContent: `${plural(v.open, "cuerda al aire", "cuerdas al aire")}, ${plural(v.common, "nota común", "notas comunes")} y ${plural(v.movement, "semitono", "semitonos")} de movimiento entre voces.`,
     }));
     for (const s of v.steps.filter(x => x.rule && x.changed)) {
       li.append(el("p", {
@@ -447,7 +447,7 @@ function retuneCard(a) {
     textContent: `${a.tuning.notes} · ${a.tuning.name}${a.capo ? ` · cejilla en ${a.capo}` : ""}`,
   }));
   li.append(" ", el("small", {
-    textContent: `${plural(a.open, "cuerda al open", "cuerdas al open")} · ${plural(a.still, "nota que no se mueve", "notas que no se mueven")}`,
+    textContent: `${plural(a.open, "cuerda al aire", "cuerdas al aire")} · ${plural(a.still, "nota que no se mueve", "notas que no se mueven")}`,
   }));
   const chart = el("div", { className: "chart" });
   for (const s of a.steps) {

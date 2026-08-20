@@ -39,7 +39,6 @@ const extTable = c => {
 // Para cada cejilla 0..maxFret, qué cuerdas al aire extienden cada acorde de la
 // progresión (sin digitaciones: eso lo pone el guitarrista). Ordenado de más a
 // menos color ganado: acordes cubiertos, luego extensiones totales, luego traste.
-// ponytail: nombre naive sobre la raíz; Cmaj7 + 9 al aire sale como Cadd9, no Cmaj9
 export function capoSuggestions(progression, maxFret = 7) {
   const chords = [...new Map(progression.map(c => [c.symbol, c])).values()];
   const out = [];
