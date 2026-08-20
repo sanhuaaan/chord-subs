@@ -53,7 +53,7 @@ siempre a la vista — no se abre ni se cierra, así que nunca empuja lo que est
 Los nombres de acorde del resto de la app llevan ahí: al pulsar cualquiera, su primera
 posición de la base de datos se carga en el mástil. Se carga siempre lo que
 pone escrito, no la forma del tooltip — en la pestaña de cejilla el tooltip enseña la forma
-transpuesta que se toca, pero el mástil no sabe de cejillas y nombrarla daría el acorde equivocado.
+transpuesta que se toca, y nombrarla daría el acorde equivocado.
 
 Las grafías van con sostenidos, como se leen en guitarra: `C#` y no `Db`, `Eb` y no `D#`. Hay tres
 respuestas posibles a "cómo se escribe este sonido" y la app las tiene separadas a propósito, porque
@@ -134,9 +134,9 @@ sugerencia se puede ver dibujada y abrir en el mástil. Hay un test que lo compr
 ## Cejilla: cómo suena al aire
 
 La pestaña **Cejilla** responde a dos preguntas por cada posición de cejilla, y en ese orden. Se
-enseñan las tres cejillas que más resuenan; el resto de trastes queda en la fila **«Otras
-cejillas»**, cada uno a un clic — el ranking propone, pero a lo mejor la canción pide justo la
-cejilla que no ganó.
+enseñan las tres cejillas que más resuenan; el resto sale dosificado con el botón **«ver otra
+cejilla»**, que en cada pulsación saca la siguiente del ranking, dice cuántas quedan y se va con la
+última — el ranking propone, pero a lo mejor la canción pide justo la cejilla que no ganó.
 
 Arriba, **cómo se toca**: el arreglo que más resuena detrás de esa cejilla, con un diagrama por
 acorde y la cuenta de lo que se gana. Para `C Am F G` la mejor sale con cejilla en el traste 5, donde
@@ -210,11 +210,46 @@ vector de pesos de cada versión. Sobre eso mandan tres reglas de sentido común
 Al pulsar cualquier acorde del arreglo se abre en el analizador **esa digitación concreta**, no la
 primera de la base de datos, que es justamente la que hace la línea.
 
+## Afinaciones: qué preparación le sienta mejor
+
+La pestaña **Afinaciones** deja que las afinaciones compitan por tu progresión: las cinco con
+nombre (estándar, Drop D, DADGAD, Open G, Open D) más la personalizada si la has creado en el
+analizador. Para cada una busca el mejor arreglo con el mismo camino mínimo resonante de la
+cejilla y los mismos adornos, y como el preset y la progresión son los mismos en todas, **los
+costes por fin son comparables**: las tarjetas van ordenadas por coste total y la primera es la
+afinación que más le resuena a lo que has escrito. La estándar compite como una más — cuando gana,
+te ahorra reafinar.
+
+Las digitaciones no salen de la base de datos, que solo sabe de estándar: las produce un
+**generador de digitaciones** (`generate.js`) que busca por ventanas de cuatro trastes formas
+tocables — al menos cuatro cuerdas, solo notas del acorde, la fundamental siempre, el bajo
+fundamental o quinta, mudas solo en los extremos, y cuatro dedos con la cejilla contando como uno.
+En estándar encuentra solas las formas de toda la vida, que es el test que lo mantiene honesto.
+
+Cada tarjeta lleva un desplegable **«probar con cejilla»** que añade la cejilla como dimensión del
+setup: prueba esa afinación con cejilla del 1 al 5 y enseña las tres que más resuenan. Para
+`D G A D` gana Open D con `D · Gsus2 · A6 · Dmaj7` y 19 cuerdas al aire, frente a las 10 de la
+estándar pelada.
+
+Al pulsar cualquier acorde, el analizador se pone en ese setup entero —afinación y cejilla— y
+enseña la digitación sonando lo que dice la tarjeta. Ojo al solape con la pestaña Cejilla:
+«estándar + cejilla 2» aquí y «cejilla en 2» allí pueden dar arreglos distintos, porque esta
+pestaña usa digitaciones generadas y aquella las formas curadas de la base de datos. Son dos
+preguntas distintas: qué es posible si preparas el instrumento, contra cómo se toca con las formas
+que ya conoces.
+
 ## Identificar un acorde desde el mástil
 
 En el **identificador de acordes** hay un mástil de 15 trastes donde cada cuerda suena una sola nota:
 al pulsar un traste la nota se mueve ahí, al volver a pulsar donde ya estaba la cuerda se apaga, y la
 columna a la izquierda de la cejuela alterna al aire y muda (×).
+
+El mástil tiene **selector de afinación**: las cinco con nombre y una **personalizada** que se
+edita cuerda a cuerda (cada una en una octava alrededor de la estándar), hereda la afinación que
+estuviera puesta —elegir Open G y de ahí retocar es justo cómo se inventa una afinación— y
+sobrevive a recargas. Cambiarla renombra lo que suena, no lo que está marcado: las mismas seis
+cuerdas al aire son `Dsus4` en DADGAD y `G/D` en Open G. Cargar un acorde desde otra pestaña
+devuelve el mástil a estándar, salvo que venga de Afinaciones, que trae la suya puesta.
 
 Cada nota lleva su nombre escrito dentro, la fundamental va en otro color para localizarla en el
 mástil, y a la derecha de cada cuerda aparece el papel que juega esa nota en el acorde (`1`, `3`,
@@ -393,5 +428,6 @@ Los tests (`test.js`) cubren el parser y cada regla con `node --test`.
 
 Las ideas que salieron trabajando y quedaron apuntadas en [MEJORAS.md](MEJORAS.md): afinar los
 nombres de la pestaña de cejilla (el caso `m13`, que es correcto pero la base de datos de diagramas no
-indexa) y llevar el buscador de arreglos a afinaciones abiertas, que pide generar las digitaciones en
-vez de buscarlas. Ahí está también, con sus medidas, lo que dio de sí el catálogo antes de guardarlo.
+indexa) y llevar el generador de digitaciones también a la pestaña Cejilla en estándar, donde la base
+de datos limita a cuatro posiciones por acorde. Ahí está también, con sus medidas, lo que dio de sí
+el catálogo antes de guardarlo.

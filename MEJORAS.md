@@ -37,55 +37,57 @@ entre ambos (`7/11` → `11`, `m7/11` → `m11`…) permitiría usar `spell` sin
 la posibilidad de dibujar. Antes de hacerlo conviene ver cuántos casos son de
 verdad, porque puede que la tabla actual ya cubra el 96% con menos código.
 
-## 2. Afinaciones abiertas
+## 2. Afinaciones abiertas — hecho (2026-08-20)
 
-**La idea.** El buscador de arreglos de la pestaña de cejilla premia cuerdas al
-aire y notas que no se mueven. En afinación estándar eso tiene un techo: las seis
-cuerdas al aire dan `E A D G B E` y punto. En una afinación abierta —DADGAD, Open
-G, Open D— las cuerdas al aire ya forman un acorde, y el mismo criterio daría
-resultados mucho más jugosos. Es literalmente el sonido que da nombre a la app.
+Implementado el mismo día en el orden que se planeó por la mañana: el selector
+de afinación en el analizador fijó la representación (los seis midis al aire,
+de 6ª a 1ª), el generador de digitaciones puso lo que chords-db no tiene, y la
+pestaña **Afinaciones** enchufó el motor. El punto de partida era que tras el
+hilo 3 el motor ya era agnóstico a la afinación: `linkCost`, el emparejamiento
+de voces y los presets operan sobre midis y trastes, nada ahí supone estándar.
 
-**Por qué encaja.** El motor no cambia: es el mismo camino mínimo sobre adornos ×
-digitaciones con la misma función de coste. Lo que cambia es de dónde salen las
-notas: `STRINGS` en `guitar.js` es la afinación, y de ella cuelgan el nombre de
-cada nota del mástil, la identificación de acordes, qué cuerda al aire extiende
-qué acorde y la voz superior de la rearmonización. Todo eso ya lee de ahí, así
-que buena parte sería pasar la afinación como parámetro en vez de darla por
-supuesta.
+**El analizador sabe de afinaciones.** `TUNINGS` en guitar.js (estándar, Drop
+D, DADGAD, Open G, Open D) más una **personalizada** que se edita cuerda a
+cuerda, hereda la afinación puesta al elegirla —elegir Open G y retocar es como
+se inventa una afinación— y sobrevive en localStorage. Cambiar de afinación
+renombra lo que suena, no lo que está marcado. Cargar un acorde desde otra
+pestaña vuelve a estándar, salvo que la tarjeta traiga la suya.
 
-**El bloqueo real.** Las digitaciones vienen de `chords-db`, y **sus posiciones
-suponen afinación estándar**. En otra afinación esos diagramas son sencillamente
-falsos: los mismos trastes suenan otras notas. Así que no basta con cambiar
-`STRINGS`; hace falta **generar** las digitaciones en vez de buscarlas: dado un
-acorde y una afinación, encontrar las combinaciones de trastes que suenan solo sus
-notas, que caben en una mano y que dejan cuerdas al aire.
+**El generador (`generate.js`).** Dado un acorde y una afinación, busca por
+ventanas de cuatro trastes digitaciones tocables: al menos cuatro cuerdas, solo
+notas del acorde, la fundamental siempre (la quinta justa es omisible cuando
+hay séptimas o tensiones que defender), el bajo fundamental o quinta, mudas
+solo en los extremos y cuatro dedos con la cejilla contando como uno —salvo que
+quede una cuerda al aire por encima, que entonces no hay barra que valga—. La
+salida calca el contrato de `playablePositions`, con su `position` relativa
+para los diagramas, así que motor, diagramas y analizador la consumen sin saber
+de dónde salió. El arnés que lo mantiene honesto: las formas curadas de
+chords-db deben aparecer entre lo generado, y las seis-al-aire de Open G y
+Open D también.
 
-**Lo que se ganaría de paso.** Ese generador serviría también en afinación
-estándar, donde hoy la base de datos ofrece solo cuatro posiciones por acorde —y
-esas cuatro son el techo de lo que el buscador de arreglos puede elegir. Con
-digitaciones generadas, el mismo motor tendría mucho más de donde escoger sin
-tocar una línea de su lógica.
+**La pestaña compite setups, no afinaciones.** Un setup es afinación + cejilla
+opcional; la cejilla es solo una afinación virtual (midis + traste), así que no
+hay formas con nombre que transponer y las notas salen bien solas. Cada capa
+son los adornos del acorde (el mismo filtro `esAdorno` de la cejilla, ahora en
+rules.js) por sus digitaciones generadas, encadenados con el mismo camino
+mínimo resonante (`mejorCadena`, movida a reharm.js y parametrizada por preset
+y coste de nodo). Mismo preset y misma progresión en todos los setups: los
+costes por fin SON comparables y las tarjetas se ordenan por coste total. La
+estándar compite como una más —perder contra ella ahorra reafinar—. Las
+cejillas van bajo demanda (desplegable por tarjeta, trastes 1–5, las tres
+mejores), que el producto completo serían segundos de cálculo.
 
-**Tamaño.** Es la más grande de las dos con diferencia: un generador de
-digitaciones es un proyecto en sí mismo, con sus propias reglas de tocabilidad
-(apertura de la mano, cuerdas mudas por el medio, cejillas parciales). Merece la
-pena solo si de verdad quieres explorar afinaciones abiertas; para pulir la
-estándar hay caminos más baratos.
+**El solape asumido.** «Estándar + cejilla N» aquí y la pestaña Cejilla pueden
+responder distinto, porque beben de fuentes distintas: digitaciones generadas
+contra formas curadas. Son dos preguntas —qué es posible si preparas el
+instrumento, contra cómo se toca con las formas que ya conoces— y está contado
+así en el README.
 
-**El destino concreto (2026-08-20).** Una **pestaña nueva y separada** que tome
-el motor unificado de rearmonizar y cejilla —que tras el hilo 3 ya es agnóstico
-a la afinación: `linkCost`, el emparejamiento de voces y los presets operan
-sobre midis y trastes, nada ahí supone estándar— y lo aplique sobre digitaciones
-generadas para la afinación elegida. Separada a propósito: lo generado es
-tocable pero no siempre idiomático, y mezclarlo con las formas curadas de
-chords-db degradaría las pestañas que ya funcionan. Si el generador madura, ya
-se verá si sustituye a la base de datos también en estándar.
-
-**El orden.** Primero el **selector de afinación en el analizador**, que es casi
-gratis —ahí la afinación son solo los seis midis de las cuerdas al aire— y
-obliga a decidir la representación común (presets tipo Drop D, DADGAD, Open G, y
-custom por cuerda) que luego hereda todo lo demás. Después el generador, que es
-el 80% del esfuerzo. La pestaña, al final, es enchufar el motor.
+**Lo que quedó fuera, a posta** (marcado `ponytail:` en el código): cejillas
+parciales, mudas interiores y ergonomía fina de la mano. Y **lo que se ganaría
+de paso** sigue pendiente: usar el generador también en la pestaña Cejilla, en
+estándar, donde la base de datos da solo cuatro posiciones por acorde y eso es
+el techo de su buscador de arreglos.
 
 ## 3. Rearmonización mediante sistema de costes — hecho (2026-08-19)
 
