@@ -237,7 +237,9 @@ function capoCard(a) {
 }
 
 let capoColores = new Map();
-let capoExtra = new Map(); // cejillas que el ranking dejó fuera, por traste
+let capoExtra = []; // cejillas que el ranking dejó fuera, en su orden
+const quedanCejillas = () =>
+  `ver otra cejilla · ${capoExtra.length === 1 ? "queda una" : `quedan ${capoExtra.length}`}`;
 
 function renderCapo(progression) {
   capoColores = new Map(capoSuggestions(progression).map(cp => [cp.capo, cp]));
@@ -247,30 +249,23 @@ function renderCapo(progression) {
 
   for (const a of todos.slice(0, 3)) capoList.append(capoCard(a));
 
-  // El resto de trastes, a un clic: el ranking propone, pero a lo mejor la
-  // canción pide justo la cejilla que no ganó.
-  capoExtra = new Map(todos.slice(3).map(a => [a.capo, a]));
-  if (!capoExtra.size) return;
+  // El resto de trastes, dosificado: un solo botón que en cada pulsación saca
+  // la siguiente del ranking, dice cuántas quedan y se va con la última.
+  capoExtra = todos.slice(3);
+  if (!capoExtra.length) return;
   const fila = el("li", { className: "otras-cejillas" });
-  fila.append(el("span", { className: "why", textContent: "Otras cejillas:" }));
-  for (const a of [...capoExtra.values()].sort((x, y) => x.capo - y.capo)) {
-    const b = el("button", { type: "button", textContent: a.capo ? `traste ${a.capo}` : "sin cejilla" });
-    b.dataset.capo = a.capo;
-    if (a.aire != null) b.title = `${plural(a.aire, "cuerda al aire", "cuerdas al aire")}`;
-    fila.append(b);
-  }
+  fila.append(el("button", { type: "button", textContent: quedanCejillas() }));
   capoList.append(fila);
 }
 
-// Abrir una cejilla del resto: su tarjeta aparece donde estaba la fila de
-// botones, y el botón se gasta. La fila desaparece con el último.
+// Ver otra cejilla: la tarjeta aparece donde está el botón, que baja con ella.
 capoList.addEventListener("click", e => {
-  const btn = e.target.closest("button[data-capo]");
+  const btn = e.target.closest(".otras-cejillas button");
   if (!btn) return;
   const fila = btn.closest("li");
-  fila.before(capoCard(capoExtra.get(Number(btn.dataset.capo))));
-  btn.remove();
-  if (!fila.querySelector("button")) fila.remove();
+  fila.before(capoCard(capoExtra.shift()));
+  if (capoExtra.length) btn.textContent = quedanCejillas();
+  else fila.remove();
 });
 
 
@@ -438,8 +433,7 @@ function renderReharm(progression) {
 // todos: los costes son comparables y el orden dice qué setup le sienta mejor
 // a lo que has escrito. Las cejillas no compiten de salida —serían decenas de
 // setups y segundos de cálculo—: cada afinación lleva un botón que las prueba.
-let retuneProg = null;       // la progresión pintada, para expandir cejillas
-let retuneCandidatas = [];   // los setups base, por id
+let retuneProg = null; // la progresión pintada, para expandir cejillas
 
 function retuneCard(a) {
   const li = document.createElement("li");
@@ -469,30 +463,34 @@ function retuneCard(a) {
   }
   li.append(chart);
   if (!a.capo) {
-    const b = el("button", { type: "button", textContent: "probar con cejilla" });
-    b.dataset.tuning = a.tuning.id;
-    li.append(b);
+    // Probar con cejilla: un desplegable que, la primera vez que se abre,
+    // calcula esa afinación con cejilla del 1 al 5 y enseña dentro las tres
+    // que más resuenan. Cerrarlo las esconde sin recalcular.
+    const det = el("details", { className: "cejillas" });
+    det.append(el("summary", { textContent: "probar con cejilla" }));
+    det.addEventListener("toggle", () => {
+      if (!det.open || det.dataset.hecho) return;
+      det.dataset.hecho = "1";
+      const ul = el("ul", { className: "cejillas-lista" });
+      ul.append(el("li", { className: "why", textContent: "calculando…" }));
+      det.append(ul);
+      // El cálculo en el hilo congelaría la animación de apertura: se difiere
+      // hasta que el plegado (0.25s) haya terminado.
+      setTimeout(() => {
+        const capos = tuningArrangements(retuneProg, [1, 2, 3, 4, 5].map(capo => ({ ...a.tuning, capo })));
+        ul.replaceChildren(...capos.slice(0, 3).map(retuneCard));
+      }, 260);
+    });
+    li.append(det);
   }
   return li;
 }
 
 function renderRetune(progression) {
   retuneProg = progression;
-  retuneCandidatas = [...TUNINGS, ...(custom.midis ? [{ ...custom, notes: custom.midis.map(noteName).join(" ") }] : [])];
-  for (const a of tuningArrangements(progression, retuneCandidatas)) retuneList.append(retuneCard(a));
+  const candidatas = [...TUNINGS, ...(custom.midis ? [{ ...custom, notes: custom.midis.map(noteName).join(" ") }] : [])];
+  for (const a of tuningArrangements(progression, candidatas)) retuneList.append(retuneCard(a));
 }
-
-// Probar con cejilla: los setups de esa afinación con cejilla del 1 al 5, y
-// las tres que más resuenan se cuelan debajo de su tarjeta. El botón se gasta.
-retuneList.addEventListener("click", e => {
-  const btn = e.target.closest("button[data-tuning]");
-  if (!btn) return;
-  const t = retuneCandidatas.find(x => x.id === btn.dataset.tuning);
-  const li = btn.closest("li");
-  const capos = tuningArrangements(retuneProg, [1, 2, 3, 4, 5].map(capo => ({ ...t, capo })));
-  for (const a of capos.slice(0, 3).reverse()) li.after(retuneCard(a));
-  btn.remove();
-});
 
 // ── Identificador de acordes: mástil clicable → nombre del acorde ───────────
 
