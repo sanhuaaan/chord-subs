@@ -447,9 +447,12 @@ function renderRetune(progression) {
     const chart = el("div", { className: "chart" });
     for (const s of a.steps) {
       const step = el("div", { className: "step" });
-      // ponytail: sin data-frets — el analizador carga en estándar y estos
-      // trastes son de otra afinación; abrirlos ahí sonaría a otro acorde
       const name = el("span", { className: "chord", textContent: s.symbol });
+      // El clic lleva la afinación consigo: el analizador se pone en ella y
+      // los trastes suenan a lo que dice la tarjeta.
+      name.dataset.frets = s.frets.join(",");
+      name.dataset.midis = a.tuning.midis.join(",");
+      name.dataset.root = rootOf(s.symbol);
       const svg = document.createElement("span");
       svg.innerHTML = shapeSvg(s.position);
       step.append(name, svg, el("span", {
@@ -603,11 +606,17 @@ document.addEventListener("click", e => {
   picked.splice(0, 6, ...frets);
   capo = Number(origen.dataset.capo ?? 0);
   chosenRoot = origen.dataset.root ?? null;
-  // Las digitaciones de las otras pestañas vienen de chords-db, que solo sabe
-  // de estándar: en otra afinación esos trastes sonarían otro acorde.
-  tuning = TUNINGS[0];
+  // Las digitaciones de las otras pestañas vienen de chords-db (estándar),
+  // salvo las de Afinaciones, que traen la suya en data-midis: el mástil se
+  // pone en esa afinación para que los trastes suenen a lo que dice la tarjeta.
+  const midis = origen.dataset.midis ? origen.dataset.midis.split(",").map(Number) : TUNINGS[0].midis;
+  tuning = TUNINGS.find(t => t.midis.join() === midis.join()) ?? custom;
+  if (tuning === custom) {
+    custom.midis = midis;
+    renderCustomRow();
+  }
   tuningSel.value = tuning.id;
-  customRow.hidden = true;
+  customRow.hidden = tuning !== custom;
   renderIdent();
 });
 
